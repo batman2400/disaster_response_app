@@ -2,4 +2,12 @@
 
 CodeArena'26 · Topic 04 · Disaster Response.
 
-The full 36-hour build plan, demo-critical spine, and checklist live in **[PLAN.md](PLAN.md)**.
+- Full plan: [PLAN.md](PLAN.md)
+- Friend / UI instructions: [HANDOFF.md](HANDOFF.md)
+
+```
+backend/          Next.js API (stub pipeline ready)
+disaster-mobile/  Expo SDK 57 app (role picker + four roles)
+shared/           Locked TypeScript contract
+supabase/         schema.sql, policies.sql, seed.sql
+```

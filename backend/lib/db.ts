@@ -1,0 +1,169 @@
+import { stripDataUrl } from "./gemini";
+import { getSupabase, HAZARD_BUCKET } from "./supabase";
+import {
+  aiSettings,
+  getHazard as memoryGetHazard,
+  listHazards as memoryListHazards,
+  shelters as memoryShelters,
+  upsertHazard as memoryUpsert,
+  wards as memoryWards,
+} from "./store";
+import type { AiSettings, HazardRow, ShelterRow, WardRow } from "./types";
+
+function asHazard(row: Record<string, unknown>): HazardRow {
+  return {
+    id: String(row.id),
+    lat: Number(row.lat),
+    lng: Number(row.lng),
+    ward_id: row.ward_id as HazardRow["ward_id"],
+    category: row.category as HazardRow["category"],
+    description: (row.description as string | null) ?? null,
+    photo_url: (row.photo_url as string | null) ?? null,
+    status: row.status as HazardRow["status"],
+    urgency: row.urgency as HazardRow["urgency"],
+    confidence_score: Number(row.confidence_score ?? 0),
+    is_road_blocked: Boolean(row.is_road_blocked),
+    confirmations_count: Number(row.confirmations_count ?? 0),
+    created_at: String(row.created_at),
+    resolved_at: (row.resolved_at as string | null) ?? null,
+    closure_photo_url: (row.closure_photo_url as string | null) ?? null,
+  };
+}
+
+export async function listWards(): Promise<WardRow[]> {
+  const supabase = getSupabase();
+  if (!supabase) return memoryWards;
+  const { data, error } = await supabase.from("wards").select("*").order("id");
+  if (error || !data) return memoryWards;
+  return data as WardRow[];
+}
+
+export async function listHazards(): Promise<HazardRow[]> {
+  const supabase = getSupabase();
+  if (!supabase) return memoryListHazards();
+  const { data, error } = await supabase
+    .from("hazards")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error || !data) return memoryListHazards();
+  return data.map((row) => asHazard(row as Record<string, unknown>));
+}
+
+export async function listShelters(): Promise<ShelterRow[]> {
+  const supabase = getSupabase();
+  if (!supabase) return memoryShelters;
+  const { data, error } = await supabase.from("shelters").select("*");
+  if (error || !data) return memoryShelters;
+  return data as ShelterRow[];
+}
+
+export async function findHazard(id: string): Promise<HazardRow | null> {
+  const supabase = getSupabase();
+  if (!supabase) return memoryGetHazard(id);
+  const { data, error } = await supabase.from("hazards").select("*").eq("id", id).maybeSingle();
+  if (error || !data) return memoryGetHazard(id);
+  return asHazard(data as Record<string, unknown>);
+}
+
+export async function saveHazard(row: HazardRow) {
+  memoryUpsert(row);
+  const supabase = getSupabase();
+  if (!supabase) return row;
+  const { error } = await supabase.from("hazards").upsert({
+    id: row.id,
+    lat: row.lat,
+    lng: row.lng,
+    ward_id: row.ward_id,
+    category: row.category,
+    description: row.description,
+    photo_url: row.photo_url,
+    status: row.status,
+    urgency: row.urgency,
+    confidence_score: row.confidence_score,
+    is_road_blocked: row.is_road_blocked,
+    confirmations_count: row.confirmations_count,
+    created_at: row.created_at,
+    resolved_at: row.resolved_at,
+    closure_photo_url: row.closure_photo_url,
+  });
+  if (error) {
+    console.error("saveHazard", error.message);
+  }
+  return row;
+}
+
+export async function getAiSettings(): Promise<AiSettings> {
+  const supabase = getSupabase();
+  if (!supabase) return { ...aiSettings };
+  const { data, error } = await supabase
+    .from("ai_settings")
+    .select("confirm_threshold, reject_threshold")
+    .eq("id", 1)
+    .maybeSingle();
+  if (error || !data) return { ...aiSettings };
+  aiSettings.confirm_threshold = Number(data.confirm_threshold);
+  aiSettings.reject_threshold = Number(data.reject_threshold);
+  return { ...aiSettings };
+}
+
+export async function saveAiSettings(settings: AiSettings) {
+  aiSettings.confirm_threshold = settings.confirm_threshold;
+  aiSettings.reject_threshold = settings.reject_threshold;
+  const supabase = getSupabase();
+  if (!supabase) return settings;
+  await supabase
+    .from("ai_settings")
+    .update({
+      confirm_threshold: settings.confirm_threshold,
+      reject_threshold: settings.reject_threshold,
+    })
+    .eq("id", 1);
+  return settings;
+}
+
+export async function clusterCount(lat: number, lng: number) {
+  const supabase = getSupabase();
+  const since = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+  if (supabase) {
+    const { data, error } = await supabase.rpc("check_cluster", {
+      report_lat: lat,
+      report_lng: lng,
+      radius_meters: 200,
+      time_limit: since,
+    });
+    if (!error && Array.isArray(data)) {
+      return data.length;
+    }
+  }
+  const rows = await listHazards();
+  return rows.filter((row) => {
+    if (new Date(row.created_at).getTime() < Date.parse(since)) return false;
+    const R = 6371000;
+    const dLat = ((row.lat - lat) * Math.PI) / 180;
+    const dLng = ((row.lng - lng) * Math.PI) / 180;
+    const h =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos((lat * Math.PI) / 180) *
+        Math.cos((row.lat * Math.PI) / 180) *
+        Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(h))) <= 200;
+  }).length;
+}
+
+export async function uploadPhoto(id: string, photoBase64: string, kind: "report" | "closure") {
+  const supabase = getSupabase();
+  if (!supabase || !photoBase64) return null;
+  const { mimeType, data } = stripDataUrl(photoBase64);
+  const ext = mimeType.includes("png") ? "png" : "jpg";
+  const path = `${kind}/${id}.${ext}`;
+  const { error } = await supabase.storage.from(HAZARD_BUCKET).upload(path, Buffer.from(data, "base64"), {
+    contentType: mimeType,
+    upsert: true,
+  });
+  if (error) {
+    console.error("uploadPhoto", error.message);
+    return null;
+  }
+  const { data: pub } = supabase.storage.from(HAZARD_BUCKET).getPublicUrl(path);
+  return pub.publicUrl;
+}
