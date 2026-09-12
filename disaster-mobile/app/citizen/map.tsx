@@ -166,57 +166,58 @@ export default function PublicMapScreen() {
           </View>
         ) : null}
 
-        {/* Compact Horizontal Ward Telemetry Chips */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.wardScroll}
-          contentContainerStyle={styles.wardRow}
-        >
-          {wards.map((ward) => {
-            const statusDotColor = wardStatusColor[ward.status];
-            return (
-              <Pressable
-                key={ward.id}
-                style={styles.wardChip}
-                onPress={() => handleFocusWard(ward.id)}
-              >
-                <View style={[styles.statusDot, { backgroundColor: statusDotColor }]} />
-                <Text style={styles.wardChipText} numberOfLines={1}>
-                  {ward.name.split(" / ")[0]}
-                </Text>
-                <Text style={styles.wardChipData}>
-                  {ward.rainfall_mm}mm
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+        {/* Compact Horizontal Ward Telemetry Chips — hidden while a pin or the list is focused, to keep only one overlay in view at a time */}
+        {!selectedHazard && !isSheetExpanded ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.wardScroll}
+            contentContainerStyle={styles.wardRow}
+          >
+            {wards.map((ward) => {
+              const statusDotColor = wardStatusColor[ward.status];
+              return (
+                <Pressable
+                  key={ward.id}
+                  style={styles.wardChip}
+                  onPress={() => handleFocusWard(ward.id)}
+                >
+                  <View style={[styles.statusDot, { backgroundColor: statusDotColor }]} />
+                  <Text style={styles.wardChipText} numberOfLines={1}>
+                    {ward.name.split(" / ")[0]}
+                  </Text>
+                  <Text style={styles.wardChipData}>
+                    {ward.rainfall_mm}mm
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        ) : null}
       </View>
 
-      {/* 3. Floating Map Controls */}
-      <View
-        style={[
-          styles.controlsContainer,
-          { bottom: isSheetExpanded ? "53%" : selectedHazard ? 200 : 76 },
-        ]}
-        pointerEvents="box-none"
-      >
-        {activeSafeRouteWards.length > 0 ? (
-          <View style={styles.routePill}>
-            <View style={styles.routeDash} />
-            <Text style={styles.routeText}>Evacuation route active</Text>
-          </View>
-        ) : <View />}
-
-        <Pressable
-          style={styles.recenterBtn}
-          onPress={handleRecenterColombo}
-          accessibilityLabel="Recenter map"
+      {/* 3. Floating Map Controls — hidden while the pin preview card occupies the same space */}
+      {!selectedHazard ? (
+        <View
+          style={[styles.controlsContainer, { bottom: isSheetExpanded ? "53%" : 76 }]}
+          pointerEvents="box-none"
         >
-          <Ionicons name="locate" size={20} color={colors.blue} />
-        </Pressable>
-      </View>
+          {activeSafeRouteWards.length > 0 ? (
+            <View style={styles.routePill}>
+              <View style={styles.routeDash} />
+              <Text style={styles.routeText}>Evacuation route active</Text>
+            </View>
+          ) : <View />}
+
+          <Pressable
+            style={styles.recenterBtn}
+            onPress={handleRecenterColombo}
+            accessibilityLabel="Recenter map"
+          >
+            <Ionicons name="locate" size={20} color={colors.blue} />
+          </Pressable>
+        </View>
+      ) : null}
 
       {/* 4. Selected Pin Details Card (Popup above peek sheet) */}
       {selectedHazard && !isSheetExpanded ? (

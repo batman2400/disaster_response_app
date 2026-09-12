@@ -56,6 +56,7 @@ export function HazardMap({
             pinColor={PIN_COLORS[hazard.status]}
             title={hazard.category}
             description={`${hazard.status} · ${hazard.description ?? ""}`}
+            zIndex={isSelected ? 999 : 1}
             onPress={(e) => {
               e.stopPropagation();
               onSelectHazard?.(hazard);

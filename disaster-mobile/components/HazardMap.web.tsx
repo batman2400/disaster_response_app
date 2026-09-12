@@ -109,12 +109,17 @@ export function HazardMap({
           fillOpacity: 1,
         }).addTo(map);
 
-        const currentHazard = hazard;
+        const hazardId = hazard.id;
         marker.on?.("click", (e) => {
           if (e && typeof (e as { originalEvent?: Event }).originalEvent?.stopPropagation === "function") {
             (e as { originalEvent: Event }).originalEvent.stopPropagation();
           }
-          selectHandlerRef.current?.(currentHazard);
+          // Look up the hazard fresh at click-time instead of closing over the
+          // object from whenever this marker was first created — otherwise a
+          // realtime update (status change, new confirmation) never reaches
+          // the click handler and the preview card shows stale data.
+          const latest = hazardsRef.current.find((h) => h.id === hazardId) ?? null;
+          selectHandlerRef.current?.(latest);
         });
 
         markersRef.current.set(hazard.id, marker);
