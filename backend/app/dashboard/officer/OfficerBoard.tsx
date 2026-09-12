@@ -33,6 +33,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 
 import { AudioPlayer } from "@/components/audio-player";
+import { VoiceModal } from "@/components/voice-modal";
 import { DEMO_SAMPLE_AUDIO_URL } from "@/lib/demo-audio";
 
 import { PipelineAudit } from "@/app/dashboard/admin/pipeline/PipelineAudit";
@@ -136,6 +137,7 @@ export function OfficerBoard({
   const [showResolveModal, setShowResolveModal] = useState(false);
   const [showLightbox, setShowLightbox] = useState(false);
   const [showHydrographModal, setShowHydrographModal] = useState(false);
+  const [showVoiceModal, setShowVoiceModal] = useState(false);
   const [activeTileDetail, setActiveTileDetail] = useState<{
     id: string;
     label: string;
@@ -249,6 +251,7 @@ export function OfficerBoard({
         setShowResolveModal(false);
         setShowLightbox(false);
         setShowHydrographModal(false);
+        setShowVoiceModal(false);
         setActiveTileDetail(null);
       }
 
@@ -564,16 +567,32 @@ export function OfficerBoard({
                   <Card className="p-4">
                     <div className="mb-2 flex items-center justify-between">
                       <SectionLabel>1. Evidence</SectionLabel>
-                      {selected.photo_url ? (
+                      <div className="flex items-center gap-1.5">
+                        {selected.photo_url ? (
+                          <button
+                            type="button"
+                            onClick={() => setShowLightbox(true)}
+                            className="flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-bold text-brand hover:bg-brand/5 hover:underline transition-all"
+                          >
+                            <ZoomIn className="h-3 w-3" />
+                            <span>Inspect Zoom</span>
+                          </button>
+                        ) : null}
                         <button
                           type="button"
-                          onClick={() => setShowLightbox(true)}
-                          className="flex items-center gap-1 text-[11px] font-bold text-brand hover:underline"
+                          onClick={() => setShowVoiceModal(true)}
+                          className={cn(
+                            "flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-bold transition-all",
+                            selected.audio_url || demoAudioId === selected.id
+                              ? "bg-cyan-50 text-cyan-700 hover:bg-cyan-100 border border-cyan-200"
+                              : "text-slate-500 hover:text-brand hover:bg-slate-100 border border-transparent",
+                          )}
+                          title="Open Voice Intelligence Console"
                         >
-                          <ZoomIn className="h-3 w-3" />
-                          <span>Inspect Zoom</span>
+                          <Headphones className="h-3 w-3 text-cyan-600" />
+                          <span>{selected.audio_url || demoAudioId === selected.id ? "View Voice Note" : "Voice Console"}</span>
                         </button>
-                      ) : null}
+                      </div>
                     </div>
                     <div
                       onClick={() => selected.photo_url && setShowLightbox(true)}
@@ -609,30 +628,68 @@ export function OfficerBoard({
                             <Headphones className="h-3.5 w-3.5 text-brand" />
                             Citizen Voice Recording
                           </span>
-                          {selected.detected_language && (
-                            <span className="rounded-full bg-brand-light px-2 py-0.5 text-[10px] font-extrabold text-brand">
-                              {selected.detected_language}
-                            </span>
-                          )}
+                          <div className="flex items-center gap-1.5">
+                            {selected.detected_language && (
+                              <span className="rounded-full bg-brand-light px-2 py-0.5 text-[10px] font-extrabold text-brand">
+                                {selected.detected_language}
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setShowVoiceModal(true)}
+                              className="text-[10px] font-bold text-brand hover:underline flex items-center gap-0.5"
+                            >
+                              Expand ↗
+                            </button>
+                          </div>
                         </div>
                         <AudioPlayer
                           src={selected.audio_url || DEMO_SAMPLE_AUDIO_URL}
                           title={`Citizen Audio Memo #${selected.id.slice(0, 8).toUpperCase()}`}
                           language={selected.detected_language}
                         />
+                        {selected.summary && (
+                          <div className="mt-2 rounded-xl bg-slate-50 p-2.5 border border-slate-200/70 text-xs text-slate-700">
+                            <div className="flex items-center justify-between text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-0.5">
+                              <span>Spoken Transcript / Summary</span>
+                              <button
+                                type="button"
+                                onClick={() => setShowVoiceModal(true)}
+                                className="text-brand hover:underline font-bold text-[10px]"
+                              >
+                                View Intelligence ↗
+                              </button>
+                            </div>
+                            <p className="italic font-medium leading-relaxed">"{selected.summary}"</p>
+                          </div>
+                        )}
                       </div>
                     ) : (
-                      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-                        <span className="flex items-center gap-1.5 font-medium">
-                          <Mic className="h-3.5 w-3.5 text-slate-300" />
-                          No voice recording attached
-                        </span>
+                      <div className="mt-4 pt-3 border-t border-slate-100 space-y-2">
+                        <div className="flex items-center justify-between text-xs text-slate-400">
+                          <span className="flex items-center gap-1.5 font-medium">
+                            <Mic className="h-3.5 w-3.5 text-slate-300" />
+                            No voice recording attached
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDemoAudioId(selected.id);
+                              setShowVoiceModal(true);
+                            }}
+                            className="text-[11px] font-bold text-brand hover:underline flex items-center gap-1"
+                          >
+                            <Sparkles className="h-3 w-3" />
+                            Load Sample Audio
+                          </button>
+                        </div>
                         <button
                           type="button"
-                          onClick={() => setDemoAudioId(selected.id)}
-                          className="text-[11px] font-bold text-brand hover:underline"
+                          onClick={() => setShowVoiceModal(true)}
+                          className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-200 bg-slate-50/70 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:border-brand/40 transition-all shadow-2xs"
                         >
-                          Load Sample Audio
+                          <Radio className="h-3.5 w-3.5 text-brand" />
+                          <span>View Voice Message & Audio Intelligence Console</span>
                         </button>
                       </div>
                     )}
@@ -723,10 +780,23 @@ export function OfficerBoard({
                               <span className="text-[10px] font-extrabold uppercase tracking-wider text-brand-light">
                                 AI Operational Summary · {selected.detected_language || "Multilingual"}
                               </span>
-                              {(selected.audio_url || demoAudioId === selected.id) && (
-                                <span className="flex items-center gap-1 text-[10px] font-bold text-cyan-300">
-                                  <Volume2 className="h-3 w-3" /> Voice Attached
-                                </span>
+                              {(selected.audio_url || demoAudioId === selected.id) ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setShowVoiceModal(true)}
+                                  className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold text-cyan-300 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+                                  title="Open Voice Intelligence Console"
+                                >
+                                  <Volume2 className="h-3 w-3" /> Voice Console ↗
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setShowVoiceModal(true)}
+                                  className="flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-cyan-300 transition-all cursor-pointer"
+                                >
+                                  <Mic className="h-3 w-3" /> Audio Console ↗
+                                </button>
                               )}
                             </div>
                             <p className="mt-0.5 text-xs font-bold text-white leading-relaxed">{selected.summary}</p>
@@ -1577,6 +1647,22 @@ export function OfficerBoard({
                 </div>
               </div>
 
+              {activeTileDetail.id === "summary" && (
+                <div className="pt-2">
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setActiveTileDetail(null);
+                      setShowVoiceModal(true);
+                    }}
+                    className="w-full rounded-xl bg-brand py-2 text-xs font-bold text-white flex items-center justify-center gap-1.5"
+                  >
+                    <Headphones className="h-3.5 w-3.5" />
+                    <span>Open Voice Intelligence & Audio Console ↗</span>
+                  </Button>
+                </div>
+              )}
+
               <div className="mt-6 flex justify-end">
                 <Button
                   type="button"
@@ -1590,6 +1676,18 @@ export function OfficerBoard({
             </div>
           </div>
         </Modal>
+      ) : null}
+
+      {/* 11. Voice Intelligence & Audio Console Modal */}
+      {showVoiceModal && selected ? (
+        <VoiceModal
+          open={showVoiceModal}
+          onClose={() => setShowVoiceModal(false)}
+          hazard={selected}
+          onAttachAudio={(audioUrl) => {
+            selected.audio_url = audioUrl;
+          }}
+        />
       ) : null}
     </div>
   );

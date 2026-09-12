@@ -38,6 +38,7 @@ function withCachedTrace(row: HazardRow): HazardRow {
 }
 
 function asHazard(row: Record<string, unknown>): HazardRow {
+  const rawTrace = row.trace && typeof row.trace === "object" ? (row.trace as Record<string, unknown>) : null;
   return {
     id: String(row.id),
     lat: Number(row.lat),
@@ -56,6 +57,8 @@ function asHazard(row: Record<string, unknown>): HazardRow {
     closure_photo_url: (row.closure_photo_url as string | null) ?? null,
     audio_url:
       (row.audio_url as string | null) ??
+      (rawTrace?.audio_url as string | null) ??
+      ((rawTrace?.extra as Record<string, unknown> | undefined)?.audio_url as string | null) ??
       memoryGetHazard(String(row.id))?.audio_url ??
       audioCache.get(String(row.id)) ??
       null,
@@ -68,9 +71,14 @@ function asHazard(row: Record<string, unknown>): HazardRow {
       memoryGetHazard(String(row.id))?.trace ??
       traceCache.get(String(row.id)) ??
       null,
-    summary: (row.summary as string | null) ?? memoryGetHazard(String(row.id))?.summary ?? null,
+    summary:
+      (row.summary as string | null) ??
+      (rawTrace?.summary as string | null) ??
+      memoryGetHazard(String(row.id))?.summary ??
+      null,
     detected_language:
       (row.detected_language as string | null) ??
+      (rawTrace?.detected_language as string | null) ??
       memoryGetHazard(String(row.id))?.detected_language ??
       null,
     resolution_verified:
@@ -186,8 +194,13 @@ export async function saveHazard(row: HazardRow) {
   ) {
     payload.officer_note = serializeOfficerRow(row);
   }
-  if (row.trace !== undefined) {
-    payload.trace = row.trace;
+  const traceObj: Record<string, unknown> =
+    row.trace && typeof row.trace === "object" ? { ...row.trace } : {};
+  if (row.audio_url) traceObj.audio_url = row.audio_url;
+  if (row.summary) traceObj.summary = row.summary;
+  if (row.detected_language) traceObj.detected_language = row.detected_language;
+  if (Object.keys(traceObj).length > 0) {
+    payload.trace = traceObj;
   }
   const { error } = await supabase.from("hazards").upsert(payload);
   if (error) {
