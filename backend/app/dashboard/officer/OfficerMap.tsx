@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { categoryLabel, PIN_COLORS, wardShort } from "@/lib/format";
 import type { HazardRow } from "@/lib/types";
+import type { ShelterWithCoords } from "@/lib/safe-routes";
 
 const COLOMBO: [number, number] = [6.9271, 79.8612];
 const LEAFLET_CSS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
@@ -24,10 +25,16 @@ type LeafletMarker = {
   remove: () => void;
 };
 
+type LeafletPolyline = {
+  addTo: (map: LeafletMap) => LeafletPolyline;
+  remove: () => void;
+};
+
 type LeafletNS = {
   map: (el: HTMLElement, opts: Record<string, unknown>) => LeafletMap;
   tileLayer: (url: string, opts: Record<string, unknown>) => { addTo: (map: LeafletMap) => void };
   circleMarker: (latLng: [number, number], opts: Record<string, unknown>) => LeafletMarker;
+  polyline: (latLngs: [number, number][], opts?: Record<string, unknown>) => LeafletPolyline;
 };
 
 declare global {
@@ -66,23 +73,49 @@ export function OfficerMap({
   hazards,
   selectedId,
   onSelect,
+  shelters = [],
+  onSelectShelter,
+  selectedShelterId,
+  safeRoutes = [],
+  focusCoords,
   className,
 }: {
   hazards: HazardRow[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  shelters?: ShelterWithCoords[];
+  onSelectShelter?: (shelter: ShelterWithCoords) => void;
+  selectedShelterId?: string | null;
+  safeRoutes?: [number, number][][];
+  focusCoords?: [number, number] | null;
   className?: string;
 }) {
   const [mode, setMode] = useState<"loading" | "map" | "list">("loading");
   const hostRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const markersRef = useRef(new Map<string, LeafletMarker>());
+  const shelterMarkersRef = useRef(new Map<string, LeafletMarker>());
+  const polylinesRef = useRef<LeafletPolyline[]>([]);
+
   const hazardsRef = useRef(hazards);
   const selectedRef = useRef(selectedId);
   const selectRef = useRef(onSelect);
+
+  const sheltersRef = useRef(shelters);
+  const selectedShelterRef = useRef(selectedShelterId);
+  const selectShelterRef = useRef(onSelectShelter);
+
+  const safeRoutesRef = useRef(safeRoutes);
+
   hazardsRef.current = hazards;
   selectedRef.current = selectedId;
   selectRef.current = onSelect;
+
+  sheltersRef.current = shelters;
+  selectedShelterRef.current = selectedShelterId;
+  selectShelterRef.current = onSelectShelter;
+
+  safeRoutesRef.current = safeRoutes;
 
   function syncMarkers(L: LeafletNS, map: LeafletMap) {
     const rows = hazardsRef.current;
@@ -112,6 +145,58 @@ export function OfficerMap({
         marker.setStyle({ fillColor: color });
       }
     }
+
+    // Sync shelters
+    const currentShelters = sheltersRef.current;
+    const keepShelters = new Set(currentShelters.map((s) => s.id));
+    for (const [id, marker] of shelterMarkersRef.current) {
+      if (!keepShelters.has(id)) {
+        marker.remove();
+        shelterMarkersRef.current.delete(id);
+      }
+    }
+    for (const shelter of currentShelters) {
+      const isSelected = shelter.id === selectedShelterRef.current;
+      let marker = shelterMarkersRef.current.get(shelter.id);
+      if (!marker) {
+        marker = L.circleMarker([shelter.lat, shelter.lng], {
+          radius: isSelected ? 13 : 10,
+          color: "#ffffff",
+          weight: 3,
+          fillColor: "#6366f1",
+          fillOpacity: 0.95,
+        }).addTo(map);
+        const s = shelter;
+        marker.on("click", () => selectShelterRef.current?.(s));
+        shelterMarkersRef.current.set(shelter.id, marker);
+      } else {
+        marker.setLatLng([shelter.lat, shelter.lng]);
+        marker.setStyle({
+          radius: isSelected ? 13 : 10,
+          fillColor: isSelected ? "#4338ca" : "#6366f1",
+        });
+      }
+    }
+
+    // Sync safe routes
+    for (const line of polylinesRef.current) {
+      line.remove();
+    }
+    polylinesRef.current = [];
+    if (L.polyline && safeRoutesRef.current.length > 0) {
+      for (const route of safeRoutesRef.current) {
+        if (route.length >= 2) {
+          const line = L.polyline(route, {
+            color: "#10b981",
+            weight: 5,
+            opacity: 0.85,
+            dashArray: "8, 8",
+          }).addTo(map);
+          polylinesRef.current.push(line);
+        }
+      }
+    }
+
     const chosen = rows.find((hazard) => hazard.id === selectedRef.current);
     if (chosen) map.setView([chosen.lat, chosen.lng], 14);
   }
@@ -141,6 +226,8 @@ export function OfficerMap({
       map?.remove();
       mapRef.current = null;
       markersRef.current.clear();
+      shelterMarkersRef.current.clear();
+      polylinesRef.current = [];
     };
   }, []);
 
@@ -149,7 +236,13 @@ export function OfficerMap({
     const map = mapRef.current;
     if (!L || !map) return;
     syncMarkers(L, map);
-  }, [hazards, selectedId]);
+  }, [hazards, selectedId, shelters, selectedShelterId, safeRoutes]);
+
+  useEffect(() => {
+    if (focusCoords && mapRef.current) {
+      mapRef.current.setView(focusCoords, 15, { animate: true });
+    }
+  }, [focusCoords]);
 
   if (mode === "list") {
     return (

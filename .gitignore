@@ -20,3 +20,4 @@ coverage/
 android/
 ios/
 *.tsbuildinfo
+supabase/.temp/

@@ -7,9 +7,9 @@ import { ROLE_THEME } from "@/lib/role-theme";
 
 const roles = [
   {
-    href: "/report",
+    href: "/map",
     title: "Citizen",
-    blurb: "Report hazards & view live maps",
+    blurb: "Live flood map, shelters & hazard reporting",
     icon: Smartphone,
   },
   {

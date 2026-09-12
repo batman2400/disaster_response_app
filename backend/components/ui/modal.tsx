@@ -2,16 +2,25 @@ import { cn } from "@/lib/cn";
 
 export function Modal({
   open,
+  onClose,
   children,
   className,
 }: {
   open: boolean;
+  onClose?: () => void;
   children: React.ReactNode;
   className?: string;
 }) {
   if (!open) return null;
   return (
-    <div className="absolute inset-0 z-50 flex flex-col justify-end bg-slate-900/60 backdrop-blur-sm lg:items-center lg:justify-center lg:p-8">
+    <div
+      className="absolute inset-0 z-50 flex flex-col justify-end bg-slate-900/60 backdrop-blur-sm lg:items-center lg:justify-center lg:p-8"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && onClose) {
+          onClose();
+        }
+      }}
+    >
       <div
         className={cn(
           "flex h-[88%] w-full flex-col rounded-t-[40px] bg-white shadow-2xl animate-slide-up",
