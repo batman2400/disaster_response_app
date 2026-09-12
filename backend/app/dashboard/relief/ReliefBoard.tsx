@@ -829,11 +829,12 @@ function ShelterRegistryCard({
   onFocusMap: () => void;
   onDispatchedSupply: () => void;
 }) {
+  const meta = SHELTER_META[shelter.name] ?? DEFAULT_META;
   const [occupied, setOccupied] = useState(shelter.occupied_beds);
   const [supplies, setSupplies] = useState(shelter.supplies_status);
+  const [items, setItems] = useState(meta.supplies);
   const [supplyDispatched, setSupplyDispatched] = useState(false);
 
-  const meta = SHELTER_META[shelter.name] ?? DEFAULT_META;
   const free = Math.max(0, shelter.total_beds - occupied);
   const fill = shelter.total_beds > 0 ? Math.min(100, (occupied / shelter.total_beds) * 100) : 0;
   const dirty = occupied !== shelter.occupied_beds || supplies !== shelter.supplies_status;
@@ -855,10 +856,43 @@ function ShelterRegistryCard({
     setOccupied((curr) => Math.max(0, Math.min(shelter.total_beds, curr + delta)));
   }
 
+  function handleToggleItem(index: number) {
+    const next = [...items];
+    const curr = next[index].status;
+    const nextStatus = curr === "good" ? "low" : curr === "low" ? "critical" : "good";
+    next[index] = { ...next[index], status: nextStatus };
+    setItems(next);
+
+    // Auto-compute overall shelter status based on items
+    if (next.some((i) => i.status === "critical")) {
+      setSupplies("CRITICAL");
+    } else if (next.some((i) => i.status === "low")) {
+      setSupplies("LOW");
+    } else {
+      setSupplies("ADEQUATE");
+    }
+  }
+
+  function handleSelectStatus(newStatus: SuppliesStatus) {
+    setSupplies(newStatus);
+    setItems((prev) =>
+      prev.map((i) => ({
+        ...i,
+        status: newStatus === "ADEQUATE" ? "good" : newStatus === "LOW" ? "low" : "critical",
+      })),
+    );
+  }
+
   function handleDispatchSupply() {
     setSupplyDispatched(true);
     onDispatchedSupply();
-    setTimeout(() => setSupplyDispatched(false), 8000);
+  }
+
+  function handleRestocked() {
+    setSupplies("ADEQUATE");
+    setItems((prev) => prev.map((i) => ({ ...i, status: "good" })));
+    onSave(occupied, "ADEQUATE");
+    setSupplyDispatched(false);
   }
 
   return (
@@ -921,33 +955,50 @@ function ShelterRegistryCard({
           </div>
         </div>
 
-        {/* Detailed Supplies Checklist */}
+        {/* Interactive Supplies Inventory Checklist */}
         <div className="mt-4 border-t border-slate-100 pt-3">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-              On-Site Supplies Inventory
+              Inventory Checklist (Click item to toggle)
             </span>
             <span className={cn("text-[11px] font-extrabold uppercase", SUPPLY_TONE[supplies])}>
-              ● Status: {supplies}
+              ● {supplies}
             </span>
           </div>
 
           <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-            {meta.supplies.map((item) => (
-              <div
+            {items.map((item, idx) => (
+              <button
                 key={item.name}
+                type="button"
+                onClick={() => handleToggleItem(idx)}
+                title={`Click to toggle ${item.name} stock`}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[10px] font-bold",
+                  "flex items-center justify-between gap-1 rounded-xl border px-2.5 py-1.5 text-[10px] font-bold transition-all text-left hover:scale-[1.02]",
                   item.status === "critical"
-                    ? "border-rose-200 bg-rose-50 text-rose-700"
+                    ? "border-rose-300 bg-rose-50 text-rose-700 shadow-xs"
                     : item.status === "low"
-                      ? "border-amber-200 bg-amber-50 text-amber-700"
-                      : "border-slate-100 bg-slate-50 text-slate-700",
+                      ? "border-amber-300 bg-amber-50 text-amber-700 shadow-xs"
+                      : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100",
                 )}
               >
-                <span>{item.icon}</span>
-                <span className="truncate">{item.name}</span>
-              </div>
+                <div className="flex items-center gap-1.5 truncate">
+                  <span>{item.icon}</span>
+                  <span className="truncate">{item.name}</span>
+                </div>
+                <span
+                  className={cn(
+                    "text-[8px] font-black uppercase px-1 py-0.5 rounded shrink-0",
+                    item.status === "critical"
+                      ? "bg-rose-200 text-rose-800"
+                      : item.status === "low"
+                        ? "bg-amber-200 text-amber-800"
+                        : "bg-emerald-100 text-emerald-800",
+                  )}
+                >
+                  {item.status}
+                </span>
+              </button>
             ))}
           </div>
         </div>
@@ -1009,54 +1060,97 @@ function ShelterRegistryCard({
             </button>
           </div>
 
-          {/* Supplies selector & Action controls */}
-          <div className="flex items-center gap-2">
-            <select
-              value={supplies}
-              disabled={busy}
-              onChange={(e) => setSupplies(e.target.value as SuppliesStatus)}
-              className="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 focus:border-emerald-500 focus:outline-none"
-            >
-              {SUPPLY_OPTIONS.map((opt) => (
-                <option key={opt} value={opt}>
-                  Supplies {opt.toLowerCase()}
-                </option>
-              ))}
-            </select>
+          {/* Quick 1-Click Supplies Pills & Save */}
+          <div className="flex items-center gap-1.5">
+            <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 p-0.5">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => handleSelectStatus("ADEQUATE")}
+                className={cn(
+                  "flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-extrabold transition-all",
+                  supplies === "ADEQUATE"
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "text-slate-600 hover:text-emerald-700 hover:bg-emerald-50",
+                )}
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                Adequate
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => handleSelectStatus("LOW")}
+                className={cn(
+                  "flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-extrabold transition-all",
+                  supplies === "LOW"
+                    ? "bg-amber-500 text-white shadow-xs"
+                    : "text-slate-600 hover:text-amber-700 hover:bg-amber-50",
+                )}
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                Low
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => handleSelectStatus("CRITICAL")}
+                className={cn(
+                  "flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-extrabold transition-all",
+                  supplies === "CRITICAL"
+                    ? "bg-rose-600 text-white shadow-xs"
+                    : "text-slate-600 hover:text-rose-700 hover:bg-rose-50",
+                )}
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                Critical
+              </button>
+            </div>
 
             <Button
               type="button"
               variant="success"
-              className="rounded-xl px-3 py-1.5 text-xs font-extrabold"
+              className="rounded-xl px-3.5 py-1.5 text-xs font-extrabold shadow-xs"
               disabled={busy || !dirty}
               onClick={() => onSave(occupied, supplies)}
             >
-              {busy ? "Saving…" : "Save"}
+              {busy ? "Saving…" : dirty ? "Save Changes" : "Saved ✓"}
             </Button>
           </div>
         </div>
 
         {/* Emergency Resupply Action Button if Supplies are LOW or CRITICAL */}
         {supplies !== "ADEQUATE" ? (
-          <div className="mt-3 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50/70 p-2.5 text-xs">
+          <div className="mt-3 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50/80 p-2.5 text-xs">
             <span className="flex items-center gap-1.5 font-bold text-amber-800">
               <Package className="h-3.5 w-3.5 text-amber-600" />
               {supplies === "CRITICAL" ? "Critical supply shortage reported" : "Restock recommended"}
             </span>
-            <button
-              type="button"
-              onClick={handleDispatchSupply}
-              disabled={supplyDispatched}
-              className={cn(
-                "flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide transition-colors",
-                supplyDispatched
-                  ? "bg-emerald-600 text-white cursor-default"
-                  : "bg-amber-600 text-white hover:bg-amber-700 shadow-xs",
-              )}
-            >
-              <Truck className="h-3 w-3" />
-              <span>{supplyDispatched ? "Truck Dispatched ✓" : "Dispatch Supplies"}</span>
-            </button>
+            <div className="flex items-center gap-2">
+              {supplyDispatched ? (
+                <button
+                  type="button"
+                  onClick={handleRestocked}
+                  className="rounded-lg bg-emerald-600 px-2.5 py-1 text-[10px] font-extrabold uppercase text-white shadow-xs hover:bg-emerald-700 transition-colors"
+                >
+                  Mark Restocked (Adequate)
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={handleDispatchSupply}
+                disabled={supplyDispatched}
+                className={cn(
+                  "flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide transition-colors",
+                  supplyDispatched
+                    ? "bg-slate-700 text-slate-200 cursor-default"
+                    : "bg-amber-600 text-white hover:bg-amber-700 shadow-xs",
+                )}
+              >
+                <Truck className="h-3 w-3" />
+                <span>{supplyDispatched ? "Truck Dispatched ✓" : "Dispatch Supplies"}</span>
+              </button>
+            </div>
           </div>
         ) : null}
       </div>
