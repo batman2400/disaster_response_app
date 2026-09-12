@@ -1,6 +1,35 @@
+import fs from "node:fs";
+import path from "node:path";
 import { GoogleGenAI } from "@google/genai";
 
+function readEnvLocalKeys(): string[] {
+  try {
+    const envPath = path.resolve(process.cwd(), ".env.local");
+    if (fs.existsSync(envPath)) {
+      const content = fs.readFileSync(envPath, "utf8");
+      const keys: string[] = [];
+      for (const line of content.split("\n")) {
+        const match = line.match(/^\s*(GEMINI_API_KEY(?:_FALLBACK(?:_\d+)?)?|GEMINI_FALLBACK_KEYS)\s*=\s*(.*)?\s*$/);
+        if (match && match[2]) {
+          const val = match[2].trim().replace(/^['"]|['"]$/g, "");
+          for (const part of val.split(",")) {
+            const trimmed = part.trim();
+            if (trimmed && !keys.includes(trimmed)) {
+              keys.push(trimmed);
+            }
+          }
+        }
+      }
+      if (keys.length > 0) return keys;
+    }
+  } catch {}
+  return [];
+}
+
 function geminiKeys() {
+  const localKeys = readEnvLocalKeys();
+  if (localKeys.length > 0) return localKeys;
+
   const sources = [
     process.env.GEMINI_API_KEY,
     process.env.GEMINI_API_KEY_FALLBACK,
@@ -47,13 +76,25 @@ export interface GeminiMediaPart {
   data: string;
 }
 
+const keyCoolOffs = new Map<string, number>();
+
+export function getPrioritizedKeys(): string[] {
+  const all = geminiKeys();
+  const now = Date.now();
+  return all.slice().sort((a, b) => {
+    const coolA = (keyCoolOffs.get(a) ?? 0) > now ? 1 : 0;
+    const coolB = (keyCoolOffs.get(b) ?? 0) > now ? 1 : 0;
+    return coolA - coolB;
+  });
+}
+
 export async function callGeminiJson<T>(
   prompt: string,
   schema: Record<string, unknown>,
   photoBase64?: string,
   extraMedia?: GeminiMediaPart[],
 ): Promise<T> {
-  const keys = geminiKeys();
+  const keys = getPrioritizedKeys();
   if (!keys.length) {
     throw new Error("GEMINI_API_KEY is not set");
   }
@@ -93,8 +134,11 @@ export async function callGeminiJson<T>(
       return JSON.parse(text) as T;
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
+      if (/429|quota|RESOURCE_EXHAUSTED/i.test(lastError.message)) {
+        keyCoolOffs.set(apiKey, Date.now() + 5 * 60 * 1000);
+      }
       if (index < keys.length - 1) {
-        console.error("[gemini] primary key failed, trying fallback:", lastError.message);
+        console.warn("[gemini] key failed or quota hit, trying next prioritized key...");
       }
     }
   }

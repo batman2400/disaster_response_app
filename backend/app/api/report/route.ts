@@ -44,7 +44,7 @@ export async function POST(request: Request) {
   }
 
   const url = new URL(request.url);
-  const useFast = url.searchParams.get("mode") === "fast" || process.env.FAST_AI === "1";
+  const useFast = url.searchParams.get("mode") !== "slow";
 
   const verdict = useFast ? await runUnifiedPipeline(body) : await buildVerdict(body);
   const incident_id = crypto.randomUUID();

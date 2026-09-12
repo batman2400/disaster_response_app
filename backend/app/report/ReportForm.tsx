@@ -383,7 +383,7 @@ export function ReportForm() {
       .join(" ");
 
     try {
-      const response = await fetch("/api/report", {
+      const response = await fetch("/api/report?mode=fast", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -815,7 +815,18 @@ export function ReportForm() {
                     </button>
                   </div>
                   {audioUrl ? (
-                    <audio src={audioUrl} controls className="h-9 w-full rounded-lg" />
+                    <div className="space-y-1.5">
+                      <audio src={audioUrl} controls className="h-9 w-full rounded-lg" />
+                      {recordingDuration > 0 && recordingDuration < 2 ? (
+                        <p className="text-[10px] font-semibold text-amber-700 bg-amber-50 rounded-md p-1.5 border border-amber-200">
+                          ⚠️ Recording is very brief ({recordingDuration}s). If only clicking or ambient noise was recorded, emergency AI will detect no spoken words. Speak clearly for 2-5 seconds for full translation.
+                        </p>
+                      ) : (
+                        <p className="text-[10px] font-medium text-slate-500">
+                          💡 Tip: Ensure you speak clearly about the hazard location and severity so the AI can transcribe and translate.
+                        </p>
+                      )}
+                    </div>
                   ) : null}
                 </div>
               )}

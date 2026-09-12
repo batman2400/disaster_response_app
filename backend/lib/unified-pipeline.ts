@@ -20,11 +20,16 @@ const UNIFIED_SCHEMA = {
   properties: {
     summary: {
       type: "STRING",
-      description: "Concise 1-2 sentence operational English brief of the hazard and impact.",
+      description:
+        "Concise 1-2 sentence operational English brief. If audio has only clicks/ticking without speech, state clearly that no spoken words were detected. Never hallucinate an emergency plea.",
+    },
+    has_speech: {
+      type: "BOOLEAN",
+      description: "True ONLY if recognizable spoken words are heard in audio; false if silent, ticking, or noise.",
     },
     detected_language: {
       type: "STRING",
-      description: "Primary language: 'English', 'Sinhala', 'Tamil', or 'Mixed'.",
+      description: "Primary language: 'English', 'Sinhala', 'Tamil', 'Mixed', or 'None (No Speech)'.",
     },
     image_verified: {
       type: "BOOLEAN",
@@ -61,6 +66,7 @@ const UNIFIED_SCHEMA = {
   },
   required: [
     "summary",
+    "has_speech",
     "detected_language",
     "image_verified",
     "image_reason",
@@ -78,6 +84,7 @@ const UNIFIED_SCHEMA = {
 
 interface UnifiedAiOutput {
   summary: string;
+  has_speech?: boolean;
   detected_language: string;
   image_verified: boolean;
   image_reason: string;
@@ -127,6 +134,7 @@ export async function runUnifiedPipeline(
       summary: body.description
         ? `${body.category}: ${body.description}`
         : `${body.category} reported at ward ${body.ward_id}.`,
+      has_speech: Boolean(body.description),
       detected_language: "English",
       image_verified: checks.image_verified,
       image_reason: "Deterministic photo presence check.",
@@ -164,7 +172,9 @@ Council Thresholds:
 - Reject threshold: ${settings.reject_threshold}
 
 Requirements:
-1. Translate any Sinhala or Tamil description into a concise English summary and detect the language.
+1. SPEECH VERIFICATION: Listen carefully to any attached voice note audio. Does it contain actual spoken human words, or only clicking, ticking, tapping, coughing, or ambient silence?
+   - If audio contains NO spoken words: set has_speech = false, detected_language = "None (No Speech)". DO NOT INVENT or hallucinate an emergency plea or flood details! State clearly: "Audio contains only clicking/ambient sounds with no verbal description."
+   - If audio has spoken words: set has_speech = true, accurately translate and summarize what was said.
 2. Verify if the attached photo genuinely and plausibly shows the hazard (${body.category}).
 3. Verify if coordinates and landmarks are plausible within Colombo.
 4. Assess immediate risk (LOW, MEDIUM, CRITICAL).
@@ -187,8 +197,19 @@ Respond strictly in JSON matching the schema.`;
     prompt,
     UNIFIED_SCHEMA,
     fallbackOutput,
-    { media: mediaParts.length > 0 ? mediaParts : undefined, timeoutMs: 7500 },
+    { media: mediaParts.length > 0 ? mediaParts : undefined, timeoutMs: 12000 },
   );
+
+  // Anti-hallucination guardrail
+  const hasNoSpeech =
+    value.has_speech === false ||
+    /only (clicking|ticking|ambient|noise|clicks|ticks)/i.test(value.summary) ||
+    /no (speech|words|voice|spoken|verbal)/i.test(value.summary);
+
+  if (body.audio_base64 && hasNoSpeech && !body.description?.trim()) {
+    value.summary = `Incident reported for ${body.category}. Audio contained only clicking or ambient noise with no spoken words.`;
+    value.detected_language = "None (No Speech)";
+  }
 
   const finished = Date.now();
   const total_ms = finished - started;

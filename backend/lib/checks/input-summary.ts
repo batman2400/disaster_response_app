@@ -4,27 +4,32 @@ import type { CheckSource, HazardCategory, Urgency } from "../types";
 const INPUT_SUMMARY_SCHEMA = {
   type: "OBJECT",
   properties: {
+    has_speech: {
+      type: "BOOLEAN",
+      description:
+        "True ONLY if clear, recognizable human speech or words are heard in the audio. False if audio is silent or contains only clicks, ticking, tapping, coughing, breathing, or background noise.",
+    },
     summary: {
       type: "STRING",
       description:
-        "A concise 1-2 sentence operational English brief stating the hazard condition, exact landmarks/roads mentioned, and human urgency.",
+        "A concise 1-2 sentence operational English brief. If the audio contains only clicks, ticking, or silence with no intelligible speech, state clearly that no spoken words or verbal details were detected. DO NOT hallucinate an emergency plea or hazard details if not actually spoken.",
     },
     detected_language: {
       type: "STRING",
-      description: "Detected primary language: 'English', 'Sinhala', 'Tamil', or 'Mixed'.",
+      description: "Detected primary language: 'English', 'Sinhala', 'Tamil', 'Mixed', or 'None (No Speech)'.",
     },
     extracted_landmarks: {
       type: "ARRAY",
       items: { type: "STRING" },
-      description: "List of named roads, junctions, temples, bridges, or areas extracted.",
+      description: "List of named roads, junctions, temples, bridges, or areas extracted. Empty if none mentioned.",
     },
     urgency_hint: {
       type: "STRING",
       enum: ["LOW", "MEDIUM", "CRITICAL"],
-      description: "Urgency suggested by citizen speech (e.g. trapped, deep water, live wires).",
+      description: "Urgency suggested strictly by citizen speech or text. If audio has no spoken words, mark LOW.",
     },
   },
-  required: ["summary", "detected_language", "extracted_landmarks", "urgency_hint"],
+  required: ["has_speech", "summary", "detected_language", "extracted_landmarks", "urgency_hint"],
 };
 
 export interface InputSummaryResult {
@@ -32,6 +37,7 @@ export interface InputSummaryResult {
   detected_language: string;
   extracted_landmarks: string[];
   urgency_hint: Urgency;
+  has_speech?: boolean;
   source: CheckSource;
 }
 
@@ -53,6 +59,7 @@ function heuristicFallback(description?: string, category?: HazardCategory): Inp
     detected_language,
     extracted_landmarks: [],
     urgency_hint: isSevere ? "CRITICAL" : "MEDIUM",
+    has_speech: Boolean(desc),
     source: "code",
   };
 }
@@ -71,23 +78,32 @@ export async function summarizeCitizenInput(options: {
       detected_language: "English",
       extracted_landmarks: [],
       urgency_hint: "LOW",
+      has_speech: false,
       source: "code",
     };
   }
 
-  const prompt = `You are an emergency call & report ingestion AI for the Colombo Disaster Management Centre in Sri Lanka.
+  const prompt = `You are an emergency triage & audio analysis AI for the Colombo Disaster Management Centre in Sri Lanka.
 Citizen report category: ${category}
-Citizen description text: ${description || "(none provided, audio attached)"}
+Citizen description text: ${description ? `"${description}"` : "(none provided)"}
+${audioBase64 ? "- Citizen audio recording is attached." : "- No audio recording provided."}
 
-Your task:
-1. Citizen messages may be in Sinhala, Tamil, English, or Singlish/Tanglish (Sinhala/Tamil written in Latin script).
-2. Translate and synthesize the message into a concise, professional 1-2 sentence operational English summary. Focus on:
-   - Specific hazard condition (e.g. waist-deep floodwater, fallen mango tree blocking 2 lanes).
-   - Specific locations, bridges, roads, or landmarks mentioned.
-   - Any people, children, or elderly trapped or needing immediate evacuation.
-3. Identify the primary detected language.
-4. Extract any named landmarks, road names, or junctions.
-5. Suggest an urgency hint: LOW, MEDIUM, or CRITICAL.
+CRITICAL SPEECH VERIFICATION & ANTI-HALLUCINATION RULES:
+1. Listen carefully to the attached audio:
+   - Does it contain actual recognizable human words/speech (in Sinhala, Tamil, or English)?
+   - Or does it contain ONLY silence, clicking, ticking, tapping, coughing, breathing, or background noise?
+2. IF NO HUMAN SPEECH IS SPOKEN (e.g. only 2 clicks/ticks, static, or ambient noise):
+   - You MUST set has_speech = false.
+   - You MUST set detected_language = "None (No Speech)".
+   - You MUST set extracted_landmarks = [].
+   - You MUST set urgency_hint = "LOW".
+   - YOU MUST NEVER INVENT OR HALLUCINATE an emergency plea, trapped people, or flood descriptions!
+   - If no written text was provided, set summary to: "Audio recording contains only clicking/ambient noise; no verbal description was spoken."
+   - If written text was provided, summarize ONLY the written text.
+3. IF RECOGNIZABLE SPOKEN WORDS ARE DETECTED:
+   - Set has_speech = true.
+   - Translate and summarize strictly what was actually spoken by the citizen. Focus on the actual hazard condition, named locations, and genuine urgency mentioned.
+   - Do not embellish or assume unmentioned details.
 
 Respond strictly in JSON matching the schema.`;
 
@@ -103,6 +119,21 @@ Respond strictly in JSON matching the schema.`;
     () => heuristicFallback(description, category),
     { media: mediaParts.length > 0 ? mediaParts : undefined },
   );
+
+  // Safety guardrail: Overwrite hallucinated summaries if audio had no discernible speech
+  const hasNoSpeech =
+    value.has_speech === false ||
+    /only (clicking|ticking|ambient|noise|clicks|ticks)/i.test(value.summary) ||
+    /no (speech|words|voice|spoken|verbal)/i.test(value.summary);
+
+  if (hasNoSpeech && !description.trim()) {
+    value.summary = "Audio recording contains only clicking/ambient noise; no verbal hazard description was spoken.";
+    value.detected_language = "None (No Speech)";
+    value.extracted_landmarks = [];
+    value.urgency_hint = "LOW";
+  } else if (hasNoSpeech && description.trim()) {
+    value.summary = `${category}: ${description} (Audio note contained no spoken words)`;
+  }
 
   return { ...value, source };
 }
