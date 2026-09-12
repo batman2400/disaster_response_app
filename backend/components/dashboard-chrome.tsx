@@ -8,8 +8,11 @@ import {
   ChevronDown,
   CloudRain,
   ExternalLink,
+  Eye,
+  EyeOff,
   LifeBuoy,
   Loader2,
+  Lock,
   LogOut,
   Map,
   MapPin,
@@ -17,6 +20,7 @@ import {
   Truck,
   Volume2,
   VolumeX,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -73,30 +77,48 @@ export function DashboardChrome({ role }: { role: DashRole }) {
   const [showRoles, setShowRoles] = useState(false);
   const [showPipelineHealth, setShowPipelineHealth] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(false);
-  const [switchingRole, setSwitchingRole] = useState<DashRole | null>(null);
+  const [targetRoleModal, setTargetRoleModal] = useState<DashRole | null>(null);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [showPasswordText, setShowPasswordText] = useState(false);
 
-  const handleSwitchRole = async (targetRole: DashRole, fallbackHref: string) => {
+  const promptRoleSwitch = (targetRole: DashRole) => {
     if (targetRole === role) {
       setShowRoles(false);
       return;
     }
-    setSwitchingRole(targetRole);
     setShowRoles(false);
+    setPasswordInput("");
+    setPasswordError("");
+    setIsVerifying(false);
+    setShowPasswordText(false);
+    setTargetRoleModal(targetRole);
+  };
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetRoleModal || !passwordInput.trim()) return;
+    setIsVerifying(true);
+    setPasswordError("");
     try {
       const res = await fetch("/api/dashboard/switch-role", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: targetRole }),
+        body: JSON.stringify({
+          role: targetRoleModal,
+          password: passwordInput.trim(),
+        }),
       });
-      if (res.ok) {
-        const data = (await res.json()) as { next?: string };
-        window.location.href = data.next || fallbackHref;
-        return;
+      const data = (await res.json()) as { error?: string; next?: string };
+      if (!res.ok) {
+        throw new Error(data.error || "Invalid password for that role");
       }
-    } catch {
-      // Continue to fallback
+      window.location.href = data.next || (targetRoleModal === "officer" ? "/dashboard/officer" : targetRoleModal === "relief" ? "/dashboard/relief" : "/crew");
+    } catch (err) {
+      setPasswordError(err instanceof Error ? err.message : "Invalid password");
+      setIsVerifying(false);
     }
-    window.location.href = fallbackHref;
   };
 
   const notifRef = useRef<HTMLDivElement>(null);
@@ -357,19 +379,12 @@ export function DashboardChrome({ role }: { role: DashRole }) {
         <div className="relative" ref={rolesRef}>
           <button
             type="button"
-            disabled={Boolean(switchingRole)}
             onClick={() => setShowRoles(!showRoles)}
             title="Switch operational role"
-            className="flex h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:text-slate-900 active:scale-95 disabled:opacity-60 sm:px-3"
+            className="flex h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:text-slate-900 active:scale-95 sm:px-3"
           >
-            {switchingRole ? (
-              <Loader2 className="h-4 w-4 animate-spin text-brand" />
-            ) : (
-              <Shield className="h-4 w-4 text-brand" />
-            )}
-            <span className="hidden sm:inline">
-              {switchingRole ? "Switching..." : "Switch role"}
-            </span>
+            <Shield className="h-4 w-4 text-brand" />
+            <span className="hidden sm:inline">Switch role</span>
             <ChevronDown className="h-3 w-3 text-slate-400" />
           </button>
 
@@ -380,8 +395,7 @@ export function DashboardChrome({ role }: { role: DashRole }) {
               </p>
               <button
                 type="button"
-                disabled={Boolean(switchingRole)}
-                onClick={() => handleSwitchRole("officer", "/dashboard/officer")}
+                onClick={() => promptRoleSwitch("officer")}
                 className={cn(
                   "flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-bold transition-colors",
                   role === "officer" ? "bg-brand-light text-brand" : "text-slate-700 hover:bg-slate-50",
@@ -389,16 +403,11 @@ export function DashboardChrome({ role }: { role: DashRole }) {
               >
                 <Shield className="h-4 w-4 shrink-0" />
                 <span className="flex-1">Command Control</span>
-                {switchingRole === "officer" ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-brand" />
-                ) : role === "officer" ? (
-                  <CheckCircle2 className="h-3.5 w-3.5 text-brand" />
-                ) : null}
+                {role === "officer" ? <CheckCircle2 className="h-3.5 w-3.5 text-brand" /> : <Lock className="h-3 w-3 text-slate-300" />}
               </button>
               <button
                 type="button"
-                disabled={Boolean(switchingRole)}
-                onClick={() => handleSwitchRole("relief", "/dashboard/relief")}
+                onClick={() => promptRoleSwitch("relief")}
                 className={cn(
                   "flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-bold transition-colors",
                   role === "relief" ? "bg-amber-50 text-amber-600" : "text-slate-700 hover:bg-slate-50",
@@ -406,16 +415,11 @@ export function DashboardChrome({ role }: { role: DashRole }) {
               >
                 <LifeBuoy className="h-4 w-4 shrink-0" />
                 <span className="flex-1">Relief Logistics</span>
-                {switchingRole === "relief" ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-600" />
-                ) : role === "relief" ? (
-                  <CheckCircle2 className="h-3.5 w-3.5 text-amber-600" />
-                ) : null}
+                {role === "relief" ? <CheckCircle2 className="h-3.5 w-3.5 text-amber-600" /> : <Lock className="h-3 w-3 text-slate-300" />}
               </button>
               <button
                 type="button"
-                disabled={Boolean(switchingRole)}
-                onClick={() => handleSwitchRole("crew", "/crew")}
+                onClick={() => promptRoleSwitch("crew")}
                 className={cn(
                   "flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-bold transition-colors",
                   role === "crew" ? "bg-indigo-50 text-indigo-600" : "text-slate-700 hover:bg-slate-50",
@@ -423,11 +427,7 @@ export function DashboardChrome({ role }: { role: DashRole }) {
               >
                 <Truck className="h-4 w-4 shrink-0 text-indigo-500" />
                 <span className="flex-1">Field Crew Queue</span>
-                {switchingRole === "crew" ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-600" />
-                ) : role === "crew" ? (
-                  <CheckCircle2 className="h-3.5 w-3.5 text-indigo-600" />
-                ) : null}
+                {role === "crew" ? <CheckCircle2 className="h-3.5 w-3.5 text-indigo-600" /> : <Lock className="h-3 w-3 text-slate-300" />}
               </button>
               <div className="my-1 border-t border-slate-100" />
               <p className="px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
@@ -464,6 +464,95 @@ export function DashboardChrome({ role }: { role: DashRole }) {
           </button>
         </form>
       </div>
+
+      {/* Password Verification Modal for Role Switching */}
+      {targetRoleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl animate-pop">
+            <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-md", ROLE_THEME[targetRoleModal].iconBg)}>
+                  <Lock className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">
+                    Switch to {TITLES[targetRoleModal].title}
+                  </h3>
+                  <p className="text-xs font-semibold text-slate-500">
+                    {TITLES[targetRoleModal].desk}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTargetRoleModal(null)}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <p className="mb-4 text-xs font-medium text-slate-600">
+              Access to this operational desk requires authentication. Please enter the operational password to switch roles.
+            </p>
+
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+              <div>
+                <label className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  Desk Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPasswordText ? "text" : "password"}
+                    autoFocus
+                    required
+                    value={passwordInput}
+                    onChange={(e) => setPasswordInput(e.target.value)}
+                    placeholder="Enter operational password..."
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm font-semibold text-slate-900 focus:border-brand focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-light"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswordText(!showPasswordText)}
+                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                  >
+                    {showPasswordText ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {passwordError && (
+                  <p className="mt-1.5 text-xs font-bold text-rose-600">
+                    {passwordError}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setTargetRoleModal(null)}
+                  className="flex-1 rounded-xl border border-slate-200 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isVerifying || !passwordInput.trim()}
+                  className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-slate-900 py-2.5 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-50"
+                >
+                  {isVerifying ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>Verifying...</span>
+                    </>
+                  ) : (
+                    <span>Unlock & Switch</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

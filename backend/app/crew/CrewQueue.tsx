@@ -7,9 +7,13 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  Eye,
+  EyeOff,
   Flame,
   LifeBuoy,
   List,
+  Loader2,
+  Lock,
   LogOut,
   Map as MapIcon,
   MapPin,
@@ -88,7 +92,11 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
   const [locationStatus, setLocationStatus] = useState<"pending" | "ready" | "denied">("pending");
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [showRoles, setShowRoles] = useState(false);
-  const [switchingRole, setSwitchingRole] = useState<string | null>(null);
+  const [targetRoleModal, setTargetRoleModal] = useState<"officer" | "relief" | null>(null);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [showPasswordText, setShowPasswordText] = useState(false);
   const rolesRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -101,28 +109,38 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleSwitchRole = async (targetRole: "officer" | "relief" | "crew", fallbackHref: string) => {
-    if (targetRole === "crew") {
-      setShowRoles(false);
-      return;
-    }
-    setSwitchingRole(targetRole);
+  const promptRoleSwitch = (targetRole: "officer" | "relief") => {
     setShowRoles(false);
+    setPasswordInput("");
+    setPasswordError("");
+    setIsVerifying(false);
+    setShowPasswordText(false);
+    setTargetRoleModal(targetRole);
+  };
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetRoleModal || !passwordInput.trim()) return;
+    setIsVerifying(true);
+    setPasswordError("");
     try {
       const res = await fetch("/api/dashboard/switch-role", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: targetRole }),
+        body: JSON.stringify({
+          role: targetRoleModal,
+          password: passwordInput.trim(),
+        }),
       });
-      if (res.ok) {
-        const data = (await res.json()) as { next?: string };
-        window.location.href = data.next || fallbackHref;
-        return;
+      const data = (await res.json()) as { error?: string; next?: string };
+      if (!res.ok) {
+        throw new Error(data.error || "Invalid password for that role");
       }
-    } catch {
-      // Proceed to fallback
+      window.location.href = data.next || (targetRoleModal === "officer" ? "/dashboard/officer" : "/dashboard/relief");
+    } catch (err) {
+      setPasswordError(err instanceof Error ? err.message : "Invalid password");
+      setIsVerifying(false);
     }
-    window.location.href = fallbackHref;
   };
 
   // Request field crew geolocation for distance and routing
@@ -268,15 +286,12 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
             <div className="relative" ref={rolesRef}>
               <button
                 type="button"
-                disabled={Boolean(switchingRole)}
                 onClick={() => setShowRoles(!showRoles)}
                 title="Switch operational role"
-                className="flex h-10 items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:text-slate-900 active:scale-95 disabled:opacity-60"
+                className="flex h-10 items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:text-slate-900 active:scale-95"
               >
                 <Shield className="h-4 w-4 text-brand" />
-                <span className="hidden sm:inline">
-                  {switchingRole ? "Switching..." : "Switch role"}
-                </span>
+                <span className="hidden sm:inline">Switch role</span>
                 <ChevronDown className="h-3 w-3 text-slate-400" />
               </button>
 
@@ -287,21 +302,21 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
                   </p>
                   <button
                     type="button"
-                    disabled={Boolean(switchingRole)}
-                    onClick={() => handleSwitchRole("officer", "/dashboard/officer")}
+                    onClick={() => promptRoleSwitch("officer")}
                     className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50"
                   >
                     <Shield className="h-4 w-4 shrink-0 text-brand" />
                     <span className="flex-1">Command Control</span>
+                    <Lock className="h-3 w-3 text-slate-300" />
                   </button>
                   <button
                     type="button"
-                    disabled={Boolean(switchingRole)}
-                    onClick={() => handleSwitchRole("relief", "/dashboard/relief")}
+                    onClick={() => promptRoleSwitch("relief")}
                     className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50"
                   >
                     <LifeBuoy className="h-4 w-4 shrink-0 text-amber-600" />
                     <span className="flex-1">Relief Logistics</span>
+                    <Lock className="h-3 w-3 text-slate-300" />
                   </button>
                   <button
                     type="button"
@@ -665,6 +680,95 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
           </div>
         )}
       </div>
+
+      {/* Password Verification Modal for Role Switching */}
+      {targetRoleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl animate-pop">
+            <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-md", targetRoleModal === "officer" ? "bg-brand" : "bg-status-emerald")}>
+                  <Lock className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">
+                    Switch to {targetRoleModal === "officer" ? "Command Control" : "Relief Desk"}
+                  </h3>
+                  <p className="text-xs font-semibold text-slate-500">
+                    {targetRoleModal === "officer" ? "Council Officer Desk" : "Shelter Logistics"}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTargetRoleModal(null)}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <p className="mb-4 text-xs font-medium text-slate-600">
+              Access to this operational desk requires authentication. Please enter the operational password to switch roles.
+            </p>
+
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+              <div>
+                <label className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  Desk Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPasswordText ? "text" : "password"}
+                    autoFocus
+                    required
+                    value={passwordInput}
+                    onChange={(e) => setPasswordInput(e.target.value)}
+                    placeholder="Enter operational password..."
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm font-semibold text-slate-900 focus:border-brand focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-light"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswordText(!showPasswordText)}
+                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                  >
+                    {showPasswordText ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {passwordError && (
+                  <p className="mt-1.5 text-xs font-bold text-rose-600">
+                    {passwordError}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setTargetRoleModal(null)}
+                  className="flex-1 rounded-xl border border-slate-200 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isVerifying || !passwordInput.trim()}
+                  className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-slate-900 py-2.5 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-50"
+                >
+                  {isVerifying ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>Verifying...</span>
+                    </>
+                  ) : (
+                    <span>Unlock & Switch</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </PublicShell>
   );
 }

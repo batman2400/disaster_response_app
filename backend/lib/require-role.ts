@@ -12,8 +12,6 @@ export async function requireDashboardRole(expected: DashRole | DashRole[]) {
   const role = await readDashboardRole();
   const allowed = Array.isArray(expected) ? expected : [expected];
   if (role && allowed.includes(role)) return role;
-  // If user is already authenticated with a valid operational session, allow cross-desk access
-  if (role) return role;
   redirect(loginPathFor(allowed[0]));
 }
 

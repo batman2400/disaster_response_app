@@ -39,56 +39,32 @@ export function proxy(request: NextRequest) {
 
   // Protected operational route: Officer Command Control
   if (pathname.startsWith("/dashboard/officer")) {
-    if (!role) {
-      return redirectTo(request, "/dashboard/login", "?role=officer");
-    }
     if (role !== "officer") {
-      const dest = request.nextUrl.clone();
-      const response = NextResponse.redirect(dest);
-      response.cookies.set(COOKIE_NAME, signSession("officer"), cookieOptions());
-      return response;
+      return redirectTo(request, "/dashboard/login", "?role=officer&switch=1");
     }
     return NextResponse.next();
   }
 
   // Protected operational route: Relief Logistics Desk
   if (pathname.startsWith("/dashboard/relief")) {
-    if (!role) {
-      return redirectTo(request, "/dashboard/login", "?role=relief");
-    }
     if (role !== "relief") {
-      const dest = request.nextUrl.clone();
-      const response = NextResponse.redirect(dest);
-      response.cookies.set(COOKIE_NAME, signSession("relief"), cookieOptions());
-      return response;
+      return redirectTo(request, "/dashboard/login", "?role=relief&switch=1");
     }
     return NextResponse.next();
   }
 
   // Protected operational route: Admin telemetry & pipeline diagnostics
   if (pathname.startsWith("/dashboard/admin")) {
-    if (!role) {
-      return redirectTo(request, "/dashboard/login", "?role=officer");
-    }
     if (role !== "officer") {
-      const dest = request.nextUrl.clone();
-      const response = NextResponse.redirect(dest);
-      response.cookies.set(COOKIE_NAME, signSession("officer"), cookieOptions());
-      return response;
+      return redirectTo(request, "/dashboard/login", "?role=officer&switch=1");
     }
     return NextResponse.next();
   }
 
   // Protected operational route: Field Crew Queue
   if (pathname === "/crew" || pathname.startsWith("/crew/")) {
-    if (!role) {
-      return redirectTo(request, "/crew/login");
-    }
     if (role !== "crew") {
-      const dest = request.nextUrl.clone();
-      const response = NextResponse.redirect(dest);
-      response.cookies.set(COOKIE_NAME, signSession("crew"), cookieOptions());
-      return response;
+      return redirectTo(request, "/crew/login", "?switch=1");
     }
     return NextResponse.next();
   }

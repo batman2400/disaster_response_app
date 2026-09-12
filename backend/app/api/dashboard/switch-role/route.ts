@@ -4,8 +4,9 @@ import {
   COOKIE_NAME,
   cookieOptions,
   homeFor,
-  loginPathFor,
-  readDashboardRole,
+  parseSession,
+  passwordFor,
+  passwordsMatch,
   signSession,
   type DashRole,
 } from "@/lib/dashboard-auth";
@@ -13,11 +14,9 @@ import {
 const ALLOWED_ROLES: DashRole[] = ["officer", "relief", "crew"];
 
 export async function POST(request: Request) {
-  const currentRole = await readDashboardRole();
-
-  let body: { role?: string };
+  let body: { role?: string; password?: string };
   try {
-    body = (await request.json()) as { role?: string };
+    body = (await request.json()) as { role?: string; password?: string };
   } catch {
     return NextResponse.json({ error: "Invalid request payload" }, { status: 400 });
   }
@@ -27,15 +26,34 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid operational role requested" }, { status: 400 });
   }
 
-  // If user is not signed in to any role, require login for the target role
-  if (!currentRole) {
+  // Strictly require the desk password for the requested target role
+  if (!body.password || typeof body.password !== "string") {
     return NextResponse.json(
-      { ok: false, error: "Authentication required", next: loginPathFor(targetRole) },
-      { status: 401 }
+      { error: "Password is required to switch operational desks" },
+      { status: 400 },
     );
   }
 
-  // Set the new role session cookie
+  const expectedPassword = passwordFor(targetRole);
+  if (!passwordsMatch(body.password, expectedPassword)) {
+    return NextResponse.json(
+      { error: "Invalid password for that role" },
+      { status: 401 },
+    );
+  }
+
+  let currentRole: DashRole | null = null;
+  try {
+    const cookieHeader = request.headers.get("cookie") || "";
+    const match = cookieHeader.match(new RegExp(`(?:^|; )${COOKIE_NAME}=([^;]*)`));
+    if (match) {
+      currentRole = parseSession(decodeURIComponent(match[1]));
+    }
+  } catch {
+    currentRole = null;
+  }
+
+  // Set the new role session cookie upon successful password verification
   const response = NextResponse.json({
     ok: true,
     previousRole: currentRole,
