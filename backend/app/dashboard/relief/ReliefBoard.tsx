@@ -343,6 +343,16 @@ export function ReliefBoard({
         </div>
 
         <div className="flex items-center gap-2 sm:self-start">
+          <a
+            href="/safe"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Open Family Reunification & Vulnerability Registry"
+            className="flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-3.5 py-2.5 text-xs font-extrabold text-sky-800 shadow-xs hover:bg-sky-100 transition-colors"
+          >
+            <Users className="h-4 w-4 text-sky-600" />
+            <span className="hidden sm:inline">Family</span> Registry ↗
+          </a>
           <button
             type="button"
             onClick={() => setShowSitRepModal(true)}

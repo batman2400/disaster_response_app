@@ -77,6 +77,13 @@ function loadLeaflet(): Promise<LeafletNS> {
   });
 }
 
+export type StyledRoute = {
+  points: [number, number][];
+  color?: string;
+  dashArray?: string;
+  weight?: number;
+};
+
 export function OfficerMap({
   hazards,
   selectedId,
@@ -94,7 +101,7 @@ export function OfficerMap({
   shelters?: ShelterWithCoords[];
   onSelectShelter?: (shelter: ShelterWithCoords) => void;
   selectedShelterId?: string | null;
-  safeRoutes?: [number, number][][];
+  safeRoutes?: Array<[number, number][] | StyledRoute>;
   focusCoords?: [number, number] | null;
   className?: string;
 }) {
@@ -192,13 +199,19 @@ export function OfficerMap({
     }
     polylinesRef.current = [];
     if (L.polyline && safeRoutesRef.current.length > 0) {
-      for (const route of safeRoutesRef.current) {
-        if (route.length >= 2) {
-          const line = L.polyline(route, {
-            color: "#10b981",
-            weight: 5,
-            opacity: 0.85,
-            dashArray: "8, 8",
+      for (const item of safeRoutesRef.current) {
+        const isStyled = !Array.isArray(item);
+        const pts = isStyled ? item.points : item;
+        const color = isStyled ? item.color || "#10b981" : "#10b981";
+        const weight = isStyled ? item.weight || 5 : 5;
+        const dashArray = isStyled ? item.dashArray || "8, 8" : "8, 8";
+
+        if (pts && pts.length >= 2) {
+          const line = L.polyline(pts, {
+            color,
+            weight,
+            opacity: 0.9,
+            dashArray,
           }).addTo(map);
           polylinesRef.current.push(line);
         }

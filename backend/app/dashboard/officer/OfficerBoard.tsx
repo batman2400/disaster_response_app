@@ -39,6 +39,7 @@ import { AudioPlayer } from "@/components/audio-player";
 import { BroadcastEditorModal } from "@/components/broadcast-editor-modal";
 import { SitRepExportModal } from "@/components/sitrep-export-modal";
 import { VoiceModal } from "@/components/voice-modal";
+import { WaterDepthGauge } from "@/components/water-depth-gauge";
 import { DEMO_SAMPLE_AUDIO_URL } from "@/lib/demo-audio";
 import { CREW_TEAMS } from "@/lib/store";
 
@@ -457,6 +458,11 @@ export function OfficerBoard({
                         <Truck className="h-2.5 w-2.5 text-blue-600 shrink-0" /> {ticket.assigned_crew_name}
                       </span>
                     ) : null}
+                    {ticket.estimated_water_depth_cm !== undefined && ticket.estimated_water_depth_cm !== null && (
+                      <span className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] font-extrabold bg-cyan-50 text-cyan-800 border border-cyan-200">
+                        🌊 {ticket.estimated_water_depth_cm}cm
+                      </span>
+                    )}
                   </div>
                   <span className="text-[10px] font-bold text-slate-400">{timeAgo(ticket.created_at)}</span>
                 </div>
@@ -671,6 +677,18 @@ export function OfficerBoard({
                         </div>
                       )}
                     </div>
+
+                    {/* Visual Water Depth & Passability Gauge */}
+                    {(selected.estimated_water_depth_cm !== undefined || selected.passability) && (
+                      <div className="mt-4">
+                        <WaterDepthGauge
+                          depthCm={selected.estimated_water_depth_cm}
+                          confidence={selected.depth_confidence}
+                          referenceAnchor={selected.depth_reference_anchor}
+                          passability={selected.passability}
+                        />
+                      </div>
+                    )}
 
                     {/* Citizen Voice Recording Review */}
                     {selected.audio_url || demoAudioId === selected.id ? (

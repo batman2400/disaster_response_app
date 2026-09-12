@@ -19,6 +19,7 @@ import {
   Shield,
   ShieldAlert,
   Truck,
+  Users,
   Volume2,
   VolumeX,
   X,
@@ -305,6 +306,15 @@ export function DashboardChrome({ role }: { role: DashRole }) {
           </>
         ) : null}
 
+        <Link
+          href="/safe"
+          title="Open Family Reunification & Vulnerability Registry"
+          className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-600 shadow-sm transition hover:bg-sky-50 hover:text-sky-700 sm:px-3"
+        >
+          <Users className="h-4 w-4 text-sky-600" />
+          <span className="hidden lg:inline">Family safety</span>
+        </Link>
+
         {/* Interactive Notification Bell Popover */}
         <div className="relative" ref={notifRef}>
           <button
@@ -462,6 +472,14 @@ export function DashboardChrome({ role }: { role: DashRole }) {
               >
                 <MapPin className="h-4 w-4 text-rose-500" />
                 <span>Report Incident</span>
+              </Link>
+              <Link
+                href="/safe"
+                onClick={() => setShowRoles(false)}
+                className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50"
+              >
+                <Users className="h-4 w-4 text-sky-500" />
+                <span>Family Safety (/safe)</span>
               </Link>
             </div>
           ) : null}

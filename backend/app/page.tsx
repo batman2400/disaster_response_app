@@ -21,6 +21,7 @@ import {
   ShieldAlert,
   Smartphone,
   Sparkles,
+  Users,
   Waves,
   Zap,
 } from "lucide-react";
@@ -113,6 +114,14 @@ export default async function Home() {
             >
               <Package className="h-3.5 w-3.5" />
               <span>Supplies</span>
+            </Link>
+
+            <Link
+              href="/safe"
+              className="flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50/80 px-3 py-2 text-xs font-bold text-sky-800 transition-all hover:bg-sky-100 hover:text-sky-950"
+            >
+              <Users className="h-3.5 w-3.5 text-sky-600" />
+              <span>Family Safety</span>
             </Link>
 
             <Link
@@ -254,6 +263,41 @@ export default async function Home() {
               <p className="mt-0.5 text-[11px] font-semibold text-cyan-600">
                 Continuous IoT & Rain watch
               </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Special Disaster Feature: Family Safety & Reunification Portal Banner */}
+        <div className="mb-8 rounded-3xl border border-sky-200 bg-gradient-to-r from-sky-50 via-blue-50/70 to-indigo-50/40 p-5 shadow-xs">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3.5">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-600 text-white shadow-md shadow-sky-500/20">
+                <Users className="h-6 w-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-sky-800">
+                    Emergency Public Portal
+                  </span>
+                  <span className="text-[11px] font-bold text-slate-500">Zero-barrier check-in</span>
+                </div>
+                <h3 className="mt-1 text-base font-extrabold text-slate-900 sm:text-lg">
+                  "I'm Safe" Family Reunification & Vulnerability Registry
+                </h3>
+                <p className="mt-0.5 text-xs font-medium text-slate-600 max-w-xl">
+                  Mark yourself and loved ones safe, search for missing relatives across evacuation centers, or register special vulnerability flags (infants, elderly, dialysis/medical needs).
+                </p>
+              </div>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-2 pt-1 sm:pt-0">
+              <Link
+                href="/safe"
+                className="flex items-center gap-1.5 rounded-xl bg-sky-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition-all hover:bg-sky-700 active:scale-95"
+              >
+                <span>Check In / Search Portal</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
             </div>
           </div>
         </div>

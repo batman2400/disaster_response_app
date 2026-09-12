@@ -44,6 +44,10 @@ async function runTracedChecks(body: ReportRequest) {
     cluster_count: cluster.value.cluster_count,
     location_matched: location.value.location_matched,
     risk_level: risk.value.risk_level,
+    estimated_water_depth_cm: image.value.estimated_water_depth_cm,
+    depth_confidence: image.value.depth_confidence,
+    depth_reference_anchor: image.value.depth_reference_anchor,
+    passability: image.value.passability,
   };
 
   const model = geminiModel();
@@ -62,12 +66,18 @@ async function runTracedChecks(body: ReportRequest) {
     },
     {
       id: "image",
-      name: "Image AI (Gemini)",
+      name: "Image AI (Gemini Vision)",
       passed: image.value.image_verified,
-      detail: image.value.reason,
+      detail: `${image.value.reason}${image.value.estimated_water_depth_cm ? ` (Water depth: ~${image.value.estimated_water_depth_cm}cm, ${image.value.passability})` : ""}`,
       latency_ms: image.latency_ms,
       source: image.value.source,
-      extra: image.value.source === "gemini" ? { model_version: model } : undefined,
+      extra: {
+        model_version: image.value.source === "gemini" ? model : undefined,
+        estimated_water_depth_cm: image.value.estimated_water_depth_cm,
+        depth_confidence: image.value.depth_confidence,
+        depth_reference_anchor: image.value.depth_reference_anchor,
+        passability: image.value.passability,
+      },
     },
     {
       id: "weather",
@@ -163,7 +173,17 @@ export async function buildVerdict(
     },
   };
 
-  return { ...publicVerdict, checks, trace, summary, detected_language };
+  return {
+    ...publicVerdict,
+    checks,
+    trace,
+    summary,
+    detected_language,
+    estimated_water_depth_cm: checks.estimated_water_depth_cm ?? null,
+    depth_confidence: checks.depth_confidence ?? null,
+    depth_reference_anchor: checks.depth_reference_anchor ?? null,
+    passability: checks.passability ?? null,
+  };
 }
 
 export async function persistReport(body: ReportRequest, result: ReportResponse) {
@@ -236,6 +256,10 @@ export async function persistReport(body: ReportRequest, result: ReportResponse)
     trace: result.trace ?? null,
     summary: result.summary ?? null,
     detected_language: result.detected_language ?? null,
+    estimated_water_depth_cm: result.estimated_water_depth_cm ?? null,
+    depth_confidence: result.depth_confidence ?? null,
+    depth_reference_anchor: result.depth_reference_anchor ?? null,
+    passability: result.passability ?? null,
   };
   return saveHazard(row);
 }

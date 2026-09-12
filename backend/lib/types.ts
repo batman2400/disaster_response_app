@@ -37,12 +37,25 @@ export interface ReportRequest {
   audio_mime?: string;
 }
 
+export type VehiclePassability =
+  | "WALKABLE"
+  | "CAUTION_SUV_ONLY"
+  | "IMPASSABLE"
+  | "EXTREME_BOAT_ONLY"
+  | "NOT_APPLICABLE";
+
+export type DepthConfidence = "HIGH" | "MEDIUM" | "LOW";
+
 export interface ReportChecks {
   image_verified: boolean;
   weather_supported: boolean;
   cluster_count: number;
   location_matched: boolean;
   risk_level: Urgency;
+  estimated_water_depth_cm?: number | null;
+  depth_confidence?: DepthConfidence | null;
+  depth_reference_anchor?: string | null;
+  passability?: VehiclePassability | null;
 }
 
 export type CheckSource = "gemini" | "mock" | "fallback" | "code";
@@ -99,6 +112,10 @@ export interface ReportResponse {
   detected_language?: string | null;
   parent_incident_id?: string | null;
   is_corroboration?: boolean;
+  estimated_water_depth_cm?: number | null;
+  depth_confidence?: DepthConfidence | null;
+  depth_reference_anchor?: string | null;
+  passability?: VehiclePassability | null;
   trace?: PipelineTrace;
 }
 
@@ -206,6 +223,10 @@ export interface HazardRow {
   detected_language?: string | null;
   resolution_verified?: boolean;
   resolution_notes?: string | null;
+  estimated_water_depth_cm?: number | null;
+  depth_confidence?: DepthConfidence | null;
+  depth_reference_anchor?: string | null;
+  passability?: VehiclePassability | null;
 }
 
 export interface WardRow {
@@ -317,4 +338,41 @@ export interface RoadClosureCorridor {
   closed_at?: string;
   detour_suggestion?: string;
   incident_id?: string;
+}
+
+export interface DataMuleBeacon {
+  id: string;
+  type: "FENDER_SOS_BEACON";
+  lat: number;
+  lng: number;
+  ward_id: WardId;
+  category: HazardCategory;
+  help_request: boolean;
+  description: string;
+  estimated_people?: number;
+  medical_priority?: Urgency;
+  created_at: string;
+  collected_by_crew_id?: string;
+  collected_at?: string;
+  synced_at?: string;
+}
+
+export type SafeStatus = "SAFE_HOME" | "IN_SHELTER" | "WITH_RELATIVES" | "MEDICAL_CARE";
+export type VulnerabilityFlag = "ELDERLY" | "INFANT" | "MEDICAL_INSULIN" | "OXYGEN_POWER" | "WHEELCHAIR";
+
+export interface SafeCheckIn {
+  id: string;
+  full_name: string;
+  contact_masked: string;
+  nic_masked?: string;
+  status: SafeStatus;
+  shelter_id?: string | null;
+  shelter_name?: string | null;
+  ward_id?: WardId | null;
+  location_detail?: string;
+  family_count: number;
+  vulnerabilities: VulnerabilityFlag[];
+  message?: string;
+  created_at: string;
+  verified_by_shelter?: boolean;
 }

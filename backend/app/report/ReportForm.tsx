@@ -21,6 +21,8 @@ import {
   Mic,
   Mountain,
   PhoneCall,
+  QrCode,
+  Radio,
   RotateCw,
   ShieldAlert,
   Sparkles,
@@ -39,6 +41,8 @@ import { useEffect, useRef, useState } from "react";
 
 import { EmergencyBroadcastBanner } from "@/components/emergency-broadcast-banner";
 import { EmergencySosModal } from "@/components/emergency-sos-modal";
+import { OfflineSosModal } from "@/components/offline-sos-modal";
+import { WaterDepthGauge } from "@/components/water-depth-gauge";
 import { PublicShell } from "@/components/public-shell";
 import { Button, Modal, PipelineStepper, SectionLabel, type PipelineStep } from "@/components/ui";
 import { cn } from "@/lib/cn";
@@ -172,6 +176,7 @@ export function ReportForm() {
   const [verdict, setVerdict] = useState<ReportResponse | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [sosModalOpen, setSosModalOpen] = useState(false);
+  const [offlineMuleModalOpen, setOfflineMuleModalOpen] = useState(false);
 
   // Voice recording & Multilingual states
   const [audioBase64, setAudioBase64] = useState<string>("");
@@ -640,6 +645,16 @@ export function ReportForm() {
                 <p className="mt-0.5 text-xs font-semibold text-amber-800">
                   Network connection is currently unavailable. Your photo, location, and hazard details are secured locally on your device and will auto-sync with municipal response as soon as connectivity resumes.
                 </p>
+                <div className="mt-3 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setOfflineMuleModalOpen(true)}
+                    className="flex items-center gap-1.5 rounded-xl border border-purple-300 bg-purple-600 px-3 py-1.5 text-xs font-black text-white shadow-sm hover:bg-purple-700 active:scale-95"
+                  >
+                    <Radio className="h-3.5 w-3.5 animate-pulse" />
+                    <span>Generate Offline SOS QR Beacon (Data Mule)</span>
+                  </button>
+                </div>
               </div>
             </div>
             <button
@@ -1097,6 +1112,18 @@ export function ReportForm() {
               </div>
             ) : null}
 
+            {/* AI Water Depth & Vehicle Passability Telemetry */}
+            {verdict && verdict.estimated_water_depth_cm !== undefined && verdict.estimated_water_depth_cm !== null ? (
+              <div className="mt-6 animate-pop">
+                <WaterDepthGauge
+                  depthCm={verdict.estimated_water_depth_cm}
+                  passability={verdict.passability}
+                  confidence={verdict.depth_confidence}
+                  referenceAnchor={verdict.depth_reference_anchor}
+                />
+              </div>
+            ) : null}
+
             {verdict ? (
               <div className="relative mt-6 overflow-hidden rounded-[24px] bg-slate-900 p-6 shadow-xl animate-pop">
                 <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-emerald-500 opacity-20 blur-[40px]" />
@@ -1172,6 +1199,15 @@ export function ReportForm() {
 
       {/* Emergency SOS Hotlines Modal */}
       <EmergencySosModal open={sosModalOpen} onClose={() => setSosModalOpen(false)} />
+
+      {/* Offline SOS QR Beacon Modal (Data Mule) */}
+      <OfflineSosModal
+        open={offlineMuleModalOpen}
+        onClose={() => setOfflineMuleModalOpen(false)}
+        defaultWard={wardId}
+        defaultLat={lat}
+        defaultLng={lng}
+      />
     </PublicShell>
   );
 }

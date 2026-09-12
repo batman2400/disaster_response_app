@@ -21,17 +21,21 @@ import {
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
-import { OfficerMap } from "@/app/dashboard/officer/OfficerMap";
+import { OfficerMap, type StyledRoute } from "@/app/dashboard/officer/OfficerMap";
 import { EmergencyBroadcastBanner } from "@/components/emergency-broadcast-banner";
 import { EmergencySosModal } from "@/components/emergency-sos-modal";
 import { PublicShell } from "@/components/public-shell";
+import { WaterDepthGauge } from "@/components/water-depth-gauge";
 import { Badge, BottomSheet, Button, Chip, StatusBadge } from "@/components/ui";
 import { categoryLabel, PIN_COLORS, PIN_LEGEND, pinMeaning, wardShort } from "@/lib/format";
 import { LanguageSwitcher, useI18n } from "@/lib/i18n/language-context";
 import {
   attachShelterCoords,
   ARTERIAL_SAFE_CORRIDORS,
+  calculateDynamicShelterDetour,
+  findNearestSafeShelter,
   SAFE_ROUTES,
+  type DynamicDetourRoute,
   type SafeCorridor,
   type ShelterWithCoords,
 } from "@/lib/safe-routes";
@@ -106,6 +110,18 @@ function HazardDetail({
         </div>
       </div>
 
+      {/* AI Visual Water Depth & Vehicle Passability */}
+      {selected.estimated_water_depth_cm !== undefined && selected.estimated_water_depth_cm !== null ? (
+        <div className="mb-5">
+          <WaterDepthGauge
+            depthCm={selected.estimated_water_depth_cm}
+            passability={selected.passability}
+            confidence={selected.depth_confidence}
+            referenceAnchor={selected.depth_reference_anchor}
+          />
+        </div>
+      ) : null}
+
       {selected.status === "NEED_INFO" ? (
         <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
           <div className="flex items-start gap-3">
@@ -167,9 +183,11 @@ function HazardDetail({
 function ShelterDetail({
   shelter,
   onClose,
+  onNavigateRoute,
 }: {
   shelter: ShelterWithCoords;
   onClose: () => void;
+  onNavigateRoute?: (shelter: ShelterWithCoords) => void;
 }) {
   const suppliesTone =
     shelter.supplies_status === "ADEQUATE"
@@ -214,6 +232,16 @@ function ShelterDetail({
       </div>
 
       <div className="space-y-3">
+        {onNavigateRoute && (
+          <button
+            type="button"
+            onClick={() => onNavigateRoute(shelter)}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-400 bg-emerald-600 py-3 text-xs font-black text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-700 active:scale-98"
+          >
+            <Compass className="h-4 w-4 animate-pulse" />
+            <span>Navigate Safe Evacuation Route (Detour Active)</span>
+          </button>
+        )}
         <a
           href="tel:117"
           className="flex w-full items-center justify-center gap-2 rounded-2xl bg-brand py-3 text-xs font-extrabold text-white shadow-md shadow-brand/20 active:scale-98"
@@ -261,6 +289,8 @@ export function PublicMap({
   const [focusCoords, setFocusCoords] = useState<[number, number] | null>(null);
   const [corridorsDrawerOpen, setCorridorsDrawerOpen] = useState(false);
   const [selectedCorridorId, setSelectedCorridorId] = useState<string | null>(null);
+  const [activeDetourRoute, setActiveDetourRoute] = useState<DynamicDetourRoute | null>(null);
+  const [detourDrawerOpen, setDetourDrawerOpen] = useState(false);
 
   const { rows: hazards, live } = useLiveRows<HazardRow>({
     table: "hazards",
@@ -301,15 +331,45 @@ export function PublicMap({
   const areaAlert = hazards.find((row) => row.status === "AREA_ALERT");
   const showAlert = !alertDismissed && Boolean(criticalWard || areaAlert);
 
+  function handleStartDetourNavigation(customShelter?: ShelterWithCoords) {
+    const origin: [number, number] = selectedHazard
+      ? [selectedHazard.lat, selectedHazard.lng]
+      : [6.9535, 79.8732];
+    const target =
+      customShelter ||
+      (selectedShelterId ? shelters.find((s) => s.id === selectedShelterId) : null) ||
+      findNearestSafeShelter(origin, shelters) ||
+      shelters[0];
+    if (!target) return;
+
+    const route = calculateDynamicShelterDetour(origin, target, hazards);
+    setActiveDetourRoute(route);
+    setDetourDrawerOpen(true);
+    setSelectedShelterId(target.id);
+    setSelectedId(null);
+    setShowEvacRoutes(true);
+    setFocusCoords([(origin[0] + target.lat) / 2, (origin[1] + target.lng) / 2]);
+  }
+
   // Active safe evacuation routes to draw
-  const activeSafeRoutes = useMemo(() => {
+  const activeSafeRoutes: Array<[number, number][] | StyledRoute> = useMemo(() => {
+    if (activeDetourRoute) {
+      return [
+        {
+          points: activeDetourRoute.points,
+          color: activeDetourRoute.status === "DETOUR_ACTIVE" ? "#f59e0b" : "#10b981",
+          dashArray: activeDetourRoute.status === "DETOUR_ACTIVE" ? "12, 6" : "6, 6",
+          weight: 6,
+        },
+      ];
+    }
     if (!showEvacRoutes) return [];
     if (selectedCorridorId) {
       const match = ARTERIAL_SAFE_CORRIDORS.find((c) => c.id === selectedCorridorId);
       if (match) return [match.points];
     }
     return ARTERIAL_SAFE_CORRIDORS.map((c) => c.points);
-  }, [showEvacRoutes, selectedCorridorId]);
+  }, [showEvacRoutes, selectedCorridorId, activeDetourRoute]);
 
   async function confirm(id: string) {
     setConfirmBusy(true);
@@ -420,6 +480,22 @@ export function PublicMap({
           showAlert ? "top-64" : "top-32"
         } right-4 lg:right-auto`}
       >
+        {/* Dynamic Evacuation Detour Navigator Action Chip */}
+        <button
+          type="button"
+          onClick={() => handleStartDetourNavigation()}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-2xl border border-amber-300 bg-white/95 px-3.5 py-2 text-xs font-black text-amber-800 shadow-soft backdrop-blur-md hover:bg-amber-50 active:scale-95"
+          title="Compute dynamic detour route to safest open shelter, bypassing flood roadblocks"
+        >
+          <Compass className="h-3.5 w-3.5 text-amber-600 animate-pulse" />
+          <span>Detour Navigator</span>
+          {activeDetourRoute && (
+            <span className="rounded-full bg-amber-500 px-1.5 py-0.2 text-[9px] font-black text-white">
+              Active
+            </span>
+          )}
+        </button>
+
         {/* Find Shelters action chip */}
         <button
           type="button"
@@ -557,7 +633,11 @@ export function PublicMap({
 
         <BottomSheet open={Boolean(selectedShelter)} onClose={() => setSelectedShelterId(null)}>
           {selectedShelter ? (
-            <ShelterDetail shelter={selectedShelter} onClose={() => setSelectedShelterId(null)} />
+            <ShelterDetail
+              shelter={selectedShelter}
+              onClose={() => setSelectedShelterId(null)}
+              onNavigateRoute={(s) => handleStartDetourNavigation(s)}
+            />
           ) : null}
         </BottomSheet>
       </div>
@@ -596,7 +676,11 @@ export function PublicMap({
               <X className="h-4 w-4" />
             </button>
           </div>
-          <ShelterDetail shelter={selectedShelter} onClose={() => setSelectedShelterId(null)} />
+          <ShelterDetail
+            shelter={selectedShelter}
+            onClose={() => setSelectedShelterId(null)}
+            onNavigateRoute={(s) => handleStartDetourNavigation(s)}
+          />
         </aside>
       ) : null}
 
@@ -640,15 +724,29 @@ export function PublicMap({
                   <span className="text-[11px] font-semibold text-slate-400">
                     Supplies: <strong className="text-slate-600">{shelter.supplies_status}</strong>
                   </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="h-8 px-3 text-xs"
-                    onClick={() => onFocusShelter(shelter)}
-                  >
-                    <Compass className="h-3.5 w-3.5" />
-                    Locate on Map
-                  </Button>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      type="button"
+                      variant="primary"
+                      className="h-8 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 font-bold text-white shadow-sm"
+                      onClick={() => {
+                        setSheltersListOpen(false);
+                        handleStartDetourNavigation(shelter);
+                      }}
+                    >
+                      <Route className="h-3.5 w-3.5" />
+                      Navigate Detour
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="h-8 px-3 text-xs"
+                      onClick={() => onFocusShelter(shelter)}
+                    >
+                      <Compass className="h-3.5 w-3.5" />
+                      Locate
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -746,6 +844,150 @@ export function PublicMap({
             })}
           </div>
         </div>
+      </BottomSheet>
+
+      {/* Dynamic Evacuation Detour Navigator Drawer */}
+      <BottomSheet open={detourDrawerOpen && Boolean(activeDetourRoute)} onClose={() => setDetourDrawerOpen(false)}>
+        {activeDetourRoute && (
+          <div className="overflow-y-auto no-scrollbar px-6 pb-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div
+                  className={`flex h-8 w-8 items-center justify-center rounded-xl text-white ${
+                    activeDetourRoute.status === "DETOUR_ACTIVE"
+                      ? "bg-amber-500 shadow-md shadow-amber-500/20"
+                      : "bg-emerald-500 shadow-md shadow-emerald-500/20"
+                  }`}
+                >
+                  <Compass className="h-4 w-4" />
+                </div>
+                <div>
+                  <h2 className="text-base font-black text-slate-900">Dynamic Evacuation Navigator</h2>
+                  <p className="text-[10px] font-bold text-slate-400">Colombo Real-Time Hazard Detour Guidance</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetourDrawerOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Destination & Status Pill */}
+            <div
+              className={`rounded-2xl border p-4 ${
+                activeDetourRoute.status === "DETOUR_ACTIVE"
+                  ? "border-amber-200 bg-amber-50/70"
+                  : "border-emerald-200 bg-emerald-50/70"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+                    Destination Shelter
+                  </span>
+                  <h3 className="text-sm font-black text-slate-900">{activeDetourRoute.shelterName}</h3>
+                </div>
+                <span
+                  className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase ${
+                    activeDetourRoute.status === "DETOUR_ACTIVE"
+                      ? "bg-amber-500 text-white"
+                      : "bg-emerald-500 text-white"
+                  }`}
+                >
+                  {activeDetourRoute.status === "DETOUR_ACTIVE"
+                    ? `Bypassing ${activeDetourRoute.bypassedHazardsCount} Roadblocks`
+                    : "Direct Access Clear"}
+                </span>
+              </div>
+              <p className="mt-2 text-xs font-semibold leading-relaxed text-slate-700">
+                {activeDetourRoute.reason}
+              </p>
+            </div>
+
+            {/* Route Stats */}
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-2.5">
+                <span className="text-[9px] font-extrabold uppercase text-slate-400 block">Total Distance</span>
+                <span className="font-mono text-base font-black text-slate-900">
+                  {activeDetourRoute.totalDistanceKm} km
+                </span>
+              </div>
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-2.5">
+                <span className="text-[9px] font-extrabold uppercase text-slate-400 block">Est. Time</span>
+                <span className="font-mono text-base font-black text-slate-900">
+                  {activeDetourRoute.estimatedMinutes} mins
+                </span>
+              </div>
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-2.5">
+                <span className="text-[9px] font-extrabold uppercase text-slate-400 block">Safety Score</span>
+                <span className="font-mono text-base font-black text-emerald-600">
+                  {activeDetourRoute.safetyScorePct}%
+                </span>
+              </div>
+            </div>
+
+            {/* Step-by-Step Turn Directions */}
+            <div className="space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                Turn-by-Turn Safe Corridor Steps
+              </span>
+              <div className="space-y-2">
+                {activeDetourRoute.steps.map((step, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-start gap-3 rounded-xl border border-slate-100 bg-white p-3 shadow-sm"
+                  >
+                    <span
+                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-xs font-black ${
+                        step.isHighGround
+                          ? "bg-amber-100 text-amber-700 font-bold"
+                          : "bg-slate-100 text-slate-700"
+                      }`}
+                    >
+                      {idx + 1}
+                    </span>
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-slate-800 leading-snug">{step.instruction}</p>
+                      {step.highlight && (
+                        <span className="mt-1 inline-flex items-center gap-1 rounded bg-amber-100/70 px-1.5 py-0.2 text-[9px] font-extrabold text-amber-800">
+                          🛡️ High Ground Corridor: {step.highlight}
+                        </span>
+                      )}
+                      <span className="mt-0.5 block text-[10px] font-semibold text-slate-400">
+                        {step.distanceM} meters
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2 border-t border-slate-100">
+              <Button
+                type="button"
+                variant="ghost"
+                className="flex-1 py-2 text-xs font-bold text-slate-600"
+                onClick={() => {
+                  setActiveDetourRoute(null);
+                  setDetourDrawerOpen(false);
+                }}
+              >
+                Clear Route
+              </Button>
+              <Button
+                type="button"
+                variant="gradient"
+                className="flex-1 py-2 text-xs font-black"
+                onClick={() => setDetourDrawerOpen(false)}
+              >
+                View on Live Map
+              </Button>
+            </div>
+          </div>
+        )}
       </BottomSheet>
 
       {/* Emergency SOS Hotlines Modal */}

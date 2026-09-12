@@ -62,13 +62,22 @@ export function deterministicAggregate(
     };
   }
 
+  const isImpassable =
+    checks.passability === "IMPASSABLE" ||
+    checks.passability === "EXTREME_BOAT_ONLY" ||
+    (typeof checks.estimated_water_depth_cm === "number" && checks.estimated_water_depth_cm >= 35);
+
+  const isExtremeDepth =
+    checks.passability === "EXTREME_BOAT_ONLY" ||
+    (typeof checks.estimated_water_depth_cm === "number" && checks.estimated_water_depth_cm >= 50);
+
   if (body.category === "FLOOD" && checks.weather_supported && checks.cluster_count >= 2) {
     return {
       status: "AREA_ALERT",
       urgency: "CRITICAL",
       confidence_score: 0.89,
       is_road_blocked: true,
-      reasoning: `Severe flooding verified by computer vision, reinforced by ward rainfall telemetry and ${checks.cluster_count} local cluster reports.`,
+      reasoning: `Severe flooding verified by computer vision (depth ~${checks.estimated_water_depth_cm ?? 45}cm, ${checks.passability ?? "IMPASSABLE"}), reinforced by rainfall telemetry and ${checks.cluster_count} local cluster reports.`,
       source: "code",
     };
   }
@@ -76,16 +85,17 @@ export function deterministicAggregate(
   if (checks.weather_supported && checks.image_verified) {
     return {
       status: "PUBLISHED",
-      urgency: checks.risk_level,
-      confidence_score: 0.74,
-      is_road_blocked: body.category !== "HELP_REQUEST",
-      reasoning: "Image and weather checks agree. Pin published on the public map.",
+      urgency: isExtremeDepth ? "CRITICAL" : checks.risk_level,
+      confidence_score: 0.76,
+      is_road_blocked: isImpassable || body.category !== "HELP_REQUEST",
+      reasoning: `Image verified with water depth ~${checks.estimated_water_depth_cm ?? 25}cm (${checks.passability ?? "CAUTION_SUV_ONLY"}). Pin published on public map.`,
       source: "code",
     };
   }
 
   if (checks.image_verified && checks.location_matched) {
     const isActionable =
+      isImpassable ||
       body.category === "BLOCKED_ROAD" ||
       body.category === "FALLEN_TREE" ||
       body.category === "ELECTRICAL_HAZARD" ||
@@ -94,11 +104,13 @@ export function deterministicAggregate(
       body.category === "STRUCTURAL_DAMAGE";
     return {
       status: "COUNCIL_TICKET",
-      urgency: "MEDIUM",
-      confidence_score: 0.66,
+      urgency: isExtremeDepth ? "CRITICAL" : "MEDIUM",
+      confidence_score: 0.68,
       is_road_blocked: isActionable,
       reasoning:
-        "Actionable hazard with a verified photo and plausible location. Raised as a council ticket for field dispatch.",
+        checks.estimated_water_depth_cm && checks.estimated_water_depth_cm > 20
+          ? `Actionable hazard with water depth ~${checks.estimated_water_depth_cm}cm (${checks.passability}). Raised as council ticket for squad dispatch.`
+          : "Actionable hazard with a verified photo and plausible location. Raised as a council ticket for field dispatch.",
       source: "code",
     };
   }
@@ -108,9 +120,9 @@ export function deterministicAggregate(
     heldConfidence >= settings.confirm_threshold ? "PUBLISHED" : "NEED_INFO";
   return {
     status,
-    urgency: checks.risk_level,
+    urgency: isExtremeDepth ? "CRITICAL" : checks.risk_level,
     confidence_score: heldConfidence,
-    is_road_blocked: false,
+    is_road_blocked: isImpassable,
     reasoning:
       "Checks are mixed. Holding as NEED_INFO until nearby users confirm.",
     source: "code",

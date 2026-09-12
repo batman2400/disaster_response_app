@@ -19,6 +19,7 @@ import {
   Map as MapIcon,
   MapPin,
   Navigation,
+  QrCode,
   Radio,
   Search,
   Shield,
@@ -27,6 +28,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+import { MuleScannerModal } from "@/components/mule-scanner-modal";
 import { PublicShell } from "@/components/public-shell";
 import { Badge, StatusBadge, UrgencyBadge } from "@/components/ui";
 import { LanguageSwitcher } from "@/lib/i18n/language-context";
@@ -34,6 +36,7 @@ import { cn } from "@/lib/cn";
 import { categoryLabel, timeAgo, wardShort } from "@/lib/format";
 import { haversineKm } from "@/lib/geo";
 import { latestDispatchNote } from "@/lib/officer-log";
+import { getMuleBeacons, syncMuleBeacons } from "@/lib/offline-mule";
 import { ROLE_THEME } from "@/lib/role-theme";
 import { CREW_TEAMS } from "@/lib/store";
 import type { HazardRow, WardId } from "@/lib/types";
@@ -167,6 +170,43 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
     }
   }, []);
 
+  // Offline Data Mule Beacon state
+  const [muleModalOpen, setMuleModalOpen] = useState(false);
+  const [muleCount, setMuleCount] = useState(0);
+  const [isSyncingMules, setIsSyncingMules] = useState(false);
+  const [muleToast, setMuleToast] = useState<string | null>(null);
+
+  const refreshMules = async () => {
+    try {
+      const beacons = await getMuleBeacons();
+      setMuleCount(beacons.length);
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    refreshMules();
+  }, []);
+
+  const handleRelayMules = async () => {
+    setIsSyncingMules(true);
+    try {
+      const result = await syncMuleBeacons(selectedCrewUnit !== "all" ? selectedCrewUnit : undefined);
+      if (result.synced > 0) {
+        setMuleToast(`Successfully relayed ${result.synced} offline citizen SOS beacon(s) to Municipal Command!`);
+      } else {
+        setMuleToast("No cached beacons to relay or transmission failed.");
+      }
+      await refreshMules();
+    } catch (e) {
+      setMuleToast("Relay transmission failed. Beacons remain safely buffered in local IndexedDB vault.");
+    } finally {
+      setIsSyncingMules(false);
+      setTimeout(() => setMuleToast(null), 6000);
+    }
+  };
+
   const openHazards = useMemo(() => hazards.filter((row) => row.status !== "RESOLVED"), [hazards]);
   const resolvedHazards = useMemo(() => hazards.filter((row) => row.status === "RESOLVED"), [hazards]);
 
@@ -275,6 +315,36 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
 
           <div className="flex items-center gap-2">
             <LanguageSwitcher className="hidden sm:inline-flex" />
+
+            {/* Zero-Signal Data Mule SOS Scanner */}
+            <button
+              type="button"
+              onClick={() => setMuleModalOpen(true)}
+              title="Zero-Signal Data Mule: Scan stranded citizen QR beacons"
+              className="relative flex h-10 items-center gap-1.5 rounded-2xl border border-amber-300 bg-amber-50 px-3 text-xs font-bold text-amber-900 shadow-sm transition-all hover:bg-amber-100 active:scale-95"
+            >
+              <QrCode className="h-4 w-4 text-amber-700" />
+              <span className="hidden md:inline">Mule SOS Scanner</span>
+              {muleCount > 0 ? (
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-600 px-1.5 text-[10px] font-extrabold text-white animate-pulse">
+                  {muleCount}
+                </span>
+              ) : null}
+            </button>
+
+            {muleCount > 0 ? (
+              <button
+                type="button"
+                onClick={handleRelayMules}
+                disabled={isSyncingMules}
+                title="Relay buffered citizen SOS beacons to Municipal Command"
+                className="flex h-10 items-center gap-1.5 rounded-2xl bg-amber-600 px-3 text-xs font-bold text-white shadow-sm transition-all hover:bg-amber-700 active:scale-95 disabled:opacity-50"
+              >
+                <Radio className={cn("h-3.5 w-3.5", isSyncingMules && "animate-spin")} />
+                <span>{isSyncingMules ? "Relaying..." : `Relay (${muleCount})`}</span>
+              </button>
+            ) : null}
+
             {/* View Mode Toggle: List vs Tactical Map */}
             <div className="flex items-center rounded-2xl border border-slate-200 bg-slate-100 p-1 shadow-inner">
               <button
@@ -620,6 +690,12 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
                             ROAD BLOCKED
                           </Badge>
                         )}
+
+                        {ticket.estimated_water_depth_cm !== undefined && ticket.estimated_water_depth_cm !== null && (
+                          <span className="flex items-center gap-1 rounded-md px-2 py-0.5 text-[9px] font-extrabold bg-cyan-100 text-cyan-900 border border-cyan-300 shadow-2xs">
+                            🌊 {ticket.estimated_water_depth_cm}cm {ticket.passability ? `· ${ticket.passability.replace(/_/g, " ")}` : ""}
+                          </span>
+                        )}
                       </div>
 
                       {distanceKm && (
@@ -810,6 +886,34 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* Data Mule QR Scanner Modal */}
+      <MuleScannerModal
+        open={muleModalOpen}
+        onClose={() => {
+          setMuleModalOpen(false);
+          refreshMules();
+        }}
+        crewId={selectedCrewUnit !== "all" ? selectedCrewUnit : "crew_field_alpha"}
+        onBeaconCaptured={() => {
+          refreshMules();
+        }}
+      />
+
+      {/* Floating Mule Toast Feedback */}
+      {muleToast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl border border-amber-400/40 bg-slate-900/95 px-4 py-3 text-xs font-bold text-amber-300 shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-4">
+          <QrCode className="h-4 w-4 text-amber-400 shrink-0" />
+          <span>{muleToast}</span>
+          <button
+            type="button"
+            onClick={() => setMuleToast(null)}
+            className="ml-2 rounded p-1 text-slate-400 hover:text-white"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
       )}
     </PublicShell>
