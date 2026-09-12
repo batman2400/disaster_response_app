@@ -188,8 +188,8 @@ export function SafeRegistryClient() {
   return (
     <PublicShell>
       {/* 1. Mobile-Optimized Sticky Header */}
-      <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-slate-200/80 bg-white/95 px-3 py-2.5 pt-safe backdrop-blur-xl sm:px-6">
-        <div className="flex items-center gap-2 min-w-0">
+      <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-slate-200/80 bg-white/95 px-3 py-2 pt-safe backdrop-blur-xl sm:px-6 max-w-full">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
           <Link
             href="/"
             onClick={() => {
@@ -203,11 +203,11 @@ export function SafeRegistryClient() {
             <ArrowLeft className="h-4.5 w-4.5" />
           </Link>
 
-          <div className="flex items-center gap-1.5 min-w-0">
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
             <div className="hidden xs:flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-200 shadow-xs">
               <Users className="h-4 w-4" />
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <h1 className="text-xs font-black tracking-tight text-slate-900 truncate sm:text-sm">
                 Safety Registry
               </h1>
@@ -233,38 +233,38 @@ export function SafeRegistryClient() {
       </header>
 
       {/* 2. Main Body Container with Bottom Nav Padding */}
-      <div className="mx-auto max-w-4xl px-3 py-4 sm:px-6 space-y-4 pb-safe-nav">
+      <div className="mx-auto w-full max-w-4xl px-3 py-3 sm:px-6 space-y-3 pb-safe-nav overflow-x-hidden">
         {/* Compact Disaster KPI Status Bar */}
-        <div className="grid grid-cols-4 gap-2 rounded-2xl border border-slate-200/90 bg-white p-2.5 shadow-xs text-center">
-          <div className="border-r border-slate-100 pr-1">
-            <span className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-500">
+        <div className="grid grid-cols-4 gap-1 rounded-2xl border border-slate-200/90 bg-white p-2 shadow-xs text-center">
+          <div className="border-r border-slate-100 pr-0.5">
+            <span className="block text-[9px] font-black uppercase tracking-tight text-slate-500 truncate">
               Safe
             </span>
-            <span className="font-mono text-base font-black text-emerald-600">
+            <span className="font-mono text-sm sm:text-base font-black text-emerald-600">
               {checkIns.length * 4 + 182}
             </span>
           </div>
-          <div className="border-r border-slate-100 px-1">
-            <span className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-500">
-              Sheltered
+          <div className="border-r border-slate-100 px-0.5">
+            <span className="block text-[9px] font-black uppercase tracking-tight text-slate-500 truncate">
+              Shelter
             </span>
-            <span className="font-mono text-base font-black text-blue-600">
+            <span className="font-mono text-sm sm:text-base font-black text-blue-600">
               {checkIns.filter((c) => c.status === "IN_SHELTER").length * 5 + 43}
             </span>
           </div>
-          <div className="border-r border-slate-100 px-1">
-            <span className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-500">
-              Special Care
+          <div className="border-r border-slate-100 px-0.5">
+            <span className="block text-[9px] font-black uppercase tracking-tight text-slate-500 truncate">
+              Care
             </span>
-            <span className="font-mono text-base font-black text-rose-600">
+            <span className="font-mono text-sm sm:text-base font-black text-rose-600">
               {checkIns.filter((c) => c.vulnerabilities?.length > 0).length + 18}
             </span>
           </div>
-          <div className="pl-1">
-            <span className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-500">
+          <div className="pl-0.5">
+            <span className="block text-[9px] font-black uppercase tracking-tight text-slate-500 truncate">
               Centers
             </span>
-            <span className="font-mono text-base font-black text-slate-800">5</span>
+            <span className="font-mono text-sm sm:text-base font-black text-slate-800">5</span>
           </div>
         </div>
 
@@ -272,35 +272,35 @@ export function SafeRegistryClient() {
         <div
           role="tablist"
           aria-label="Registry Mode"
-          className="flex rounded-2xl bg-slate-200/80 p-1 shadow-inner"
+          className="flex rounded-2xl bg-slate-200/80 p-1 shadow-inner w-full"
         >
           <button
             type="button"
             role="tab"
             aria-selected={activeTab === "search"}
             onClick={() => setActiveTab("search")}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 px-1 text-xs font-black transition-all touch-manipulation truncate ${
+            className={`flex flex-1 items-center justify-center gap-1 rounded-xl py-2 px-1 text-xs font-black transition-all touch-manipulation min-w-0 ${
               activeTab === "search"
                 ? "bg-white text-slate-900 shadow-xs"
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
             <Search className="h-3.5 w-3.5 text-brand shrink-0" />
-            <span className="truncate">Search Family</span>
+            <span className="truncate">Search</span>
           </button>
           <button
             type="button"
             role="tab"
             aria-selected={activeTab === "checkin"}
             onClick={() => setActiveTab("checkin")}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 px-1 text-xs font-black transition-all touch-manipulation truncate ${
+            className={`flex flex-1 items-center justify-center gap-1 rounded-xl py-2 px-1 text-xs font-black transition-all touch-manipulation min-w-0 ${
               activeTab === "checkin"
                 ? "bg-white text-emerald-800 shadow-xs"
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
             <UserPlus className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-            <span className="truncate">"I Am Safe" Check-In</span>
+            <span className="truncate">I Am Safe</span>
           </button>
         </div>
 
@@ -308,7 +308,7 @@ export function SafeRegistryClient() {
         {activeTab === "search" && (
           <div className="space-y-3 animate-pop">
             {/* Search Input Card */}
-            <div className="rounded-3xl border border-slate-200 bg-white p-3 shadow-xs space-y-2">
+            <div className="rounded-3xl border border-slate-200 bg-white p-3 shadow-xs space-y-2 max-w-full">
               <div className="relative flex items-center">
                 <Search className="absolute left-3.5 h-4 w-4 text-slate-400" />
                 <input
@@ -330,14 +330,14 @@ export function SafeRegistryClient() {
               </div>
 
               {/* Horizontal Filter Chips */}
-              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1">
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1 w-full min-w-0">
                 <select
                   value={shelterFilter}
                   onChange={(e) => setShelterFilter(e.target.value)}
                   aria-label="Filter by Shelter"
-                  className="shrink-0 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-extrabold text-slate-700"
+                  className="shrink-0 max-w-[55%] rounded-xl border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-extrabold text-slate-700 truncate"
                 >
-                  <option value="ALL">All Colombo Shelters</option>
+                  <option value="ALL">All Shelters</option>
                   {SHELTERS_LIST.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}
@@ -348,14 +348,14 @@ export function SafeRegistryClient() {
                 <button
                   type="button"
                   onClick={() => setVulnerableOnly(!vulnerableOnly)}
-                  className={`flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-black transition-all active:scale-95 touch-manipulation ${
+                  className={`flex shrink-0 items-center gap-1 rounded-xl border px-2.5 py-1.5 text-xs font-black transition-all active:scale-95 touch-manipulation ${
                     vulnerableOnly
                       ? "border-rose-300 bg-rose-50 text-rose-800 shadow-xs"
                       : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
                   }`}
                 >
-                  <HeartPulse className="h-3.5 w-3.5 text-rose-500" />
-                  <span>Special Care Only</span>
+                  <HeartPulse className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+                  <span>Special Care</span>
                 </button>
               </div>
             </div>
@@ -390,16 +390,16 @@ export function SafeRegistryClient() {
                   return (
                     <div
                       key={item.id}
-                      className="rounded-3xl border border-slate-200/80 bg-white p-4 shadow-xs space-y-2.5 transition-all hover:border-slate-300"
+                      className="rounded-3xl border border-slate-200/80 bg-white p-3.5 sm:p-4 shadow-xs space-y-2.5 transition-all hover:border-slate-300 max-w-full overflow-hidden"
                     >
                       {/* Name & Status */}
                       <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <h3 className="text-sm font-black text-slate-900">{item.full_name}</h3>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <h3 className="text-sm font-black text-slate-900 truncate">{item.full_name}</h3>
                             {item.verified_by_shelter && (
                               <span
-                                className="inline-flex items-center gap-0.5 rounded-md bg-emerald-100 px-1.5 py-0.5 text-[9px] font-black text-emerald-800"
+                                className="inline-flex items-center gap-0.5 rounded-md bg-emerald-100 px-1.5 py-0.5 text-[9px] font-black text-emerald-800 shrink-0"
                                 title="Verified in-person by shelter staff"
                               >
                                 <CheckCircle2 className="h-3 w-3 text-emerald-600" />
@@ -407,22 +407,22 @@ export function SafeRegistryClient() {
                               </span>
                             )}
                           </div>
-                          <p className="mt-0.5 font-mono text-[11px] font-semibold text-slate-500">
+                          <p className="mt-0.5 font-mono text-[11px] font-semibold text-slate-500 truncate">
                             Phone: <strong className="text-slate-800">{item.contact_masked}</strong>
                             {item.nic_masked && <span> · NIC: {item.nic_masked}</span>}
                           </p>
                         </div>
 
                         <span
-                          className={`inline-flex shrink-0 items-center gap-1 rounded-xl border px-2.5 py-1 text-[10px] font-black ${meta.badge}`}
+                          className={`inline-flex shrink-0 items-center gap-1 rounded-xl border px-2 py-0.5 text-[10px] font-black ${meta.badge}`}
                         >
-                          <StatusIcon className="h-3 w-3" />
-                          <span>{meta.label}</span>
+                          <StatusIcon className="h-3 w-3 shrink-0" />
+                          <span className="max-w-[85px] sm:max-w-none truncate">{meta.label}</span>
                         </span>
                       </div>
 
                       {/* Location Badge */}
-                      <div className="flex items-center gap-1.5 rounded-xl bg-slate-50 p-2 text-xs font-bold text-slate-700 border border-slate-100">
+                      <div className="flex items-center gap-1.5 rounded-xl bg-slate-50 p-2 text-xs font-bold text-slate-700 border border-slate-100 max-w-full overflow-hidden">
                         <MapPin className="h-3.5 w-3.5 text-brand shrink-0" />
                         <span className="truncate">
                           {item.shelter_name || item.location_detail || "Colombo Relief Center"}
@@ -444,7 +444,7 @@ export function SafeRegistryClient() {
                               key={flag}
                               className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-[10px] font-black ${vMeta.color}`}
                             >
-                              <VIcon className="h-3 w-3" />
+                              <VIcon className="h-3 w-3 shrink-0" />
                               <span>{vMeta.label}</span>
                             </span>
                           );
@@ -453,32 +453,33 @@ export function SafeRegistryClient() {
 
                       {/* Personal Note */}
                       {item.message && (
-                        <div className="rounded-xl bg-slate-50/80 p-2.5 text-xs italic text-slate-700 border border-slate-100">
+                        <div className="rounded-xl bg-slate-50/80 p-2.5 text-xs italic text-slate-700 border border-slate-100 break-words">
                           "{item.message}"
                         </div>
                       )}
 
                       {/* Card Footer: Timestamp & Share Button */}
-                      <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[10px] font-bold text-slate-400">
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          Checked in {timeAgo(item.created_at)}
+                      <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 text-[10px] font-bold text-slate-400">
+                        <span className="flex items-center gap-1 truncate min-w-0">
+                          <Clock className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{timeAgo(item.created_at)}</span>
                         </span>
 
                         <button
                           type="button"
                           onClick={() => shareRecord(item)}
-                          className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-black text-slate-700 hover:bg-slate-100 active:scale-95 touch-manipulation"
+                          className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-black text-slate-700 hover:bg-slate-100 active:scale-95 touch-manipulation shrink-0"
                         >
                           {copiedId === item.id ? (
                             <>
                               <Check className="h-3 w-3 text-emerald-600" />
-                              <span className="text-emerald-700">Copied!</span>
+                              <span className="text-emerald-700">Copied</span>
                             </>
                           ) : (
                             <>
                               <Share2 className="h-3 w-3 text-brand" />
-                              <span>Inform Relatives</span>
+                              <span className="hidden xs:inline">Inform Relatives</span>
+                              <span className="xs:hidden">Share</span>
                             </>
                           )}
                         </button>

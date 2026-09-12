@@ -20,8 +20,8 @@ export function PublicShell({
   const maxWidth = variant === "wide" ? "max-w-7xl" : "max-w-6xl";
 
   return (
-    <div className="relative min-h-dvh w-full flex flex-col bg-slate-50 text-slate-900">
-      <div className={cn("relative mx-auto flex w-full flex-1 flex-col", maxWidth, className)}>
+    <div className="relative min-h-dvh w-full max-w-full overflow-x-hidden flex flex-col bg-slate-50 text-slate-900">
+      <div className={cn("relative mx-auto flex w-full max-w-full flex-1 flex-col overflow-x-hidden", maxWidth, className)}>
         {children}
       </div>
     </div>
