@@ -47,6 +47,18 @@ export const PIN_COLORS: Record<HazardStatus, string> = {
   RESOLVED: "#16A34A",
 };
 
+export const PIN_LEGEND: { status: HazardStatus; label: string; meaning: string }[] = [
+  { status: "AREA_ALERT", label: "Alert", meaning: "Whole area flooding — stay clear" },
+  { status: "PUBLISHED", label: "Published", meaning: "One confirmed incident at this spot" },
+  { status: "NEED_INFO", label: "Need info", meaning: "Unconfirmed — nearby people can verify" },
+  { status: "COUNCIL_TICKET", label: "Council ticket", meaning: "Sent to council / field crew" },
+  { status: "RESOLVED", label: "Resolved", meaning: "Cleared and the road is open" },
+];
+
+export function pinMeaning(status: HazardStatus) {
+  return PIN_LEGEND.find((item) => item.status === status)?.meaning;
+}
+
 export const URGENCY_COLORS: Record<Urgency, string> = {
   LOW: "#2F9E6A",
   MEDIUM: "#F5A524",

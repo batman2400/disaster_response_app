@@ -7,7 +7,7 @@ import { useMemo, useState } from "react";
 import { OfficerMap } from "@/app/dashboard/officer/OfficerMap";
 import { PublicShell } from "@/components/public-shell";
 import { BottomSheet, Button, Chip, StatusBadge } from "@/components/ui";
-import { categoryLabel, wardShort } from "@/lib/format";
+import { categoryLabel, PIN_COLORS, PIN_LEGEND, pinMeaning, wardShort } from "@/lib/format";
 import type { ConfirmResponse, HazardRow, HazardStatus, WardRow } from "@/lib/types";
 import { mapHazardRow, mapWardRow, sortHazards, sortWards, useLiveRows } from "@/lib/use-live";
 
@@ -40,6 +40,9 @@ function HazardDetail({
             </span>
             <StatusBadge status={selected.status} />
           </div>
+          {pinMeaning(selected.status) ? (
+            <p className="mt-1 text-[11px] font-semibold text-slate-500">{pinMeaning(selected.status)}</p>
+          ) : null}
           <h2 className="text-xl font-extrabold tracking-tight text-slate-900">
             {categoryLabel(selected.category)}
           </h2>
@@ -193,7 +196,10 @@ export function PublicMap({
         } right-4 lg:right-auto`}
       >
         {FILTERS.map((item) => (
-          <Chip key={item.id} active={filter === item.id} onClick={() => setFilter(item.id)} className="shadow-soft">
+          <Chip key={item.id} active={filter === item.id} onClick={() => setFilter(item.id)} className="inline-flex items-center shadow-soft">
+            {item.id !== "ALL" ? (
+              <span className="mr-1.5 inline-block h-2 w-2 rounded-full" style={{ background: PIN_COLORS[item.id] }} />
+            ) : null}
             {item.label}
           </Chip>
         ))}
@@ -219,6 +225,26 @@ export function PublicMap({
           </div>
         </div>
       ) : null}
+
+      <div
+        className={`pointer-events-none absolute z-30 max-w-[16.5rem] rounded-2xl border border-white/60 bg-white/90 p-3 shadow-soft backdrop-blur-md ${
+          selected ? "bottom-8 left-4 lg:bottom-8" : "bottom-8 left-4"
+        }`}
+      >
+        <p className="mb-2 text-[10px] font-extrabold uppercase tracking-widest text-slate-400">What pins mean</p>
+        <ul className="flex flex-col gap-1.5">
+          {PIN_LEGEND.filter((item) => item.status !== "COUNCIL_TICKET").map((item) => (
+            <li key={item.status} className="flex items-start gap-2">
+              <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: PIN_COLORS[item.status] }} />
+              <p className="text-[11px] font-semibold leading-snug text-slate-600">
+                <span className="font-extrabold text-slate-800">{item.label}</span>
+                {" — "}
+                {item.meaning}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </div>
 
       <Link
         href="/report"
