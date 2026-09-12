@@ -1,18 +1,23 @@
 "use client";
 
 import {
+  Activity,
+  ArrowLeft,
   Baby,
   Building2,
+  Check,
   CheckCircle2,
   Clock,
   HeartPulse,
   Home,
   LifeBuoy,
   MapPin,
+  Minus,
   Phone,
+  Plus,
   Search,
+  Share2,
   Shield,
-  Activity,
   ShieldAlert,
   Sparkles,
   UserCheck,
@@ -24,34 +29,35 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { EmergencySosModal } from "@/components/emergency-sos-modal";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { PublicShell } from "@/components/public-shell";
-import { Badge, Button, Card, Chip, StatCard } from "@/components/ui";
+import { Badge, Button, Card } from "@/components/ui";
 import { LanguageSwitcher, useI18n } from "@/lib/i18n/language-context";
 import { timeAgo } from "@/lib/format";
-import type { SafeCheckIn, SafeStatus, VulnerabilityFlag, WardId } from "@/lib/types";
+import type { SafeCheckIn, SafeStatus, VulnerabilityFlag } from "@/lib/types";
 
 const STATUS_META: Record<
   SafeStatus,
   { label: string; badge: string; icon: typeof Home }
 > = {
   IN_SHELTER: {
-    label: "Safe at Municipal Shelter",
-    badge: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    label: "In Municipal Shelter",
+    badge: "bg-emerald-50 text-emerald-800 border-emerald-200",
     icon: Building2,
   },
   SAFE_HOME: {
     label: "Safe at Home (High Ground)",
-    badge: "bg-blue-50 text-blue-700 border-blue-200",
+    badge: "bg-blue-50 text-blue-800 border-blue-200",
     icon: Home,
   },
   WITH_RELATIVES: {
-    label: "Evacuated to Relatives",
-    badge: "bg-purple-50 text-purple-700 border-purple-200",
+    label: "With Relatives / Friends",
+    badge: "bg-purple-50 text-purple-800 border-purple-200",
     icon: Users,
   },
   MEDICAL_CARE: {
-    label: "Under Medical Care",
-    badge: "bg-rose-50 text-rose-700 border-rose-200",
+    label: "Hospital / Medical Tent",
+    badge: "bg-rose-50 text-rose-800 border-rose-200",
     icon: HeartPulse,
   },
 };
@@ -60,11 +66,11 @@ const VULNERABILITY_META: Record<
   VulnerabilityFlag,
   { label: string; icon: typeof HeartPulse; color: string }
 > = {
-  ELDERLY: { label: "Elderly (70+)", icon: Users, color: "bg-amber-100 text-amber-800 border-amber-200" },
-  INFANT: { label: "Infant / Child Care", icon: Baby, color: "bg-pink-100 text-pink-800 border-pink-200" },
-  MEDICAL_INSULIN: { label: "Insulin / Dialysis", icon: HeartPulse, color: "bg-rose-100 text-rose-800 border-rose-200" },
-  OXYGEN_POWER: { label: "Oxygen / Power Needed", icon: ShieldAlert, color: "bg-purple-100 text-purple-800 border-purple-200" },
-  WHEELCHAIR: { label: "Wheelchair Access", icon: Activity, color: "bg-blue-100 text-blue-800 border-blue-200" },
+  ELDERLY: { label: "Elderly (70+)", icon: Users, color: "bg-amber-100 text-amber-900 border-amber-300" },
+  INFANT: { label: "Infant Care", icon: Baby, color: "bg-pink-100 text-pink-900 border-pink-300" },
+  MEDICAL_INSULIN: { label: "Insulin / Dialysis", icon: HeartPulse, color: "bg-rose-100 text-rose-900 border-rose-300" },
+  OXYGEN_POWER: { label: "Oxygen Needed", icon: ShieldAlert, color: "bg-purple-100 text-purple-900 border-purple-300" },
+  WHEELCHAIR: { label: "Wheelchair", icon: Activity, color: "bg-blue-100 text-blue-900 border-blue-300" },
 };
 
 const SHELTERS_LIST = [
@@ -76,12 +82,13 @@ const SHELTERS_LIST = [
 ];
 
 export function SafeRegistryClient() {
-  const { lang } = useI18n();
+  const { lang, t } = useI18n();
   const [activeTab, setActiveTab] = useState<"search" | "checkin">("search");
   const [searchQuery, setSearchQuery] = useState("");
   const [shelterFilter, setShelterFilter] = useState("ALL");
   const [vulnerableOnly, setVulnerableOnly] = useState(false);
   const [sosModalOpen, setSosModalOpen] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // List data
   const [checkIns, setCheckIns] = useState<SafeCheckIn[]>([]);
@@ -167,114 +174,129 @@ export function SafeRegistryClient() {
     }
   }
 
+  function shareRecord(item: SafeCheckIn) {
+    const text = `Fender Colombo Disaster Update: ${item.full_name} is marked SAFE (${STATUS_META[item.status]?.label || "Safe"}). Checked in at ${item.shelter_name || item.location_detail || "Colombo Ward"}.`;
+    if (navigator.share) {
+      navigator.share({ title: "Family Safe Check-In", text, url: window.location.href }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(text);
+      setCopiedId(item.id);
+      setTimeout(() => setCopiedId(null), 3000);
+    }
+  }
+
   return (
     <PublicShell>
-      {/* Header bar */}
-      <div className="sticky top-0 z-20 flex items-center justify-between border-b border-white/20 bg-white/85 px-6 py-3.5 backdrop-blur-lg lg:px-10">
-        <div className="flex items-center gap-3">
+      {/* 1. Mobile-Optimized Sticky Header */}
+      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200/80 bg-white/95 px-3 py-2.5 pt-safe backdrop-blur-xl sm:px-6">
+        <div className="flex items-center gap-2">
           <Link
             href="/"
-            className="flex h-10 items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 active:scale-95"
+            onClick={() => {
+              setTimeout(() => {
+                if (window.location.pathname !== "/") window.location.href = "/";
+              }, 250);
+            }}
+            title="Return to Home"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-xs transition-transform active:scale-90 touch-manipulation"
           >
-            ← Home
+            <ArrowLeft className="h-5 w-5" />
           </Link>
+
           <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-200">
-              <UserCheck className="h-5 w-5" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 border border-emerald-200 shadow-xs">
+              <Users className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-sm font-black text-slate-900 lg:text-base">Family Reunification Registry</h1>
-              <p className="text-[10px] font-bold text-slate-400">Sri Lanka Disaster Management Centre (DMC)</p>
+              <h1 className="text-xs font-black tracking-tight text-slate-900 sm:text-sm">
+                Family Safety Registry
+              </h1>
+              <p className="text-[9px] font-extrabold uppercase tracking-wider text-slate-500">
+                DMC · Colombo Evacuees
+              </p>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <LanguageSwitcher />
+
           <button
             type="button"
             onClick={() => setSosModalOpen(true)}
-            className="flex h-9 items-center gap-1 rounded-xl bg-rose-500 px-3 text-xs font-black text-white shadow-sm hover:bg-rose-600 active:scale-95"
+            className="flex h-10 shrink-0 items-center gap-1 rounded-2xl bg-rose-600 px-3 text-xs font-black text-white shadow-sm shadow-rose-500/20 active:scale-95 touch-manipulation"
           >
-            <ShieldAlert className="h-3.5 w-3.5" />
+            <ShieldAlert className="h-3.5 w-3.5 animate-pulse" />
             <span>SOS 117</span>
           </button>
         </div>
-      </div>
+      </header>
 
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8 space-y-8">
-        {/* Hero Title & KPI Row */}
-        <div className="text-center space-y-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-800">
-            <Shield className="h-3.5 w-3.5 text-emerald-600" />
-            Official Municipal Disaster Registry
-          </span>
-          <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
-            Family Safety & Evacuee Reunification
-          </h2>
-          <p className="mx-auto max-w-2xl text-xs sm:text-sm font-medium text-slate-500">
-            Search for family members evacuated to Colombo shelters, or register yourself and your loved ones to notify out-of-area relatives without jamming emergency call lines.
-          </p>
-        </div>
-
-        {/* Quick KPI Stats */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-soft">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
-              Verified Safe
+      {/* 2. Main Body Container with Bottom Nav Padding */}
+      <div className="mx-auto max-w-4xl px-3 py-4 sm:px-6 space-y-4 pb-safe-nav">
+        {/* Compact Disaster KPI Status Bar */}
+        <div className="grid grid-cols-4 gap-2 rounded-2xl border border-slate-200/90 bg-white p-2.5 shadow-xs text-center">
+          <div className="border-r border-slate-100 pr-1">
+            <span className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-500">
+              Safe
             </span>
-            <span className="font-mono text-2xl font-black text-slate-900">
+            <span className="font-mono text-base font-black text-emerald-600">
               {checkIns.length * 4 + 182}
             </span>
-            <span className="mt-0.5 text-[11px] font-semibold text-emerald-600 block">Citizens Safe</span>
           </div>
-
-          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-soft">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
-              Shelter Occupancy
+          <div className="border-r border-slate-100 px-1">
+            <span className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-500">
+              Sheltered
             </span>
-            <span className="font-mono text-2xl font-black text-slate-900">
+            <span className="font-mono text-base font-black text-blue-600">
               {checkIns.filter((c) => c.status === "IN_SHELTER").length * 5 + 43}
             </span>
-            <span className="mt-0.5 text-[11px] font-semibold text-blue-600 block">Sheltered Today</span>
           </div>
-
-          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-soft">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
-              Medical / Vulnerable
+          <div className="border-r border-slate-100 px-1">
+            <span className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-500">
+              Special Care
             </span>
-            <span className="font-mono text-2xl font-black text-rose-600">
+            <span className="font-mono text-base font-black text-rose-600">
               {checkIns.filter((c) => c.vulnerabilities?.length > 0).length + 18}
             </span>
-            <span className="mt-0.5 text-[11px] font-semibold text-rose-600 block">Flagged for Care</span>
           </div>
-
-          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-soft">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
-              Active Shelters
+          <div className="pl-1">
+            <span className="block text-[9px] font-extrabold uppercase tracking-wider text-slate-500">
+              Centers
             </span>
-            <span className="font-mono text-2xl font-black text-slate-900">5</span>
-            <span className="mt-0.5 text-[11px] font-semibold text-purple-600 block">Municipal Hubs</span>
+            <span className="font-mono text-base font-black text-slate-800">5</span>
           </div>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="flex rounded-2xl border border-slate-200 bg-slate-100 p-1.5 shadow-inner">
+        {/* Tactile Mobile Segmented Switcher */}
+        <div
+          role="tablist"
+          aria-label="Registry Mode"
+          className="flex rounded-2xl bg-slate-200/80 p-1.5 shadow-inner"
+        >
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === "search"}
             onClick={() => setActiveTab("search")}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-xs font-black transition-all ${
-              activeTab === "search" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-black transition-all touch-manipulation ${
+              activeTab === "search"
+                ? "bg-white text-slate-900 shadow-sm scale-[1.01]"
+                : "text-slate-600 hover:text-slate-900"
             }`}
           >
             <Search className="h-4 w-4 text-brand" />
-            <span>Search For Evacuated Relatives</span>
+            <span>Search Family</span>
           </button>
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === "checkin"}
             onClick={() => setActiveTab("checkin")}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-xs font-black transition-all ${
-              activeTab === "checkin" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-black transition-all touch-manipulation ${
+              activeTab === "checkin"
+                ? "bg-white text-emerald-800 shadow-sm scale-[1.01]"
+                : "text-slate-600 hover:text-slate-900"
             }`}
           >
             <UserPlus className="h-4 w-4 text-emerald-600" />
@@ -282,27 +304,38 @@ export function SafeRegistryClient() {
           </button>
         </div>
 
-        {/* TAB 1: Search & Inquiry */}
+        {/* TAB 1: Search Evacuated Loved Ones */}
         {activeTab === "search" && (
-          <div className="space-y-5">
-            {/* Search Filter Bar */}
-            <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-soft sm:flex-row sm:items-center">
-              <div className="relative flex-1">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <div className="space-y-3 animate-pop">
+            {/* Search Input Card */}
+            <div className="rounded-3xl border border-slate-200 bg-white p-3 shadow-xs space-y-2">
+              <div className="relative flex items-center">
+                <Search className="absolute left-3.5 h-4 w-4 text-slate-400" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search by full name, phone last 4 digits (e.g. 4821), or keyword..."
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 pl-10 pr-4 text-xs font-bold text-slate-900 placeholder:text-slate-400"
+                  placeholder="Search name, phone digits (e.g. 8921)..."
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-9 text-xs font-bold text-slate-900 placeholder:text-slate-400 focus:border-brand focus:outline-none"
                 />
+                {searchQuery ? (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 text-slate-400 hover:text-slate-600 p-1"
+                    title="Clear"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
               </div>
 
-              <div className="flex items-center gap-2">
+              {/* Horizontal Filter Chips */}
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1">
                 <select
                   value={shelterFilter}
                   onChange={(e) => setShelterFilter(e.target.value)}
-                  className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-bold text-slate-700"
+                  aria-label="Filter by Shelter"
+                  className="shrink-0 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-extrabold text-slate-700"
                 >
                   <option value="ALL">All Colombo Shelters</option>
                   {SHELTERS_LIST.map((s) => (
@@ -315,31 +348,41 @@ export function SafeRegistryClient() {
                 <button
                   type="button"
                   onClick={() => setVulnerableOnly(!vulnerableOnly)}
-                  className={`flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-2.5 text-xs font-bold transition-all ${
+                  className={`flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-black transition-all active:scale-95 touch-manipulation ${
                     vulnerableOnly
-                      ? "border-rose-300 bg-rose-50 text-rose-700"
+                      ? "border-rose-300 bg-rose-50 text-rose-800 shadow-xs"
                       : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
                   }`}
                 >
-                  <HeartPulse className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Special Needs Only</span>
+                  <HeartPulse className="h-3.5 w-3.5 text-rose-500" />
+                  <span>Special Care Only</span>
                 </button>
               </div>
             </div>
 
-            {/* Results List */}
+            {/* Results Counter */}
+            <div className="flex items-center justify-between px-1">
+              <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">
+                Registered Evacuees ({checkIns.length})
+              </span>
+              <span className="text-[10px] font-bold text-slate-400">Privacy Masked</span>
+            </div>
+
+            {/* Results Grid */}
             {loading ? (
-              <div className="py-12 text-center text-xs font-bold text-slate-400">Loading safe directory…</div>
+              <div className="rounded-2xl border border-slate-100 bg-white py-12 text-center text-xs font-bold text-slate-400 shadow-xs">
+                Scanning safe directory…
+              </div>
             ) : checkIns.length === 0 ? (
-              <div className="rounded-3xl border border-dashed border-slate-200 bg-white p-12 text-center">
-                <Users className="mx-auto h-8 w-8 text-slate-300 mb-2" />
-                <h4 className="text-sm font-extrabold text-slate-700">No Check-In Records Found</h4>
-                <p className="mt-1 text-xs text-slate-400 max-w-sm mx-auto">
-                  Try searching with a shorter name or select "All Colombo Shelters". If your relative has not checked in yet, you can call DMC hotline 117.
+              <div className="rounded-3xl border border-dashed border-slate-200 bg-white p-8 text-center shadow-xs">
+                <Users className="mx-auto mb-2 h-8 w-8 text-slate-300" />
+                <h4 className="text-sm font-black text-slate-800">No Matching Check-Ins</h4>
+                <p className="mt-1 text-xs text-slate-500 max-w-xs mx-auto">
+                  Try a shorter surname or switch shelter filter. If urgent, contact DMC hotline 117.
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-3">
                 {checkIns.map((item) => {
                   const meta = STATUS_META[item.status] || STATUS_META.IN_SHELTER;
                   const StatusIcon = meta.icon;
@@ -347,41 +390,49 @@ export function SafeRegistryClient() {
                   return (
                     <div
                       key={item.id}
-                      className="overflow-hidden rounded-2xl border border-slate-100 bg-white p-5 shadow-soft transition-all hover:border-slate-200 hover:shadow-md"
+                      className="rounded-3xl border border-slate-200/80 bg-white p-4 shadow-xs space-y-2.5 transition-all hover:border-slate-300"
                     >
-                      <div className="flex items-start justify-between gap-3">
+                      {/* Name & Status */}
+                      <div className="flex items-start justify-between gap-2">
                         <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-black text-base text-slate-900">{item.full_name}</span>
+                          <div className="flex items-center gap-1.5">
+                            <h3 className="text-sm font-black text-slate-900">{item.full_name}</h3>
                             {item.verified_by_shelter && (
-                              <span className="flex items-center gap-0.5 rounded-full bg-emerald-100 px-1.5 py-0.2 text-[9px] font-black text-emerald-800" title="Verified in-person by Municipal Shelter Officer">
+                              <span
+                                className="inline-flex items-center gap-0.5 rounded-md bg-emerald-100 px-1.5 py-0.5 text-[9px] font-black text-emerald-800"
+                                title="Verified in-person by shelter staff"
+                              >
                                 <CheckCircle2 className="h-3 w-3 text-emerald-600" />
                                 Verified
                               </span>
                             )}
                           </div>
-                          <p className="font-mono text-xs font-semibold text-slate-500">
+                          <p className="mt-0.5 font-mono text-[11px] font-semibold text-slate-500">
                             Phone: <strong className="text-slate-800">{item.contact_masked}</strong>
                             {item.nic_masked && <span> · NIC: {item.nic_masked}</span>}
                           </p>
                         </div>
 
-                        <span className={`inline-flex items-center gap-1 rounded-xl border px-2.5 py-1 text-[10px] font-extrabold shrink-0 ${meta.badge}`}>
+                        <span
+                          className={`inline-flex shrink-0 items-center gap-1 rounded-xl border px-2.5 py-1 text-[10px] font-black ${meta.badge}`}
+                        >
                           <StatusIcon className="h-3 w-3" />
-                          {meta.label}
+                          <span>{meta.label}</span>
                         </span>
                       </div>
 
-                      {/* Location / Shelter */}
-                      <div className="mt-3 flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                      {/* Location Badge */}
+                      <div className="flex items-center gap-1.5 rounded-xl bg-slate-50 p-2 text-xs font-bold text-slate-700 border border-slate-100">
                         <MapPin className="h-3.5 w-3.5 text-brand shrink-0" />
-                        <span>{item.shelter_name || item.location_detail || "Colombo Municipal Ward"}</span>
+                        <span className="truncate">
+                          {item.shelter_name || item.location_detail || "Colombo Relief Center"}
+                        </span>
                       </div>
 
-                      {/* Family Headcount & Special Needs Tags */}
-                      <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                      {/* Family Headcount & Vulnerabilities */}
+                      <div className="flex flex-wrap items-center gap-1.5">
                         <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-700">
-                          {item.family_count} {item.family_count === 1 ? "Person" : "Family Members"} Safe
+                          {item.family_count} {item.family_count === 1 ? "Person" : "Family Members"}
                         </span>
 
                         {item.vulnerabilities?.map((flag) => {
@@ -391,28 +442,46 @@ export function SafeRegistryClient() {
                           return (
                             <span
                               key={flag}
-                              className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-[10px] font-extrabold ${vMeta.color}`}
+                              className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-[10px] font-black ${vMeta.color}`}
                             >
-                              <VIcon className="h-2.5 w-2.5" />
-                              {vMeta.label}
+                              <VIcon className="h-3 w-3" />
+                              <span>{vMeta.label}</span>
                             </span>
                           );
                         })}
                       </div>
 
-                      {/* Personal Note to Family */}
+                      {/* Personal Note */}
                       {item.message && (
-                        <div className="mt-3 rounded-xl bg-slate-50 p-2.5 text-xs italic text-slate-700 border border-slate-100">
+                        <div className="rounded-xl bg-slate-50/80 p-2.5 text-xs italic text-slate-700 border border-slate-100">
                           "{item.message}"
                         </div>
                       )}
 
-                      <div className="mt-3 flex items-center justify-between text-[10px] font-bold text-slate-400 pt-2 border-t border-slate-100">
+                      {/* Card Footer: Timestamp & Share Button */}
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[10px] font-bold text-slate-400">
                         <span className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
                           Checked in {timeAgo(item.created_at)}
                         </span>
-                        <span className="font-mono">#{item.id.slice(0, 12)}</span>
+
+                        <button
+                          type="button"
+                          onClick={() => shareRecord(item)}
+                          className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-black text-slate-700 hover:bg-slate-100 active:scale-95 touch-manipulation"
+                        >
+                          {copiedId === item.id ? (
+                            <>
+                              <Check className="h-3 w-3 text-emerald-600" />
+                              <span className="text-emerald-700">Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Share2 className="h-3 w-3 text-brand" />
+                              <span>Inform Relatives</span>
+                            </>
+                          )}
+                        </button>
                       </div>
                     </div>
                   );
@@ -422,129 +491,131 @@ export function SafeRegistryClient() {
           </div>
         )}
 
-        {/* TAB 2: Check-In Form */}
+        {/* TAB 2: "I Am Safe" Check-In Form */}
         {activeTab === "checkin" && (
-          <div className="mx-auto max-w-2xl">
+          <div className="space-y-4 animate-pop">
             {successRecord ? (
-              <div className="rounded-3xl border border-emerald-200 bg-white p-8 text-center shadow-xl space-y-4 animate-pop">
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/20">
-                  <CheckCircle2 className="h-8 w-8" />
+              <div className="rounded-3xl border border-emerald-200 bg-white p-6 text-center shadow-md space-y-4">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500 text-white shadow-md shadow-emerald-500/20">
+                  <CheckCircle2 className="h-7 w-7" />
                 </div>
-                <h3 className="text-xl font-black text-slate-900">You Are Registered as Safe!</h3>
-                <p className="text-xs font-semibold text-slate-600 max-w-md mx-auto">
-                  Your entry has been recorded into the Colombo Municipal Directory. Loved ones and relatives searching for <strong>{successRecord.full_name}</strong> will see that your family is secure.
+                <h3 className="text-lg font-black text-slate-900">Your Safe Status is Published!</h3>
+                <p className="text-xs font-semibold text-slate-600 max-w-sm mx-auto">
+                  Relatives searching for <strong>{successRecord.full_name}</strong> will now see that you and your family are safe.
                 </p>
 
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs text-left space-y-1.5 font-medium">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3.5 text-xs text-left space-y-1.5 font-bold">
                   <div className="flex justify-between">
                     <span className="text-slate-400">Status:</span>
-                    <strong className="text-slate-900">{STATUS_META[successRecord.status].label}</strong>
+                    <span className="text-slate-900">{STATUS_META[successRecord.status]?.label}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">Location:</span>
-                    <strong className="text-slate-900">{successRecord.shelter_name || successRecord.location_detail}</strong>
+                    <span className="text-slate-900 truncate">
+                      {successRecord.shelter_name || successRecord.location_detail}
+                    </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Phone Masked for Privacy:</span>
-                    <strong className="text-slate-900 font-mono">{successRecord.contact_masked}</strong>
+                    <span className="text-slate-400">Masked Phone:</span>
+                    <span className="font-mono text-slate-900">{successRecord.contact_masked}</span>
                   </div>
                 </div>
 
-                <div className="flex justify-center gap-3">
-                  <Button
+                <div className="flex flex-col gap-2 pt-2">
+                  <button
                     type="button"
-                    variant="gradient"
+                    onClick={() => shareRecord(successRecord)}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-2xl bg-emerald-600 py-3 text-xs font-black text-white shadow-sm active:scale-95 touch-manipulation"
+                  >
+                    <Share2 className="h-4 w-4" />
+                    <span>Share Safe Status with Family</span>
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => {
                       setSuccessRecord(null);
                       setActiveTab("search");
                     }}
-                    className="py-2.5 px-5 text-xs font-black"
+                    className="flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-white py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 active:scale-95 touch-manipulation"
                   >
-                    Return to Directory Search
-                  </Button>
+                    Return to Safe Directory
+                  </button>
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleCheckInSubmit} className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-soft space-y-6">
-                <div className="border-b border-slate-100 pb-4">
-                  <h3 className="text-base font-black text-slate-900">Submit Safe Status Check-In</h3>
-                  <p className="text-xs font-medium text-slate-500 mt-0.5">
-                    Your phone number is automatically masked for privacy (e.g. 077 *** 8921).
+              <form
+                onSubmit={handleCheckInSubmit}
+                className="rounded-3xl border border-slate-200 bg-white p-5 shadow-xs space-y-4"
+              >
+                {/* Privacy Badge */}
+                <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-3 text-xs text-blue-900">
+                  <p className="font-extrabold flex items-center gap-1">
+                    <Shield className="h-3.5 w-3.5 text-blue-600" />
+                    Zero-Barrier Emergency Safety Registry
+                  </p>
+                  <p className="text-[11px] font-medium text-blue-800 mt-0.5">
+                    Your phone number is automatically masked (e.g. 077 *** 8921) so out-of-area relatives can verify you without privacy leaks.
                   </p>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div>
-                      <label className="text-xs font-extrabold text-slate-700 block mb-1">
-                        Full Name <span className="text-rose-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        placeholder="e.g. Sunil Jayawardena"
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-bold text-slate-900"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-extrabold text-slate-700 block mb-1">
-                        Contact Phone <span className="text-rose-500">*</span>
-                      </label>
-                      <input
-                        type="tel"
-                        required
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder="07XXXXXXXX"
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-bold text-slate-900 font-mono"
-                      />
-                    </div>
+                {/* Name & Phone */}
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-black text-slate-700 block mb-1">
+                      Your Full Name <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="e.g. Nimal Perera"
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs font-bold text-slate-900 focus:border-brand focus:outline-none"
+                    />
                   </div>
 
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div>
-                      <label className="text-xs font-extrabold text-slate-700 block mb-1">
-                        Current Evacuation Status
-                      </label>
-                      <select
-                        value={status}
-                        onChange={(e) => setStatus(e.target.value as SafeStatus)}
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-bold text-slate-900"
-                      >
-                        <option value="IN_SHELTER">At Municipal Relief Shelter</option>
-                        <option value="SAFE_HOME">At Home (High Ground / Dry)</option>
-                        <option value="WITH_RELATIVES">Evacuated to Friends / Relatives</option>
-                        <option value="MEDICAL_CARE">Hospital / Medical Aid Tent</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-extrabold text-slate-700 block mb-1">
-                        Family Members with You
-                      </label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={30}
-                        value={familyCount}
-                        onChange={(e) => setFamilyCount(Math.max(1, Number(e.target.value)))}
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-bold text-slate-900 font-mono"
-                      />
-                    </div>
+                  <div>
+                    <label className="text-xs font-black text-slate-700 block mb-1">
+                      Contact Phone <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="07XXXXXXXX"
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs font-bold font-mono text-slate-900 focus:border-brand focus:outline-none"
+                    />
                   </div>
 
+                  {/* Evacuation Status Picker */}
+                  <div>
+                    <label className="text-xs font-black text-slate-700 block mb-1">
+                      Where are you right now?
+                    </label>
+                    <select
+                      value={status}
+                      onChange={(e) => setStatus(e.target.value as SafeStatus)}
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs font-bold text-slate-900 focus:border-brand focus:outline-none"
+                    >
+                      <option value="IN_SHELTER">At Municipal Evacuation Shelter</option>
+                      <option value="SAFE_HOME">At Home (High Ground / Upper Floor)</option>
+                      <option value="WITH_RELATIVES">Evacuated to Friends / Relatives</option>
+                      <option value="MEDICAL_CARE">Hospital / Medical Aid Station</option>
+                    </select>
+                  </div>
+
+                  {/* Shelter Dropdown (if in shelter) */}
                   {status === "IN_SHELTER" && (
                     <div>
-                      <label className="text-xs font-extrabold text-slate-700 block mb-1">
-                        Select Shelter Location
+                      <label className="text-xs font-black text-slate-700 block mb-1">
+                        Select Evacuation Center
                       </label>
                       <select
                         value={shelterId}
                         onChange={(e) => setShelterId(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-bold text-slate-900"
+                        className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs font-bold text-slate-900 focus:border-brand focus:outline-none"
                       >
                         {SHELTERS_LIST.map((s) => (
                           <option key={s.id} value={s.id}>
@@ -555,25 +626,59 @@ export function SafeRegistryClient() {
                     </div>
                   )}
 
+                  {/* Location Details */}
                   <div>
-                    <label className="text-xs font-extrabold text-slate-700 block mb-1">
-                      Street / Specific Location Details
+                    <label className="text-xs font-black text-slate-700 block mb-1">
+                      Specific Address / Landmark (Optional)
                     </label>
                     <input
                       type="text"
                       value={locationDetail}
                       onChange={(e) => setLocationDetail(e.target.value)}
-                      placeholder="e.g. Nagalagam Street 2nd lane, or Room 4 in Main Temple"
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-medium text-slate-900"
+                      placeholder="e.g. Nagalagam St 2nd lane, or Room 4 in Kelaniya Hall"
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs font-medium text-slate-900 focus:border-brand focus:outline-none"
                     />
                   </div>
 
-                  {/* Vulnerability / Priority Flags */}
+                  {/* Family Members Stepper */}
                   <div>
-                    <label className="text-xs font-extrabold text-slate-700 block mb-1">
-                      Special Medical / Care Requirements (Flags Rescue Boats & Relief Diet)
+                    <label className="text-xs font-black text-slate-700 block mb-1">
+                      Total Family Members with You
                     </label>
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-2">
+                      <button
+                        type="button"
+                        onClick={() => setFamilyCount(Math.max(1, familyCount - 1))}
+                        className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-slate-700 shadow-xs active:scale-95 touch-manipulation"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </button>
+
+                      <div className="text-center">
+                        <span className="font-mono text-lg font-black text-slate-900">
+                          {familyCount}
+                        </span>
+                        <span className="block text-[10px] font-bold text-slate-500">
+                          {familyCount === 1 ? "Person (Just Me)" : "Persons Safe Together"}
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setFamilyCount(Math.min(30, familyCount + 1))}
+                        className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-xs active:scale-95 touch-manipulation"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Special Medical / Vulnerability Tags */}
+                  <div>
+                    <label className="text-xs font-black text-slate-700 block mb-1">
+                      Special Medical Needs (Flags Relief Food & Medical Tents)
+                    </label>
+                    <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
                       {(Object.keys(VULNERABILITY_META) as VulnerabilityFlag[]).map((flag) => {
                         const vMeta = VULNERABILITY_META[flag];
                         const isSelected = vulnerabilities.includes(flag);
@@ -582,49 +687,54 @@ export function SafeRegistryClient() {
                             type="button"
                             key={flag}
                             onClick={() => toggleVulnerability(flag)}
-                            className={`flex items-center gap-1.5 rounded-xl border p-2 text-left text-xs font-bold transition-all ${
+                            className={`flex items-center gap-1.5 rounded-2xl border p-2.5 text-left text-xs font-black transition-all active:scale-95 touch-manipulation ${
                               isSelected
-                                ? "border-brand bg-brand/10 text-brand shadow-sm"
+                                ? "border-brand bg-brand/10 text-brand shadow-xs"
                                 : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
                             }`}
                           >
                             <vMeta.icon className="h-3.5 w-3.5 shrink-0" />
-                            <span className="text-[11px]">{vMeta.label}</span>
+                            <span className="text-[11px] truncate">{vMeta.label}</span>
                           </button>
                         );
                       })}
                     </div>
                   </div>
 
+                  {/* Personal Note */}
                   <div>
-                    <label className="text-xs font-extrabold text-slate-700 block mb-1">
-                      Public Message to Relatives
+                    <label className="text-xs font-black text-slate-700 block mb-1">
+                      Short Message to Relatives (Optional)
                     </label>
                     <textarea
                       rows={2}
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
-                      placeholder="e.g. All 4 of us are safe with dry clothes. Phone battery low, don't panic."
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-medium text-slate-900"
+                      placeholder="e.g. We are safe with food and water. Phone battery low, don't worry."
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs font-medium text-slate-900 focus:border-brand focus:outline-none"
                     />
                   </div>
                 </div>
 
-                <Button
+                <button
                   type="submit"
-                  variant="gradient"
                   disabled={submitting}
-                  className="w-full py-3.5 text-xs font-black shadow-md"
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-3.5 text-xs font-black text-white shadow-md shadow-emerald-600/25 active:scale-95 disabled:opacity-50 touch-manipulation"
                 >
-                  {submitting ? "Securing Record…" : "Confirm 'I Am Safe' & Publish"}
-                </Button>
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>{submitting ? "Publishing Check-In…" : "Confirm 'I Am Safe' & Publish"}</span>
+                </button>
               </form>
             )}
           </div>
         )}
       </div>
 
+      {/* Emergency SOS Hotlines Modal */}
       <EmergencySosModal open={sosModalOpen} onClose={() => setSosModalOpen(false)} />
+
+      {/* Persistent Mobile Bottom Navigation Dock */}
+      <MobileBottomNav />
     </PublicShell>
   );
 }
