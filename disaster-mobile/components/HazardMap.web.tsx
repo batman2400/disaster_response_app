@@ -2,27 +2,30 @@ import { createElement, useEffect, useRef, useState } from "react";
 
 import { SAFE_ROUTES } from "@/lib/safe-routes";
 import { colors } from "@/lib/theme";
-import { COLOMBO_CENTER, PIN_COLORS, type WardId } from "@/lib/types";
+import { COLOMBO_CENTER, PIN_COLORS, type HazardRow, type WardId } from "@/lib/types";
 
 import type { HazardMapProps } from "./hazard-map-types";
 
 const COLOMBO: [number, number] = [COLOMBO_CENTER.latitude, COLOMBO_CENTER.longitude];
 const LEAFLET_CSS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
 const LEAFLET_JS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-const TILES = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
+const TILES = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 
 type LeafletMap = {
   setView: (latLng: [number, number], zoom?: number) => void;
   invalidateSize: () => void;
   remove: () => void;
+  on: (event: string, fn: (e: unknown) => void) => void;
 };
 
 type LeafletLayer = {
   addTo: (map: LeafletMap) => LeafletLayer;
   setLatLng?: (latLng: [number, number]) => void;
   setStyle?: (opts: Record<string, unknown>) => void;
+  setRadius?: (r: number) => void;
   bindPopup?: (html: string) => void;
   remove: () => void;
+  on?: (event: string, fn: (e: unknown) => void) => void;
 };
 
 type LeafletNS = {
@@ -64,16 +67,25 @@ function loadLeaflet(): Promise<LeafletNS> {
   });
 }
 
-export function HazardMap({ hazards, routeWards }: HazardMapProps) {
+export function HazardMap({
+  hazards,
+  routeWards,
+  selectedHazardId,
+  onSelectHazard,
+  focusCoords,
+}: HazardMapProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const markersRef = useRef(new Map<string, LeafletLayer>());
   const linesRef = useRef(new Map<string, LeafletLayer>());
   const hazardsRef = useRef(hazards);
   const routesRef = useRef(routeWards);
+  const selectHandlerRef = useRef(onSelectHazard);
   const [ready, setReady] = useState(false);
+
   hazardsRef.current = hazards;
   routesRef.current = routeWards;
+  selectHandlerRef.current = onSelectHazard;
 
   function sync(L: LeafletNS, map: LeafletMap) {
     const rows = hazardsRef.current;
@@ -86,21 +98,33 @@ export function HazardMap({ hazards, routeWards }: HazardMapProps) {
     }
     for (const hazard of rows) {
       const color = PIN_COLORS[hazard.status];
+      const isSelected = selectedHazardId === hazard.id;
       let marker = markersRef.current.get(hazard.id);
       if (!marker) {
         marker = L.circleMarker([hazard.lat, hazard.lng], {
-          radius: 8,
+          radius: isSelected ? 12 : 8,
           color: "#FFFFFF",
-          weight: 2,
+          weight: isSelected ? 3 : 2,
           fillColor: color,
           fillOpacity: 1,
         }).addTo(map);
-        marker.bindPopup?.(`${hazard.category} · ${hazard.status}`);
+
+        const currentHazard = hazard;
+        marker.on?.("click", (e) => {
+          if (e && typeof (e as { originalEvent?: Event }).originalEvent?.stopPropagation === "function") {
+            (e as { originalEvent: Event }).originalEvent.stopPropagation();
+          }
+          selectHandlerRef.current?.(currentHazard);
+        });
+
         markersRef.current.set(hazard.id, marker);
       } else {
         marker.setLatLng?.([hazard.lat, hazard.lng]);
-        marker.setStyle?.({ fillColor: color });
-        marker.bindPopup?.(`${hazard.category} · ${hazard.status}`);
+        marker.setStyle?.({
+          fillColor: color,
+          radius: isSelected ? 12 : 8,
+          weight: isSelected ? 3 : 2,
+        });
       }
     }
 
@@ -136,6 +160,11 @@ export function HazardMap({ hazards, routeWards }: HazardMapProps) {
         map = L.map(el, { zoomControl: false, attributionControl: false });
         map.setView(COLOMBO, 12);
         L.tileLayer(TILES, { maxZoom: 19 }).addTo(map);
+
+        map.on("click", () => {
+          selectHandlerRef.current?.(null);
+        });
+
         mapRef.current = map;
         sync(L, map);
         window.setTimeout(() => map?.invalidateSize(), 80);
@@ -160,7 +189,16 @@ export function HazardMap({ hazards, routeWards }: HazardMapProps) {
     if (!L || !map) return;
     sync(L, map);
     window.setTimeout(() => map.invalidateSize(), 80);
-  }, [hazards, routeWards]);
+  }, [hazards, routeWards, selectedHazardId]);
+
+  useEffect(() => {
+    if (focusCoords && mapRef.current) {
+      mapRef.current.setView(
+        [focusCoords.latitude, focusCoords.longitude],
+        focusCoords.zoom ?? 14,
+      );
+    }
+  }, [focusCoords]);
 
   return createElement(
     "div",

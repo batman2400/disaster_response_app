@@ -1,5 +1,12 @@
+import { Ionicons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HazardMap } from "@/components/HazardMap";
@@ -9,14 +16,27 @@ import {
   GhostButton,
   StatusBadge,
   UrgencyBadge,
-  WardBadge,
 } from "@/components/ui";
 import { fetchHazards, fetchWards, postConfirm } from "@/lib/api";
 import { categoryLabel, timeAgo, wardName } from "@/lib/format";
 import { mapHazardRow, mapWardRow, sortHazards, sortWards, useLiveRows } from "@/lib/live";
 import { SAFE_ROUTES } from "@/lib/safe-routes";
-import { colors } from "@/lib/theme";
-import { PIN_COLORS, type HazardRow, type WardId, type WardRow } from "@/lib/types";
+import { colors, wardStatusColor } from "@/lib/theme";
+import {
+  COLOMBO_CENTER,
+  PIN_COLORS,
+  type HazardRow,
+  type WardId,
+  type WardRow,
+} from "@/lib/types";
+
+const WARD_HOTSPOTS: Record<WardId, { latitude: number; longitude: number }> = {
+  ward_01: { latitude: 6.9535, longitude: 79.8732 },
+  ward_02: { latitude: 6.9271, longitude: 79.8612 },
+  ward_03: { latitude: 6.9355, longitude: 79.85 },
+};
+
+type FilterMode = "ALL" | "NEED_INFO" | "BLOCKED";
 
 export default function PublicMapScreen() {
   const insets = useSafeAreaInsets();
@@ -32,16 +52,16 @@ export default function PublicMapScreen() {
     sort: sortWards,
     fallbackFetch: fetchWards,
   });
+
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [confirmError, setConfirmError] = useState("");
+  const [selectedHazard, setSelectedHazard] = useState<HazardRow | null>(null);
+  const [focusCoords, setFocusCoords] = useState<{ latitude: number; longitude: number; zoom?: number } | null>(null);
+  const [isSheetExpanded, setIsSheetExpanded] = useState(false);
+  const [filterMode, setFilterMode] = useState<FilterMode>("ALL");
+  const [alertDismissed, setAlertDismissed] = useState(false);
 
-  const needsConfirmation = useMemo(
-    () => hazards.filter((hazard) => hazard.status === "NEED_INFO" || hazard.status === "PENDING"),
-    [hazards],
-  );
-
-  // Trim-tier: static safe-route polylines, shown only while a ward is
-  // genuinely in trouble (CRITICAL telemetry or a confirmed area alert).
+  // Trim-tier: static safe-route polylines shown during critical alert
   const activeSafeRouteWards = useMemo(() => {
     const wardIds = new Set<WardId>();
     for (const ward of wards) {
@@ -53,15 +73,54 @@ export default function PublicMapScreen() {
     return Array.from(wardIds).filter((id) => SAFE_ROUTES[id]);
   }, [wards, hazards]);
 
+  const filteredHazards = useMemo(() => {
+    if (filterMode === "NEED_INFO") {
+      return hazards.filter((h) => h.status === "NEED_INFO" || h.status === "PENDING");
+    }
+    if (filterMode === "BLOCKED") {
+      return hazards.filter((h) => h.is_road_blocked);
+    }
+    return hazards;
+  }, [hazards, filterMode]);
+
   async function confirmNearby(incident_id: string) {
     setConfirmingId(incident_id);
     setConfirmError("");
     try {
       await postConfirm({ incident_id });
+      // update local selection state count optimistically
+      if (selectedHazard?.id === incident_id) {
+        setSelectedHazard((prev) =>
+          prev ? { ...prev, confirmations_count: prev.confirmations_count + 1 } : null,
+        );
+      }
     } catch (err) {
       setConfirmError(err instanceof Error ? err.message : "Confirm failed");
     } finally {
       setConfirmingId(null);
+    }
+  }
+
+  function handleSelectHazard(hazard: HazardRow | null) {
+    setSelectedHazard(hazard);
+    if (hazard) {
+      setFocusCoords({ latitude: hazard.lat, longitude: hazard.lng, zoom: 15 });
+    }
+  }
+
+  function handleRecenterColombo() {
+    setSelectedHazard(null);
+    setFocusCoords({
+      latitude: COLOMBO_CENTER.latitude,
+      longitude: COLOMBO_CENTER.longitude,
+      zoom: 12,
+    });
+  }
+
+  function handleFocusWard(wardId: WardId) {
+    const coords = WARD_HOTSPOTS[wardId];
+    if (coords) {
+      setFocusCoords({ latitude: coords.latitude, longitude: coords.longitude, zoom: 14 });
     }
   }
 
@@ -70,102 +129,254 @@ export default function PublicMapScreen() {
 
   return (
     <View style={styles.screen}>
+      {/* 1. Full-screen Interactive Map */}
       <View style={styles.mapContainer}>
-        <HazardMap hazards={hazards} routeWards={activeSafeRouteWards} />
+        <HazardMap
+          hazards={hazards}
+          routeWards={activeSafeRouteWards}
+          selectedHazardId={selectedHazard?.id}
+          onSelectHazard={handleSelectHazard}
+          focusCoords={focusCoords}
+        />
       </View>
 
-      <View style={[styles.overlayContainer, { paddingTop: insets.top > 0 ? insets.top : 8 }]} pointerEvents="box-none">
-        {criticalWard || alertHazard ? (
-          <View style={styles.alert}>
-            <Text style={styles.alertTitle}>
-              ⚠ AREA ALERT · {criticalWard?.name ?? categoryLabel(alertHazard!.category)}
-            </Text>
-            <Text style={styles.alertBody}>
-              {criticalWard
-                ? `Rain ${criticalWard.rainfall_mm} mm · river ${criticalWard.river_level_pct}%`
-                : alertHazard?.description}
-            </Text>
+      {/* 2. Compact Top Overlay */}
+      <View style={styles.topOverlay} pointerEvents="box-none">
+        {/* Critical Alert Banner */}
+        {(criticalWard || alertHazard) && !alertDismissed ? (
+          <View style={styles.alertBanner}>
+            <Ionicons name="warning" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.alertTitle} numberOfLines={1}>
+                AREA ALERT · {criticalWard?.name.split(" / ")[0] ?? categoryLabel(alertHazard!.category)}
+              </Text>
+              <Text style={styles.alertBody} numberOfLines={1}>
+                {criticalWard
+                  ? `Rain ${criticalWard.rainfall_mm} mm · River ${criticalWard.river_level_pct}%`
+                  : alertHazard?.description}
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => setAlertDismissed(true)}
+              hitSlop={8}
+              style={styles.alertDismissBtn}
+            >
+              <Ionicons name="close" size={16} color="#FFFFFF" />
+            </Pressable>
           </View>
         ) : null}
 
+        {/* Compact Horizontal Ward Telemetry Chips */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.wardScroll}
           contentContainerStyle={styles.wardRow}
         >
-          {wards.map((ward) => (
-            <View key={ward.id} style={styles.wardChip}>
-              <WardBadge status={ward.status} />
-              <Text style={styles.wardName} numberOfLines={1}>
-                {ward.name.split(" / ")[0]}
-              </Text>
-              <Text style={styles.wardMeta}>
-                {ward.rainfall_mm} mm · {ward.river_level_pct}%
-              </Text>
-            </View>
-          ))}
+          {wards.map((ward) => {
+            const statusDotColor = wardStatusColor[ward.status];
+            return (
+              <Pressable
+                key={ward.id}
+                style={styles.wardChip}
+                onPress={() => handleFocusWard(ward.id)}
+              >
+                <View style={[styles.statusDot, { backgroundColor: statusDotColor }]} />
+                <Text style={styles.wardChipText} numberOfLines={1}>
+                  {ward.name.split(" / ")[0]}
+                </Text>
+                <Text style={styles.wardChipData}>
+                  {ward.rainfall_mm}mm
+                </Text>
+              </Pressable>
+            );
+          })}
         </ScrollView>
-
-        {needsConfirmation.length > 0 ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.confirmScroll}
-            contentContainerStyle={styles.confirmRow}
-          >
-            {needsConfirmation.map((hazard) => (
-              <View key={hazard.id} style={styles.confirmCard}>
-                <View style={styles.badgeRow}>
-                  <StatusBadge status={hazard.status} />
-                  <Badge label={`${hazard.confirmations_count} confirmed`} color={colors.blue} />
-                </View>
-                <Text style={styles.confirmTitle} numberOfLines={1}>
-                  {categoryLabel(hazard.category)}
-                </Text>
-                <Text style={styles.confirmMeta} numberOfLines={1}>
-                  {wardName(hazard.ward_id)} · {timeAgo(hazard.created_at)}
-                </Text>
-                <GhostButton
-                  label={confirmingId === hazard.id ? "Confirming…" : "I see this too"}
-                  disabled={confirmingId === hazard.id}
-                  onPress={() => void confirmNearby(hazard.id)}
-                />
-              </View>
-            ))}
-          </ScrollView>
-        ) : null}
-        {confirmError ? <Text style={styles.confirmError}>{confirmError}</Text> : null}
       </View>
 
-      <View style={[styles.bottomSheet, { paddingBottom: insets.bottom + 60 }]}>
-        <View style={styles.handle} />
-
+      {/* 3. Floating Map Controls */}
+      <View
+        style={[
+          styles.controlsContainer,
+          { bottom: isSheetExpanded ? "53%" : selectedHazard ? 200 : 76 },
+        ]}
+        pointerEvents="box-none"
+      >
         {activeSafeRouteWards.length > 0 ? (
-          <Text style={styles.routeLegend}>
-            ┅ Dashed line marks a static safe route toward the nearest shelter — not computed.
-          </Text>
-        ) : null}
+          <View style={styles.routePill}>
+            <View style={styles.routeDash} />
+            <Text style={styles.routeText}>Evacuation route active</Text>
+          </View>
+        ) : <View />}
 
-        <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
-          <Text style={styles.listTitle}>
-            {hazards.length} live pins{live ? "" : " · polling"}
+        <Pressable
+          style={styles.recenterBtn}
+          onPress={handleRecenterColombo}
+          accessibilityLabel="Recenter map"
+        >
+          <Ionicons name="locate" size={20} color={colors.blue} />
+        </Pressable>
+      </View>
+
+      {/* 4. Selected Pin Details Card (Popup above peek sheet) */}
+      {selectedHazard && !isSheetExpanded ? (
+        <View style={styles.pinPreviewCard}>
+          <View style={styles.pinPreviewHeader}>
+            <View style={styles.badgeRow}>
+              <StatusBadge status={selectedHazard.status} />
+              <UrgencyBadge urgency={selectedHazard.urgency} />
+              {selectedHazard.is_road_blocked ? (
+                <Badge label="ROAD BLOCKED" color={colors.red} />
+              ) : null}
+            </View>
+            <Pressable
+              onPress={() => setSelectedHazard(null)}
+              hitSlop={12}
+              style={styles.closeBtn}
+            >
+              <Ionicons name="close" size={18} color={colors.muted} />
+            </Pressable>
+          </View>
+
+          <Text style={styles.pinPreviewTitle}>{categoryLabel(selectedHazard.category)}</Text>
+          <Text style={styles.pinPreviewBody} numberOfLines={2}>
+            {selectedHazard.description || "No additional description provided."}
           </Text>
-          {hazards.map((hazard) => (
-            <Card key={hazard.id} accent={PIN_COLORS[hazard.status]} style={styles.item}>
-              <View style={styles.badgeRow}>
-                <StatusBadge status={hazard.status} />
-                <UrgencyBadge urgency={hazard.urgency} />
-                {hazard.is_road_blocked ? <Badge label="ROAD BLOCKED" color={colors.red} /> : null}
-              </View>
-              <Text style={styles.itemTitle}>{categoryLabel(hazard.category)}</Text>
-              <Text style={styles.itemBody}>{hazard.description}</Text>
-              <Text style={styles.itemMeta}>
-                {wardName(hazard.ward_id)} · {timeAgo(hazard.created_at)}
+
+          <View style={styles.pinPreviewFooter}>
+            <Text style={styles.pinPreviewMeta}>
+              {wardName(selectedHazard.ward_id)} · {timeAgo(selectedHazard.created_at)}
+            </Text>
+            {selectedHazard.status === "NEED_INFO" || selectedHazard.status === "PENDING" ? (
+              <GhostButton
+                label={confirmingId === selectedHazard.id ? "Confirming…" : `Confirm (${selectedHazard.confirmations_count})`}
+                disabled={confirmingId === selectedHazard.id}
+                onPress={() => void confirmNearby(selectedHazard.id)}
+              />
+            ) : (
+              <Badge label={`${selectedHazard.confirmations_count} confirmed`} color={colors.blue} />
+            )}
+          </View>
+          {confirmError ? <Text style={styles.confirmError}>{confirmError}</Text> : null}
+        </View>
+      ) : null}
+
+      {/* 5. Collapsible Bottom Sheet */}
+      <View
+        style={[
+          styles.bottomSheet,
+          isSheetExpanded ? styles.bottomSheetExpanded : styles.bottomSheetPeek,
+          { paddingBottom: Math.max(insets.bottom, 12) },
+        ]}
+      >
+        {/* Drag Handle / Toggle Header */}
+        <Pressable
+          style={styles.sheetHeader}
+          onPress={() => setIsSheetExpanded((prev) => !prev)}
+        >
+          <View style={styles.handle} />
+          <View style={styles.sheetTitleRow}>
+            <View style={styles.sheetTitleLeft}>
+              <Text style={styles.sheetTitle}>
+                {hazards.length} Live Pins
               </Text>
-            </Card>
-          ))}
-        </ScrollView>
+              <View style={styles.liveIndicator}>
+                <View style={[styles.liveDot, { backgroundColor: live ? colors.green : colors.amber }]} />
+                <Text style={styles.liveText}>{live ? "Realtime" : "Polling"}</Text>
+              </View>
+            </View>
+
+            <View style={styles.toggleBtn}>
+              <Text style={styles.toggleText}>
+                {isSheetExpanded ? "Hide list" : "View list"}
+              </Text>
+              <Ionicons
+                name={isSheetExpanded ? "chevron-down" : "chevron-up"}
+                size={16}
+                color={colors.blue}
+              />
+            </View>
+          </View>
+        </Pressable>
+
+        {/* Expanded View Content */}
+        {isSheetExpanded ? (
+          <View style={styles.expandedContent}>
+            {/* Filter Chips */}
+            <View style={styles.filterRow}>
+              <Pressable
+                style={[styles.filterChip, filterMode === "ALL" && styles.filterChipActive]}
+                onPress={() => setFilterMode("ALL")}
+              >
+                <Text style={[styles.filterChipText, filterMode === "ALL" && styles.filterChipTextActive]}>
+                  All ({hazards.length})
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.filterChip, filterMode === "NEED_INFO" && styles.filterChipActive]}
+                onPress={() => setFilterMode("NEED_INFO")}
+              >
+                <Text style={[styles.filterChipText, filterMode === "NEED_INFO" && styles.filterChipTextActive]}>
+                  Needs Verification ({hazards.filter((h) => h.status === "NEED_INFO" || h.status === "PENDING").length})
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.filterChip, filterMode === "BLOCKED" && styles.filterChipActive]}
+                onPress={() => setFilterMode("BLOCKED")}
+              >
+                <Text style={[styles.filterChipText, filterMode === "BLOCKED" && styles.filterChipTextActive]}>
+                  Roads Blocked ({hazards.filter((h) => h.is_road_blocked).length})
+                </Text>
+              </Pressable>
+            </View>
+
+            <ScrollView
+              style={styles.hazardList}
+              contentContainerStyle={styles.hazardListContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {filteredHazards.length === 0 ? (
+                <Text style={styles.emptyText}>No hazards in this category.</Text>
+              ) : (
+                filteredHazards.map((hazard) => (
+                  <Pressable
+                    key={hazard.id}
+                    onPress={() => {
+                      handleSelectHazard(hazard);
+                      setIsSheetExpanded(false);
+                    }}
+                  >
+                    <Card
+                      accent={PIN_COLORS[hazard.status]}
+                      style={[
+                        styles.hazardItem,
+                        selectedHazard?.id === hazard.id && styles.hazardItemFocused,
+                      ]}
+                    >
+                      <View style={styles.badgeRow}>
+                        <StatusBadge status={hazard.status} />
+                        <UrgencyBadge urgency={hazard.urgency} />
+                        {hazard.is_road_blocked ? (
+                          <Badge label="ROAD BLOCKED" color={colors.red} />
+                        ) : null}
+                      </View>
+                      <Text style={styles.itemTitle}>{categoryLabel(hazard.category)}</Text>
+                      <Text style={styles.itemBody} numberOfLines={2}>
+                        {hazard.description}
+                      </Text>
+                      <View style={styles.itemMetaRow}>
+                        <Text style={styles.itemMeta}>
+                          {wardName(hazard.ward_id)} · {timeAgo(hazard.created_at)}
+                        </Text>
+                        <Text style={styles.tapToView}>Tap to locate →</Text>
+                      </View>
+                    </Card>
+                  </Pressable>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        ) : null}
       </View>
     </View>
   );
@@ -177,65 +388,142 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     zIndex: 0,
   },
-  overlayContainer: {
+
+  // Top Overlay
+  topOverlay: {
     position: "absolute",
-    top: 0,
+    top: 8,
     left: 0,
     right: 0,
     zIndex: 10,
+    paddingHorizontal: 12,
   },
-  alert: {
+  alertBanner: {
     backgroundColor: colors.red,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginHorizontal: 12,
-    marginBottom: 8,
     borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  alertTitle: { color: "#FFFFFF", fontWeight: "700", fontSize: 14 },
-  alertBody: { color: "#FFFFFF", marginTop: 4, fontSize: 13, opacity: 0.9 },
-  wardScroll: { flexGrow: 0, maxHeight: 102 },
-  wardRow: { paddingHorizontal: 12, paddingVertical: 8, gap: 8, alignItems: "flex-start" },
+  alertTitle: { color: "#FFFFFF", fontWeight: "700", fontSize: 13 },
+  alertBody: { color: "#FFFFFF", fontSize: 12, opacity: 0.95 },
+  alertDismissBtn: { padding: 4 },
+
+  wardScroll: { flexGrow: 0 },
+  wardRow: { gap: 6, alignItems: "center", paddingVertical: 2 },
   wardChip: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: colors.card,
     borderColor: colors.line,
     borderWidth: 1,
-    borderRadius: 14,
-    padding: 10,
-    width: 168,
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
-    shadowRadius: 4,
+    shadowRadius: 3,
     elevation: 2,
+    gap: 6,
   },
-  wardName: { color: colors.text, fontWeight: "700", marginTop: 8, fontSize: 14 },
-  wardMeta: { color: colors.muted, marginTop: 2, fontSize: 12 },
-  confirmScroll: { flexGrow: 0, maxHeight: 148 },
-  confirmRow: { paddingHorizontal: 12, paddingVertical: 8, gap: 8, alignItems: "flex-start" },
-  confirmCard: {
-    backgroundColor: colors.card,
-    borderColor: colors.amber,
+  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  wardChipText: { color: colors.text, fontWeight: "600", fontSize: 12 },
+  wardChipData: { color: colors.muted, fontSize: 11 },
+
+  // Floating Controls
+  controlsContainer: {
+    position: "absolute",
+    left: 12,
+    right: 12,
+    zIndex: 15,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  routePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.92)",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    borderColor: colors.line,
     borderWidth: 1,
-    borderRadius: 14,
-    padding: 12,
-    width: 200,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    gap: 6,
   },
-  confirmTitle: { color: colors.text, fontWeight: "700", marginTop: 8 },
-  confirmMeta: { color: colors.muted, marginTop: 2, marginBottom: 8, fontSize: 12 },
-  confirmError: { color: colors.red, marginHorizontal: 16, marginBottom: 8, fontWeight: "600" },
+  routeDash: {
+    width: 14,
+    height: 3,
+    backgroundColor: colors.green,
+    borderRadius: 1.5,
+  },
+  routeText: { color: colors.green, fontSize: 11, fontWeight: "700" },
+  recenterBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.card,
+    borderColor: colors.line,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+
+  // Pin Preview Card
+  pinPreviewCard: {
+    position: "absolute",
+    bottom: 74,
+    left: 12,
+    right: 12,
+    zIndex: 20,
+    backgroundColor: colors.card,
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  pinPreviewHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  closeBtn: { padding: 4 },
+  pinPreviewTitle: { color: colors.text, fontSize: 16, fontWeight: "700", marginBottom: 4 },
+  pinPreviewBody: { color: colors.text, fontSize: 13, lineHeight: 18, marginBottom: 10 },
+  pinPreviewFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  pinPreviewMeta: { color: colors.muted, fontSize: 12 },
+  confirmError: { color: colors.red, marginTop: 6, fontSize: 12, fontWeight: "600" },
+
+  // Bottom Sheet
   bottomSheet: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    maxHeight: "45%",
-    zIndex: 10,
+    zIndex: 25,
     backgroundColor: colors.card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
@@ -243,9 +531,20 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.08,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 6,
+  },
+  bottomSheetPeek: {
+    height: 64,
+  },
+  bottomSheetExpanded: {
+    maxHeight: "52%",
+  },
+  sheetHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 8,
   },
   handle: {
     width: 36,
@@ -253,30 +552,74 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: colors.line,
     alignSelf: "center",
-    marginTop: 10,
-    marginBottom: 4,
+    marginBottom: 8,
   },
-  routeLegend: {
-    color: colors.green,
+  sheetTitleRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  sheetTitleLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
+  sheetTitle: {
+    color: colors.text,
+    fontWeight: "700",
+    fontSize: 14,
+  },
+  liveIndicator: { flexDirection: "row", alignItems: "center", gap: 4 },
+  liveDot: { width: 6, height: 6, borderRadius: 3 },
+  liveText: { color: colors.muted, fontSize: 11, fontWeight: "600" },
+  toggleBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.bg2,
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    gap: 4,
+  },
+  toggleText: { color: colors.blue, fontWeight: "600", fontSize: 12 },
+
+  // Expanded Content
+  expandedContent: { flex: 1, minHeight: 240 },
+  filterRow: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  filterChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    backgroundColor: colors.bg2,
+  },
+  filterChipActive: {
+    backgroundColor: colors.blue,
+  },
+  filterChipText: {
     fontSize: 12,
     fontWeight: "600",
-    marginHorizontal: 16,
-    marginTop: 6,
-    marginBottom: 4,
-  },
-  list: { flex: 1 },
-  listContent: { padding: 16, paddingBottom: 16 },
-  listTitle: {
     color: colors.muted,
-    fontWeight: "700",
-    marginBottom: 10,
-    fontSize: 12,
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
   },
-  item: { marginBottom: 10 },
+  filterChipTextActive: {
+    color: "#FFFFFF",
+  },
+  hazardList: { flex: 1 },
+  hazardListContent: { padding: 16, paddingBottom: 24 },
+  hazardItem: { marginBottom: 10 },
+  hazardItemFocused: { borderColor: colors.blue, borderWidth: 1.5 },
   badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, rowGap: 6, marginBottom: 8 },
-  itemTitle: { color: colors.text, fontWeight: "700", fontSize: 16 },
-  itemBody: { color: colors.text, marginTop: 4, fontSize: 14 },
-  itemMeta: { color: colors.muted, marginTop: 6, fontSize: 12 },
+  itemTitle: { color: colors.text, fontWeight: "700", fontSize: 15 },
+  itemBody: { color: colors.text, marginTop: 4, fontSize: 13 },
+  itemMetaRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 8,
+  },
+  itemMeta: { color: colors.muted, fontSize: 12 },
+  tapToView: { color: colors.blue, fontSize: 12, fontWeight: "600" },
+  emptyText: { textAlign: "center", color: colors.muted, marginVertical: 32, fontSize: 13 },
 });

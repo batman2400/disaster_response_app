@@ -8,7 +8,7 @@ import type { HazardRow } from "@/lib/types";
 const COLOMBO: [number, number] = [6.9271, 79.8612];
 const LEAFLET_CSS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
 const LEAFLET_JS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-const TILES = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+const TILES = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 
 type LeafletMap = {
   setView: (latLng: [number, number], zoom?: number) => void;
