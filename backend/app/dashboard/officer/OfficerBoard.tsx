@@ -13,8 +13,10 @@ import {
   ExternalLink,
   Eye,
   Filter,
+  Headphones,
   LocateFixed,
   Maximize2,
+  Mic,
   Radio,
   RefreshCw,
   Route,
@@ -24,10 +26,14 @@ import {
   TrendingUp,
   Truck,
   Users,
+  Volume2,
   X,
   ZoomIn,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+
+import { AudioPlayer } from "@/components/audio-player";
+import { DEMO_SAMPLE_AUDIO_URL } from "@/lib/demo-audio";
 
 import { PipelineAudit } from "@/app/dashboard/admin/pipeline/PipelineAudit";
 import { Badge, Button, Card, Chip, Modal, SectionLabel, StatusBadge, UrgencyBadge } from "@/components/ui";
@@ -118,6 +124,7 @@ export function OfficerBoard({
   const [error, setError] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(initialHazards[0]?.id ?? null);
   const [copied, setCopied] = useState(false);
+  const [demoAudioId, setDemoAudioId] = useState<string | null>(null);
 
   // Modals & Drawers state
   const [showAuditDrawer, setShowAuditDrawer] = useState(false);
@@ -423,6 +430,11 @@ export function OfficerBoard({
                       #{ticket.id.slice(0, 8).toUpperCase()}
                     </span>
                     <UrgencyBadge urgency={ticket.urgency} />
+                    {ticket.audio_url ? (
+                      <span className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] font-extrabold uppercase bg-cyan-50 text-cyan-700 border border-cyan-200">
+                        <Mic className="h-2.5 w-2.5 text-cyan-600" /> Voice
+                      </span>
+                    ) : null}
                   </div>
                   <span className="text-[10px] font-bold text-slate-400">{timeAgo(ticket.created_at)}</span>
                 </div>
@@ -588,6 +600,42 @@ export function OfficerBoard({
                         </div>
                       )}
                     </div>
+
+                    {/* Citizen Voice Recording Review */}
+                    {selected.audio_url || demoAudioId === selected.id ? (
+                      <div className="mt-4 pt-3 border-t border-slate-100">
+                        <div className="mb-2 flex items-center justify-between">
+                          <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                            <Headphones className="h-3.5 w-3.5 text-brand" />
+                            Citizen Voice Recording
+                          </span>
+                          {selected.detected_language && (
+                            <span className="rounded-full bg-brand-light px-2 py-0.5 text-[10px] font-extrabold text-brand">
+                              {selected.detected_language}
+                            </span>
+                          )}
+                        </div>
+                        <AudioPlayer
+                          src={selected.audio_url || DEMO_SAMPLE_AUDIO_URL}
+                          title={`Citizen Audio Memo #${selected.id.slice(0, 8).toUpperCase()}`}
+                          language={selected.detected_language}
+                        />
+                      </div>
+                    ) : (
+                      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+                        <span className="flex items-center gap-1.5 font-medium">
+                          <Mic className="h-3.5 w-3.5 text-slate-300" />
+                          No voice recording attached
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setDemoAudioId(selected.id)}
+                          className="text-[11px] font-bold text-brand hover:underline"
+                        >
+                          Load Sample Audio
+                        </button>
+                      </div>
+                    )}
                   </Card>
 
                   {/* Telemetry Card */}
@@ -671,10 +719,27 @@ export function OfficerBoard({
                         </h3>
                         {selected.summary ? (
                           <div className="my-2 max-w-xl rounded-xl border border-brand/40 bg-brand/15 p-2.5">
-                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-brand-light">
-                              AI Operational Summary · {selected.detected_language || "Multilingual"}
-                            </span>
-                            <p className="mt-0.5 text-xs font-bold text-white">{selected.summary}</p>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-[10px] font-extrabold uppercase tracking-wider text-brand-light">
+                                AI Operational Summary · {selected.detected_language || "Multilingual"}
+                              </span>
+                              {(selected.audio_url || demoAudioId === selected.id) && (
+                                <span className="flex items-center gap-1 text-[10px] font-bold text-cyan-300">
+                                  <Volume2 className="h-3 w-3" /> Voice Attached
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-0.5 text-xs font-bold text-white leading-relaxed">{selected.summary}</p>
+                            {(selected.audio_url || demoAudioId === selected.id) && (
+                              <div className="mt-2.5">
+                                <AudioPlayer
+                                  compact
+                                  src={selected.audio_url || DEMO_SAMPLE_AUDIO_URL}
+                                  title="Listen Original Voice Note"
+                                  language={selected.detected_language}
+                                />
+                              </div>
+                            )}
                           </div>
                         ) : null}
                         <p className="max-w-xl text-sm font-medium leading-relaxed text-white/90">

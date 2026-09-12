@@ -1,3 +1,4 @@
+import { DEMO_SAMPLE_AUDIO_URL } from "./demo-audio";
 import type {
   AiSettings,
   HazardRow,
@@ -91,6 +92,9 @@ export const hazards = new Map<string, HazardRow>([
       created_at: new Date().toISOString(),
       resolved_at: null,
       closure_photo_url: null,
+      audio_url: DEMO_SAMPLE_AUDIO_URL,
+      summary: "Waist-deep flood waters rising rapidly near Nagalagam street bridge with impassable road conditions.",
+      detected_language: "Sinhala",
     },
   ],
   [

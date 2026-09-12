@@ -199,12 +199,13 @@ export function Label({ children }: { children: ReactNode }) {
   return <Text style={styles.label}>{children}</Text>;
 }
 
-export function HazardBadgeRow({ hazard }: { hazard: Pick<HazardRow, "status" | "urgency" | "is_road_blocked"> }) {
+export function HazardBadgeRow({ hazard }: { hazard: Pick<HazardRow, "status" | "urgency" | "is_road_blocked"> & { audio_url?: string | null } }) {
   return (
     <View style={styles.badgeRow}>
       <StatusBadge status={hazard.status} />
       <UrgencyBadge urgency={hazard.urgency} />
       {hazard.is_road_blocked ? <Badge label="ROAD BLOCKED" color={colors.red} /> : null}
+      {hazard.audio_url ? <Badge label="VOICE MEMO" color={colors.blue} /> : null}
     </View>
   );
 }

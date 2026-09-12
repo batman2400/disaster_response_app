@@ -16,15 +16,25 @@ import type { AiSettings, HazardRow, PipelineTrace, ReplayState, ShelterRow, War
 
 const globalCache = globalThis as typeof globalThis & {
   __hazardTraces?: Map<string, PipelineTrace>;
+  __hazardAudios?: Map<string, string>;
 };
 const traceCache = (globalCache.__hazardTraces ??= new Map<string, PipelineTrace>());
+const audioCache = (globalCache.__hazardAudios ??= new Map<string, string>());
 
 function rememberTrace(id: string, trace: PipelineTrace | null | undefined) {
   if (trace) traceCache.set(id, trace);
 }
 
+function rememberAudio(id: string, audioUrl: string | null | undefined) {
+  if (audioUrl) audioCache.set(id, audioUrl);
+}
+
 function withCachedTrace(row: HazardRow): HazardRow {
-  return { ...row, trace: row.trace ?? traceCache.get(row.id) ?? null };
+  return {
+    ...row,
+    trace: row.trace ?? traceCache.get(row.id) ?? null,
+    audio_url: row.audio_url ?? audioCache.get(row.id) ?? null,
+  };
 }
 
 function asHazard(row: Record<string, unknown>): HazardRow {
@@ -44,6 +54,11 @@ function asHazard(row: Record<string, unknown>): HazardRow {
     created_at: String(row.created_at),
     resolved_at: (row.resolved_at as string | null) ?? null,
     closure_photo_url: (row.closure_photo_url as string | null) ?? null,
+    audio_url:
+      (row.audio_url as string | null) ??
+      memoryGetHazard(String(row.id))?.audio_url ??
+      audioCache.get(String(row.id)) ??
+      null,
     ...officerFieldsFromStored(row.officer_note, row.status as HazardRow["status"], {
       officer_log: row.officer_log,
       dispatched_at: row.dispatched_at,
@@ -141,6 +156,7 @@ const OFFICER_NOTE_COLUMN_EXISTS = true;
 
 export async function saveHazard(row: HazardRow) {
   rememberTrace(row.id, row.trace);
+  rememberAudio(row.id, row.audio_url);
   memoryUpsert(row);
   const supabase = getSupabase();
   if (!supabase) return row;
@@ -161,6 +177,9 @@ export async function saveHazard(row: HazardRow) {
     resolved_at: row.resolved_at,
     closure_photo_url: row.closure_photo_url,
   };
+  if (row.audio_url !== undefined) {
+    payload.audio_url = row.audio_url;
+  }
   if (
     OFFICER_NOTE_COLUMN_EXISTS &&
     (row.officer_note !== undefined || row.officer_log !== undefined || row.dispatched_at !== undefined)
@@ -172,12 +191,18 @@ export async function saveHazard(row: HazardRow) {
   }
   const { error } = await supabase.from("hazards").upsert(payload);
   if (error) {
-    const missingTrace = /trace/i.test(error.message) && payload.trace !== undefined;
-    if (missingTrace) {
+    let retried = false;
+    if (/audio_url/i.test(error.message) && payload.audio_url !== undefined) {
+      delete payload.audio_url;
+      retried = true;
+    }
+    if (/trace/i.test(error.message) && payload.trace !== undefined) {
       delete payload.trace;
+      retried = true;
+    }
+    if (retried) {
       const retry = await supabase.from("hazards").upsert(payload);
-      if (retry.error) console.error("saveHazard", retry.error.message);
-      else console.warn("saveHazard: hazards.trace column missing — apply supabase/apply.sql");
+      if (retry.error) console.error("saveHazard retry", retry.error.message);
     } else {
       console.error("saveHazard", error.message);
     }
@@ -282,6 +307,35 @@ export async function uploadPhoto(id: string, photoBase64: string, kind: "report
   }
   const { data: pub } = supabase.storage.from(HAZARD_BUCKET).getPublicUrl(path);
   return pub.publicUrl;
+}
+
+export async function uploadAudio(id: string, audioBase64: string, audioMime = "audio/webm"): Promise<string | null> {
+  if (!audioBase64) return null;
+  rememberAudio(id, audioBase64);
+  const supabase = getSupabase();
+  if (!supabase) return audioBase64;
+  try {
+    const { mimeType, data } = stripDataUrl(audioBase64, audioMime);
+    const ext = mimeType.includes("mp3")
+      ? "mp3"
+      : mimeType.includes("wav")
+        ? "wav"
+        : mimeType.includes("ogg")
+          ? "ogg"
+          : "webm";
+    const path = `audio/${id}.${ext}`;
+    const { error } = await supabase.storage.from(HAZARD_BUCKET).upload(path, Buffer.from(data, "base64"), {
+      contentType: mimeType,
+      upsert: true,
+    });
+    if (error) {
+      return audioBase64;
+    }
+    const { data: pub } = supabase.storage.from(HAZARD_BUCKET).getPublicUrl(path);
+    return pub.publicUrl || audioBase64;
+  } catch {
+    return audioBase64;
+  }
 }
 
 export async function updateWardTelemetry(

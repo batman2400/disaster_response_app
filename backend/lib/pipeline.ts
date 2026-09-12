@@ -5,7 +5,7 @@ import { checkLocation } from "./checks/location";
 import { checkRisk } from "./checks/risk";
 import { checkWeather } from "./checks/weather";
 import { summarizeCitizenInput } from "./checks/input-summary";
-import { getAiSettings, saveAiSettings, saveHazard, uploadPhoto } from "./db";
+import { getAiSettings, saveAiSettings, saveHazard, uploadAudio, uploadPhoto } from "./db";
 import { geminiModel } from "./gemini";
 import { riskPassed, timed } from "./trace";
 import type { HazardRow, PipelineTrace, ReportChecks, ReportRequest, ReportResponse, TraceStep } from "./types";
@@ -169,6 +169,9 @@ export async function persistReport(body: ReportRequest, result: ReportResponse)
   const photo_url = body.photo_base64
     ? await uploadPhoto(result.incident_id, body.photo_base64, "report")
     : null;
+  const audio_url = body.audio_base64
+    ? await uploadAudio(result.incident_id, body.audio_base64, body.audio_mime || "audio/webm")
+    : null;
   const row: HazardRow = {
     id: result.incident_id,
     lat: body.lat,
@@ -177,6 +180,7 @@ export async function persistReport(body: ReportRequest, result: ReportResponse)
     category: body.help_request ? "HELP_REQUEST" : body.category,
     description: body.description,
     photo_url,
+    audio_url,
     status: result.status,
     urgency: result.urgency,
     confidence_score: result.confidence_score,

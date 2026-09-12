@@ -178,6 +178,7 @@ export interface HazardRow {
   created_at: string;
   resolved_at: string | null;
   closure_photo_url: string | null;
+  audio_url?: string | null;
   officer_note?: string;
   officer_log?: OfficerLogEntry[];
   dispatched_at?: string | null;

@@ -1,8 +1,10 @@
 "use client";
 
-import { ArrowLeft, Bug, CheckCircle2, Copy, Cpu, Download, Radio, Server } from "lucide-react";
+import { ArrowLeft, Bug, CheckCircle2, Copy, Cpu, Download, Headphones, Radio, Server } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+
+import { AudioPlayer } from "@/components/audio-player";
 
 import { cn } from "@/lib/cn";
 import { categoryLabel, wardShort } from "@/lib/format";
@@ -198,6 +200,29 @@ export function PipelineAudit({
               Latency: {trace.inferred ? "—" : `${trace.total_ms}ms`}
             </span>
           </div>
+
+          {/* Citizen Audio Review Section */}
+          {selected.audio_url ? (
+            <div className="rounded-xl border border-cyan-500/30 bg-slate-900/90 p-3 shadow-md">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-cyan-300">
+                  <Headphones className="h-3.5 w-3.5" />
+                  Original Citizen Voice Memo
+                </span>
+                {selected.detected_language && (
+                  <span className="rounded bg-cyan-400/20 px-1.5 py-0.5 font-mono text-[9px] font-bold text-cyan-300 border border-cyan-400/30">
+                    {selected.detected_language}
+                  </span>
+                )}
+              </div>
+              <AudioPlayer
+                compact
+                src={selected.audio_url}
+                title={`Citizen Voice Note #${selected.id.slice(0, 8).toUpperCase()}`}
+                language={selected.detected_language}
+              />
+            </div>
+          ) : null}
 
           <div className="relative ml-4 mt-2">
             <div className="absolute bottom-6 left-[-11px] top-2 w-0.5 bg-slate-700" />
