@@ -1,4 +1,5 @@
 import { stripDataUrl } from "./gemini";
+import { officerFieldsFromStored, serializeOfficerRow } from "./officer-log";
 import { getSupabase, HAZARD_BUCKET } from "./supabase";
 import {
   aiSettings,
@@ -41,7 +42,10 @@ function asHazard(row: Record<string, unknown>): HazardRow {
     created_at: String(row.created_at),
     resolved_at: (row.resolved_at as string | null) ?? null,
     closure_photo_url: (row.closure_photo_url as string | null) ?? null,
-    officer_note: (row.officer_note as string | undefined) ?? undefined,
+    ...officerFieldsFromStored(row.officer_note, row.status as HazardRow["status"], {
+      officer_log: row.officer_log,
+      dispatched_at: row.dispatched_at,
+    }),
     trace:
       parseTrace(row.trace) ??
       memoryGetHazard(String(row.id))?.trace ??
@@ -118,8 +122,11 @@ export async function saveHazard(row: HazardRow) {
     resolved_at: row.resolved_at,
     closure_photo_url: row.closure_photo_url,
   };
-  if (OFFICER_NOTE_COLUMN_EXISTS && row.officer_note !== undefined) {
-    payload.officer_note = row.officer_note;
+  if (
+    OFFICER_NOTE_COLUMN_EXISTS &&
+    (row.officer_note !== undefined || row.officer_log !== undefined || row.dispatched_at !== undefined)
+  ) {
+    payload.officer_note = serializeOfficerRow(row);
   }
   if (row.trace !== undefined) {
     payload.trace = row.trace;

@@ -19,7 +19,7 @@ const COPY: Record<DashRole, { title: string; blurb: string }> = {
     blurb: "Shared desk password. Confirm tickets, override AI, and dispatch notes.",
   },
   relief: {
-    title: "Relief Coordinator",
+    title: "Relief Desk",
     blurb: "Shared desk password. Match help requests to shelters in the same ward.",
   },
   crew: {

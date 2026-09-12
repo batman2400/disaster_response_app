@@ -1,24 +1,39 @@
 "use client";
 
-import { ChevronRight, LogOut, Shield } from "lucide-react";
+import { ChevronRight, LogOut, Shield, Truck } from "lucide-react";
 import Link from "next/link";
+import { useMemo } from "react";
 
 import { PublicShell } from "@/components/public-shell";
-import { StatusBadge, UrgencyBadge } from "@/components/ui";
+import { Badge, StatusBadge, UrgencyBadge } from "@/components/ui";
 import { categoryLabel, timeAgo, wardShort } from "@/lib/format";
+import { latestDispatchNote } from "@/lib/officer-log";
 import type { HazardRow } from "@/lib/types";
-import { mapHazardRow, sortHazards, useLiveRows } from "@/lib/use-live";
+import { mapHazardRow, useLiveRows } from "@/lib/use-live";
+
+function sortCrewQueue(rows: HazardRow[]) {
+  return [...rows].sort((a, b) => {
+    const aDispatched = a.dispatched_at ? Date.parse(a.dispatched_at) : 0;
+    const bDispatched = b.dispatched_at ? Date.parse(b.dispatched_at) : 0;
+    if (Boolean(a.dispatched_at) !== Boolean(b.dispatched_at)) {
+      return a.dispatched_at ? -1 : 1;
+    }
+    if (aDispatched !== bDispatched) return bDispatched - aDispatched;
+    return Date.parse(b.created_at) - Date.parse(a.created_at);
+  });
+}
 
 export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
   const { rows: hazards, live } = useLiveRows<HazardRow>({
     table: "hazards",
-    initial: initialHazards,
+    initial: sortCrewQueue(initialHazards),
     mapRow: mapHazardRow,
-    sort: sortHazards,
+    sort: sortCrewQueue,
     fallbackFetch: () => fetch("/api/hazards").then((res) => res.json() as Promise<HazardRow[]>),
   });
 
-  const open = hazards.filter((row) => row.status !== "RESOLVED");
+  const open = useMemo(() => hazards.filter((row) => row.status !== "RESOLVED"), [hazards]);
+  const dispatchedCount = open.filter((row) => row.dispatched_at).length;
 
   return (
     <PublicShell>
@@ -40,6 +55,7 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
       </div>
       <p className="px-6 pb-4 text-xs font-medium text-slate-400 lg:px-10">
         {live ? "Live queue" : "Refreshing…"} · {open.length} open
+        {dispatchedCount ? ` · ${dispatchedCount} dispatched` : ""}
       </p>
       <div className="flex-1 overflow-y-auto no-scrollbar px-6 pb-10 lg:px-10">
         <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2">
@@ -47,7 +63,9 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
             <Link
               key={ticket.id}
               href={`/crew/${ticket.id}`}
-              className="flex items-center gap-4 rounded-3xl border border-slate-100 bg-white p-5 shadow-soft active:scale-[0.99] lg:hover:border-brand"
+              className={`flex items-center gap-4 rounded-3xl border bg-white p-5 shadow-soft active:scale-[0.99] lg:hover:border-brand ${
+                ticket.dispatched_at ? "border-indigo-200 ring-1 ring-indigo-100" : "border-slate-100"
+              }`}
             >
               <div className="flex-1">
                 <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -56,11 +74,22 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
                   </span>
                   <StatusBadge status={ticket.status} />
                   <UrgencyBadge urgency={ticket.urgency} />
+                  {ticket.dispatched_at ? (
+                    <Badge className="bg-indigo-50 text-brand-indigo">
+                      <Truck className="mr-1 h-3 w-3" />
+                      Dispatched
+                    </Badge>
+                  ) : null}
                 </div>
                 <h3 className="font-extrabold text-slate-900">{categoryLabel(ticket.category)}</h3>
                 <p className="mt-1 text-xs font-medium text-slate-500">
                   {wardShort(ticket.ward_id)} · {timeAgo(ticket.created_at)}
                 </p>
+                {ticket.dispatched_at ? (
+                  <p className="mt-2 text-[11px] font-semibold text-brand-indigo">
+                    {latestDispatchNote(ticket) || "Officer sent this to the field queue."}
+                  </p>
+                ) : null}
               </div>
               <ChevronRight className="h-4 w-4 text-slate-300" />
             </Link>

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { officerFieldsFromStored } from "./officer-log";
 import { getBrowserSupabase } from "./supabase-browser";
 import { parseTrace } from "./trace";
 import type { HazardRow, ShelterRow, WardRow } from "./types";
@@ -40,7 +41,10 @@ export function mapHazardRow(row: Record<string, unknown>): HazardRow {
     created_at: String(row.created_at),
     resolved_at: (row.resolved_at as string | null) ?? null,
     closure_photo_url: (row.closure_photo_url as string | null) ?? null,
-    officer_note: (row.officer_note as string | undefined) ?? undefined,
+    ...officerFieldsFromStored(row.officer_note, row.status as HazardRow["status"], {
+      officer_log: row.officer_log,
+      dispatched_at: row.dispatched_at,
+    }),
     trace: parseTrace(row.trace),
   };
 }

@@ -5,11 +5,12 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { OfficerMap } from "./OfficerMap";
-import { Button, Card, Chip, SectionLabel, StatusBadge, UrgencyBadge } from "@/components/ui";
+import { Badge, Button, Card, Chip, SectionLabel, StatusBadge, UrgencyBadge } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { categoryLabel, timeAgo, wardShort } from "@/lib/format";
+import { OFFICER_ACTION_LABEL } from "@/lib/officer-log";
 import { parseTrace } from "@/lib/trace";
-import type { HazardRow, HazardStatus, WardRow } from "@/lib/types";
+import type { HazardRow, HazardStatus, OfficerAction, WardRow } from "@/lib/types";
 import { mapHazardRow, mapWardRow, sortHazards, sortWards, useLiveRows } from "@/lib/use-live";
 
 const FILTERS = [
@@ -22,28 +23,30 @@ const FILTERS = [
 
 type FilterId = (typeof FILTERS)[number]["id"];
 
-function checkTiles(
-  ticket: HazardRow,
-  trace: ReturnType<typeof parseTrace>,
-  wardStatus?: WardRow["status"],
-) {
-  if (trace) {
-    return trace.steps
-      .filter((step) => step.id !== "aggregator")
-      .map((step) => ({
-        id: step.id,
-        label: step.name.replace(" (Gemini)", "").replace(" (PostGIS)", "").replace(" (SYS)", ""),
-        value: `${step.passed ? "PASS" : "HOLD"} · ${step.latency_ms}ms`,
-        passed: step.passed,
-      }));
+function checkTiles(ticket: HazardRow, trace: ReturnType<typeof parseTrace>) {
+  if (trace && !trace.inferred) {
+    return {
+      inferred: false,
+      tiles: trace.steps
+        .filter((step) => step.id !== "aggregator")
+        .map((step) => ({
+          id: step.id,
+          label: step.name.replace(" (Gemini)", "").replace(" (PostGIS)", "").replace(" (SYS)", ""),
+          value: `${step.passed ? "PASS" : "HOLD"} · ${step.latency_ms}ms`,
+          passed: step.passed,
+        })),
+    };
   }
-  return [
-    { id: "image", label: "Image AI", value: ticket.confidence_score.toFixed(2), passed: ticket.confidence_score >= 0.6 },
-    { id: "location", label: "Loc AI", value: "GPS", passed: true },
-    { id: "cluster", label: "Cluster", value: `n=${ticket.confirmations_count}`, passed: ticket.confirmations_count >= 2 },
-    { id: "weather", label: "Weather", value: wardStatus ?? "—", passed: wardStatus !== "NORMAL" },
-    { id: "risk", label: "Risk AI", value: ticket.urgency, passed: ticket.urgency !== "LOW" },
-  ];
+  return {
+    inferred: true,
+    tiles: [
+      { id: "image", label: "Image AI", value: "No stored run", passed: false },
+      { id: "location", label: "Loc AI", value: "No stored run", passed: false },
+      { id: "cluster", label: "Cluster", value: "Not stored", passed: false },
+      { id: "weather", label: "Weather", value: "Not stored", passed: false },
+      { id: "risk", label: "Risk AI", value: `${ticket.urgency} · stored`, passed: ticket.urgency !== "LOW" },
+    ],
+  };
 }
 
 export function OfficerBoard({
@@ -94,18 +97,25 @@ export function OfficerBoard({
   const selectedTrace = selected
     ? parseTrace(selected.trace) ?? parseTrace(initialHazards.find((row) => row.id === selected.id)?.trace)
     : null;
+  const checks = selected ? checkTiles(selected, selectedTrace) : null;
 
-  async function override(incident_id: string, new_status: HazardStatus, officer_note: string) {
+  async function override(
+    incident_id: string,
+    new_status: HazardStatus,
+    officer_note: string,
+    action: OfficerAction,
+  ) {
     setBusy(true);
     setError("");
     try {
       const response = await fetch("/api/override", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ incident_id, new_status, officer_note }),
+        body: JSON.stringify({ incident_id, new_status, officer_note, action }),
       });
       const payload = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(payload.error || "Override failed");
+      setNote("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Override failed");
     } finally {
@@ -195,6 +205,12 @@ export function OfficerBoard({
                     Case #{selected.id.slice(0, 8).toUpperCase()}
                   </h2>
                   <StatusBadge status={selected.status} />
+                  {selected.dispatched_at ? (
+                    <Badge className="bg-indigo-50 text-brand-indigo">
+                      <Truck className="mr-1 h-3 w-3" />
+                      Dispatched
+                    </Badge>
+                  ) : null}
                 </div>
                 <p className="flex items-center gap-2 text-xs font-semibold text-slate-500">
                   <Clock className="h-3.5 w-3.5" />
@@ -214,7 +230,12 @@ export function OfficerBoard({
                   className="rounded-xl px-4 py-2 text-sm"
                   disabled={busy}
                   onClick={() =>
-                    void override(selected.id, selected.status, note || "Suggested detour logged — no routing engine in v1.")
+                    void override(
+                      selected.id,
+                      selected.status,
+                      note || "Suggested detour logged — no routing engine in v1.",
+                      "detour",
+                    )
                   }
                 >
                   <Route className="h-4 w-4" /> Suggest Detour
@@ -224,10 +245,16 @@ export function OfficerBoard({
                   className="rounded-xl px-4 py-2 text-sm"
                   disabled={busy}
                   onClick={() =>
-                    void override(selected.id, selected.status, note || "Dispatch requested — logged for field crew queue.")
+                    void override(
+                      selected.id,
+                      selected.status,
+                      note || "Dispatch requested — visible in the field crew queue.",
+                      "dispatch",
+                    )
                   }
                 >
-                  <Truck className="h-4 w-4" /> Dispatch Crew
+                  <Truck className="h-4 w-4" />
+                  {selected.dispatched_at ? "Update dispatch" : "Dispatch Crew"}
                 </Button>
               </div>
             </div>
@@ -297,7 +324,6 @@ export function OfficerBoard({
                         </h3>
                         <p className="max-w-xl text-sm font-medium leading-relaxed text-white/90">
                           {selectedTrace?.verdict.reasoning ||
-                            selected.officer_note ||
                             selected.description ||
                             "No aggregator reasoning stored on this ticket yet. File a new report to capture a live trace."}
                         </p>
@@ -309,15 +335,32 @@ export function OfficerBoard({
                         </span>
                       </div>
                     </div>
+                    {checks?.inferred ? (
+                      <div className="relative z-10 mb-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2">
+                        <p className="text-[11px] font-bold text-amber-300">
+                          Inferred summary — no stored pipeline run. Cluster and weather are not reconstructed from live confirmations or current ward telemetry.
+                        </p>
+                      </div>
+                    ) : null}
                     <div className="relative z-10 grid grid-cols-5 gap-2">
-                      {checkTiles(selected, selectedTrace, ward?.status).map((tile) => (
-                        <div key={tile.id} className="rounded-xl border border-white/10 bg-white/5 p-3 text-center">
+                      {checks?.tiles.map((tile) => (
+                        <div
+                          key={tile.id}
+                          className={cn(
+                            "rounded-xl border p-3 text-center",
+                            checks.inferred
+                              ? "border-amber-500/20 bg-amber-500/5"
+                              : "border-white/10 bg-white/5",
+                          )}
+                        >
                           <div
                             className={cn(
                               "mx-auto mb-2 flex h-6 w-6 items-center justify-center rounded-full text-[10px]",
-                              tile.passed
-                                ? "bg-status-emerald/20 text-status-emerald"
-                                : "bg-status-amber/20 text-status-amber",
+                              checks.inferred
+                                ? "bg-status-amber/20 text-status-amber"
+                                : tile.passed
+                                  ? "bg-status-emerald/20 text-status-emerald"
+                                  : "bg-status-amber/20 text-status-amber",
                             )}
                           >
                             <Code className="h-3 w-3" />
@@ -339,12 +382,30 @@ export function OfficerBoard({
                       </span>
                     </div>
                     <p className="mb-5 text-xs font-medium text-slate-500">
-                      Override the AI verdict. This writes an officer note and nudges pipeline thresholds.
+                      Override the AI verdict. Notes append to an officer trail and confirming or rejecting nudges pipeline thresholds.
                     </p>
+                    {(selected.officer_log?.length ?? 0) > 0 ? (
+                      <div className="mb-4 flex flex-col gap-2 rounded-xl border border-slate-100 bg-slate-50 p-3">
+                        <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+                          Officer trail
+                        </p>
+                        {selected.officer_log?.map((entry) => (
+                          <div key={`${entry.at}-${entry.action}`} className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-[11px] font-extrabold text-slate-700">
+                                {OFFICER_ACTION_LABEL[entry.action]}
+                              </p>
+                              <p className="text-xs font-medium text-slate-500">{entry.note}</p>
+                            </div>
+                            <span className="shrink-0 text-[10px] font-bold text-slate-400">{timeAgo(entry.at)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
                     <textarea
                       value={note}
                       onChange={(event) => setNote(event.target.value)}
-                      placeholder="Required: Why are you overriding this verdict?"
+                      placeholder="Optional note for this action…"
                       className="mb-4 h-24 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm font-medium text-slate-700 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
                     />
                     {error ? <p className="mb-3 text-sm font-semibold text-status-crimson">{error}</p> : null}
@@ -354,7 +415,9 @@ export function OfficerBoard({
                         variant="danger"
                         className="flex-1 rounded-xl"
                         disabled={busy}
-                        onClick={() => void override(selected.id, "COUNCIL_TICKET", note || "Rejected / unpublished")}
+                        onClick={() =>
+                          void override(selected.id, "COUNCIL_TICKET", note || "Rejected / unpublished", "reject")
+                        }
                       >
                         Reject & Unpublish
                       </Button>
@@ -363,7 +426,9 @@ export function OfficerBoard({
                         variant="amber"
                         className="flex-1 rounded-xl"
                         disabled={busy}
-                        onClick={() => void override(selected.id, "NEED_INFO", note || "Reverted to crowdsource")}
+                        onClick={() =>
+                          void override(selected.id, "NEED_INFO", note || "Reverted to crowdsource", "crowdsource")
+                        }
                       >
                         Revert to Crowdsource
                       </Button>
@@ -371,7 +436,9 @@ export function OfficerBoard({
                         type="button"
                         className="flex-1 rounded-xl"
                         disabled={busy}
-                        onClick={() => void override(selected.id, "PUBLISHED", note || "Confirmed via officer review")}
+                        onClick={() =>
+                          void override(selected.id, "PUBLISHED", note || "Confirmed via officer review", "confirm")
+                        }
                       >
                         Confirm & Publish
                       </Button>

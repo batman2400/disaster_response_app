@@ -5,10 +5,10 @@ export type Role =
   | "RELIEF_COORDINATOR";
 
 export const ROLES: { id: Role; label: string; route: string }[] = [
-  { id: "CITIZEN", label: "Citizen", route: "/citizen/report" },
-  { id: "COUNCIL_OFFICER", label: "Council Officer", route: "/officer" },
+  { id: "CITIZEN", label: "Citizen", route: "/report" },
+  { id: "COUNCIL_OFFICER", label: "Council Officer", route: "/dashboard/officer" },
   { id: "FIELD_CREW", label: "Field Crew", route: "/crew" },
-  { id: "RELIEF_COORDINATOR", label: "Relief Coordinator", route: "/relief" },
+  { id: "RELIEF_COORDINATOR", label: "Relief Desk", route: "/dashboard/relief" },
 ];
 
 export type WardId = "ward_01" | "ward_02" | "ward_03";
@@ -100,11 +100,27 @@ export interface ReportResponse {
   trace?: PipelineTrace;
 }
 
+export type OfficerAction =
+  | "override"
+  | "confirm"
+  | "reject"
+  | "crowdsource"
+  | "dispatch"
+  | "detour";
+
+export interface OfficerLogEntry {
+  at: string;
+  action: OfficerAction;
+  note: string;
+  status: HazardStatus;
+}
+
 /** POST /api/override */
 export interface OverrideRequest {
   incident_id: string;
   new_status: HazardStatus;
   officer_note: string;
+  action?: OfficerAction;
 }
 
 export interface OverrideResponse {
@@ -156,6 +172,8 @@ export interface HazardRow {
   resolved_at: string | null;
   closure_photo_url: string | null;
   officer_note?: string;
+  officer_log?: OfficerLogEntry[];
+  dispatched_at?: string | null;
   trace?: PipelineTrace | null;
 }
 

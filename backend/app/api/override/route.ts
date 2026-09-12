@@ -1,5 +1,6 @@
 import { json, options } from "@/lib/cors";
 import { findHazard, saveHazard } from "@/lib/db";
+import { appendOfficerNote, inferOfficerAction } from "@/lib/officer-log";
 import { nudgeThresholds } from "@/lib/pipeline";
 import type { OverrideRequest } from "@/lib/types";
 
@@ -24,17 +25,33 @@ export async function POST(request: Request) {
     return json({ error: "Incident not found" }, 404);
   }
 
+  const action = body.action ?? inferOfficerAction(existing.status, body.new_status);
+  const note = (body.officer_note ?? "").trim();
+  const trail = note
+    ? appendOfficerNote(existing, {
+        action,
+        note,
+        status: body.new_status,
+      })
+    : {
+        officer_note: existing.officer_note,
+        officer_log: existing.officer_log,
+        dispatched_at: existing.dispatched_at,
+      };
+
   const thresholds = await nudgeThresholds(existing.status, body.new_status);
-  await saveHazard({
+  const updated = await saveHazard({
     ...existing,
     status: body.new_status,
-    officer_note: body.officer_note || existing.officer_note,
+    ...trail,
   });
 
   return json({
     incident_id: body.incident_id,
     status: body.new_status,
-    officer_note: body.officer_note,
+    officer_note: updated.officer_note,
+    officer_log: updated.officer_log ?? [],
+    dispatched_at: updated.dispatched_at ?? null,
     confirm_threshold: thresholds.confirm_threshold,
     reject_threshold: thresholds.reject_threshold,
   });

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Camera, Check, ClipboardList, LocateFixed, RotateCw } from "lucide-react";
+import { ArrowLeft, Camera, Check, ClipboardList, LocateFixed, RotateCw, Truck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
@@ -10,6 +10,7 @@ import { Button, SectionLabel } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { categoryLabel, wardShort } from "@/lib/format";
 import { readFileAsDataUrl } from "@/lib/geo";
+import { latestDispatchNote } from "@/lib/officer-log";
 import type { HazardRow } from "@/lib/types";
 
 export function ResolveTask({ hazard }: { hazard: HazardRow }) {
@@ -98,6 +99,19 @@ export function ResolveTask({ hazard }: { hazard: HazardRow }) {
               {hazard.description || "Clear the hazard and photograph the reopened path."}
             </p>
           </div>
+          {hazard.dispatched_at ? (
+            <div className="mt-3 flex items-start gap-3 rounded-2xl border border-indigo-100 bg-indigo-50 p-3">
+              <Truck className="mt-0.5 h-4 w-4 text-brand-indigo" />
+              <div>
+                <p className="text-[10px] font-extrabold uppercase tracking-widest text-brand-indigo">
+                  Dispatched by officer
+                </p>
+                <p className="mt-1 text-[11px] font-semibold text-slate-600">
+                  {latestDispatchNote(hazard) || "Council officer sent this ticket to the field queue."}
+                </p>
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <SectionLabel hint={<span className="rounded-md bg-brand-light px-2 py-1 text-[10px] font-bold text-brand">Required</span>}>

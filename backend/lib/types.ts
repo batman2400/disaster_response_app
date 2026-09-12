@@ -91,10 +91,26 @@ export interface ReportResponse {
   trace?: PipelineTrace;
 }
 
+export type OfficerAction =
+  | "override"
+  | "confirm"
+  | "reject"
+  | "crowdsource"
+  | "dispatch"
+  | "detour";
+
+export interface OfficerLogEntry {
+  at: string;
+  action: OfficerAction;
+  note: string;
+  status: HazardStatus;
+}
+
 export interface OverrideRequest {
   incident_id: string;
   new_status: HazardStatus;
   officer_note: string;
+  action?: OfficerAction;
 }
 
 export interface ResolveRequest {
@@ -129,6 +145,8 @@ export interface HazardRow {
   resolved_at: string | null;
   closure_photo_url: string | null;
   officer_note?: string;
+  officer_log?: OfficerLogEntry[];
+  dispatched_at?: string | null;
   trace?: PipelineTrace | null;
 }
 
