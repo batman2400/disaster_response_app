@@ -53,6 +53,19 @@ function asHazard(row: Record<string, unknown>): HazardRow {
       memoryGetHazard(String(row.id))?.trace ??
       traceCache.get(String(row.id)) ??
       null,
+    summary: (row.summary as string | null) ?? memoryGetHazard(String(row.id))?.summary ?? null,
+    detected_language:
+      (row.detected_language as string | null) ??
+      memoryGetHazard(String(row.id))?.detected_language ??
+      null,
+    resolution_verified:
+      (row.resolution_verified as boolean | undefined) ??
+      memoryGetHazard(String(row.id))?.resolution_verified ??
+      undefined,
+    resolution_notes:
+      (row.resolution_notes as string | null) ??
+      memoryGetHazard(String(row.id))?.resolution_notes ??
+      null,
   };
 }
 

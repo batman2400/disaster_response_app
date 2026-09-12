@@ -27,6 +27,7 @@ export default function CrewScreen() {
     fallbackFetch: fetchHazards,
   });
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const tickets = useMemo(
@@ -44,6 +45,7 @@ export default function CrewScreen() {
 
   async function closeTicket(incident_id: string) {
     setError("");
+    setNotice("");
     setBusyId(incident_id);
     try {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
@@ -53,10 +55,14 @@ export default function CrewScreen() {
       }
       const photo = await ImagePicker.launchCameraAsync({ quality: 0.5, base64: true });
       if (photo.canceled || !photo.assets[0].base64) return;
-      await postResolve({
+      const res = await postResolve({
         incident_id,
         closure_photo_base64: `data:image/jpeg;base64,${photo.assets[0].base64}`,
       });
+      if (res.resolution_notes) {
+        setNotice(`AI Resolution Verified: ${res.resolution_notes}`);
+        setTimeout(() => setNotice(""), 6000);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Resolve failed");
     } finally {
@@ -82,6 +88,12 @@ export default function CrewScreen() {
         <Stat label="Roads blocked" value={blocked} color={colors.red} />
         <Stat label="Critical" value={critical} color={urgencyColor.CRITICAL} />
       </View>
+
+      {notice ? (
+        <View style={{ backgroundColor: colors.green + "20", borderColor: colors.green, borderWidth: 1, padding: 10, borderRadius: 10, marginBottom: 12 }}>
+          <Text style={{ color: colors.green, fontWeight: "700", fontSize: 13 }}>{notice}</Text>
+        </View>
+      ) : null}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 

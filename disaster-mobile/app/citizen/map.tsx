@@ -20,7 +20,7 @@ import {
 import { fetchHazards, fetchWards, postConfirm } from "@/lib/api";
 import { categoryLabel, timeAgo, wardName } from "@/lib/format";
 import { mapHazardRow, mapWardRow, sortHazards, sortWards, useLiveRows } from "@/lib/live";
-import { SAFE_ROUTES } from "@/lib/safe-routes";
+import { computeDynamicRoute, SAFE_ROUTES } from "@/lib/safe-routes";
 import { colors, wardStatusColor } from "@/lib/theme";
 import {
   COLOMBO_CENTER,
@@ -61,7 +61,18 @@ export default function PublicMapScreen() {
   const [filterMode, setFilterMode] = useState<FilterMode>("ALL");
   const [alertDismissed, setAlertDismissed] = useState(false);
 
-  // Trim-tier: static safe-route polylines shown during critical alert
+  // Dynamic route evaluation: reroute if active hazards block path
+  const dynamicRoutes = useMemo(() => {
+    const wardIds: WardId[] = ["ward_01", "ward_02", "ward_03"];
+    return wardIds.map((id) => computeDynamicRoute(id, hazards));
+  }, [hazards]);
+
+  const compromisedCount = useMemo(
+    () => dynamicRoutes.filter((r) => r.status === "COMPROMISED").length,
+    [dynamicRoutes],
+  );
+
+  // Safe-route polylines shown during critical alert or when detour is active
   const activeSafeRouteWards = useMemo(() => {
     const wardIds = new Set<WardId>();
     for (const ward of wards) {
@@ -70,8 +81,11 @@ export default function PublicMapScreen() {
     for (const hazard of hazards) {
       if (hazard.status === "AREA_ALERT") wardIds.add(hazard.ward_id);
     }
+    for (const route of dynamicRoutes) {
+      if (route.status === "COMPROMISED") wardIds.add(route.ward_id);
+    }
     return Array.from(wardIds).filter((id) => SAFE_ROUTES[id]);
-  }, [wards, hazards]);
+  }, [wards, hazards, dynamicRoutes]);
 
   const filteredHazards = useMemo(() => {
     if (filterMode === "NEED_INFO") {
@@ -234,9 +248,16 @@ export default function PublicMapScreen() {
           </View>
 
           <Text style={styles.pinPreviewTitle}>{categoryLabel(selectedHazard.category)}</Text>
-          <Text style={styles.pinPreviewBody} numberOfLines={2}>
-            {selectedHazard.description || "No additional description provided."}
-          </Text>
+          {selectedHazard.summary ? (
+            <View style={{ marginVertical: 6, padding: 8, backgroundColor: colors.blue + "12", borderRadius: 8, borderWidth: 1, borderColor: colors.blue + "30" }}>
+              <Text style={{ fontSize: 10, fontWeight: "800", color: colors.blue, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2 }}>AI Summary</Text>
+              <Text style={{ fontSize: 12, color: colors.ink, lineHeight: 16 }}>{selectedHazard.summary}</Text>
+            </View>
+          ) : (
+            <Text style={styles.pinPreviewBody} numberOfLines={2}>
+              {selectedHazard.description || "No additional description provided."}
+            </Text>
+          )}
 
           <View style={styles.pinPreviewFooter}>
             <Text style={styles.pinPreviewMeta}>

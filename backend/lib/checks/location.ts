@@ -11,7 +11,12 @@ const LOCATION_SCHEMA = {
     },
     matches_ward: {
       type: "BOOLEAN",
-      description: "True if the coordinates are plausibly inside or near the named ward.",
+      description: "True if the coordinates and any mentioned landmarks are plausibly inside or near the named ward.",
+    },
+    landmarks_identified: {
+      type: "ARRAY",
+      items: { type: "STRING" },
+      description: "Roads, bridges, temples, or junctions identified from citizen description.",
     },
     reason: { type: "STRING", description: "One short sentence explaining the verdict." },
   },
@@ -21,6 +26,7 @@ const LOCATION_SCHEMA = {
 export interface LocationCheckResult {
   location_matched: boolean;
   reason: string;
+  landmarks?: string[];
   source: CheckSource;
 }
 
@@ -43,8 +49,9 @@ async function wardName(wardId: WardId) {
 
 /**
  * Check 4 — Location (AI). Cross-checks the reported GPS point against the
- * chosen ward and description using Gemini's knowledge of Colombo geography.
- * Falls back to a bounding-box check if AI is unavailable.
+ * chosen ward and description using Gemini's knowledge of Colombo geography
+ * and landmark identification.
+ * Falls back to bounding-box check if AI is unavailable.
  */
 export async function checkLocation(
   lat: number,
@@ -57,7 +64,7 @@ export async function checkLocation(
     return { location_matched: false, reason: "Coordinates fall outside Greater Colombo.", source: "code" };
   }
 
-  const prompt = `You are a geography plausibility checker for a disaster-response app covering Colombo, Sri Lanka.
+  const prompt = `You are a geography and urban landmark plausibility checker for Colombo, Sri Lanka.
 
 Reported ward: ${wardId} — ${await wardName(wardId)}
 Reported coordinates: lat ${lat}, lng ${lng}
@@ -65,23 +72,27 @@ Citizen description: ${description || "(none provided)"}
 
 Decide:
 1. Are these coordinates within Greater Colombo?
-2. Are they plausibly inside or close to the named ward (allow a few kilometres of slack for a citizen's imprecise GPS)?
+2. Are any specific landmarks, bridges (e.g. Kelani Bridge, Victoria Bridge, Nagalagam St), temples, junctions, or roads mentioned in the text?
+3. Does the text and location plausibly align with the named ward (allowing slack for citizen GPS drift)?
 
 Respond only with JSON matching the schema.`;
 
   const { value, source } = await callGeminiJsonSafe<{
     within_colombo: boolean;
     matches_ward: boolean;
+    landmarks_identified?: string[];
     reason: string;
   }>(prompt, LOCATION_SCHEMA, () => ({
     within_colombo: true,
     matches_ward: true,
+    landmarks_identified: [],
     reason: "Fallback: within Colombo bounding box, AI verification unavailable.",
   }));
 
   return {
     location_matched: value.within_colombo && value.matches_ward,
     reason: value.reason,
+    landmarks: value.landmarks_identified,
     source,
   };
 }

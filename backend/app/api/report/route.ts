@@ -1,5 +1,6 @@
 import { json, options } from "@/lib/cors";
 import { buildVerdict, persistReport } from "@/lib/pipeline";
+import { runUnifiedPipeline } from "@/lib/unified-pipeline";
 import type { ReportRequest } from "@/lib/types";
 
 export function OPTIONS() {
@@ -23,7 +24,10 @@ export async function POST(request: Request) {
     return json({ error: "lat, lng, ward_id, and category are required" }, 400);
   }
 
-  const verdict = await buildVerdict(body);
+  const url = new URL(request.url);
+  const useFast = url.searchParams.get("mode") === "fast" || process.env.FAST_AI === "1";
+
+  const verdict = useFast ? await runUnifiedPipeline(body) : await buildVerdict(body);
   const incident_id = crypto.randomUUID();
   const response = { incident_id, ...verdict };
   await persistReport(body, response);

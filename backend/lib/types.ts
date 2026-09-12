@@ -32,6 +32,8 @@ export interface ReportRequest {
   photo_base64: string;
   help_request: boolean;
   description: string;
+  audio_base64?: string;
+  audio_mime?: string;
 }
 
 export interface ReportChecks {
@@ -44,7 +46,7 @@ export interface ReportChecks {
 
 export type CheckSource = "gemini" | "mock" | "fallback" | "code";
 
-export type TraceStepId = "image" | "weather" | "cluster" | "location" | "risk" | "aggregator";
+export type TraceStepId = "image" | "weather" | "cluster" | "location" | "risk" | "aggregator" | "summary" | "resolution";
 
 export interface TraceStep {
   id: TraceStepId;
@@ -92,6 +94,8 @@ export interface ReportResponse {
   is_road_blocked: boolean;
   checks: ReportChecks;
   reasoning: string;
+  summary?: string | null;
+  detected_language?: string | null;
   trace?: PipelineTrace;
 }
 
@@ -124,6 +128,15 @@ export interface OverrideRequest {
 export interface ResolveRequest {
   incident_id: string;
   closure_photo_base64: string;
+}
+
+export interface ResolveResponse {
+  incident_id: string;
+  status: HazardStatus;
+  is_road_blocked: boolean;
+  resolved_at: string;
+  resolution_verified?: boolean;
+  resolution_notes?: string;
 }
 
 export interface AssignRequest {
@@ -169,6 +182,10 @@ export interface HazardRow {
   officer_log?: OfficerLogEntry[];
   dispatched_at?: string | null;
   trace?: PipelineTrace | null;
+  summary?: string | null;
+  detected_language?: string | null;
+  resolution_verified?: boolean;
+  resolution_notes?: string | null;
 }
 
 export interface WardRow {

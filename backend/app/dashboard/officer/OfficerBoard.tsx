@@ -430,7 +430,7 @@ export function OfficerBoard({
                   {categoryLabel(ticket.category)}
                 </h3>
                 <p className={cn("mt-0.5 truncate text-xs font-medium text-slate-500", active && "pl-2")}>
-                  {wardShort(ticket.ward_id)}
+                  {ticket.summary || wardShort(ticket.ward_id)}
                 </p>
                 <div className={cn("mt-3 flex items-center justify-between", active && "pl-2")}>
                   <div className="flex items-center gap-1.5">
@@ -669,6 +669,14 @@ export function OfficerBoard({
                         <h3 className="mb-1 flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-widest text-slate-400">
                           <Bot className="h-3.5 w-3.5 text-brand-light" /> System Aggregator Verdict
                         </h3>
+                        {selected.summary ? (
+                          <div className="my-2 max-w-xl rounded-xl border border-brand/40 bg-brand/15 p-2.5">
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-brand-light">
+                              AI Operational Summary · {selected.detected_language || "Multilingual"}
+                            </span>
+                            <p className="mt-0.5 text-xs font-bold text-white">{selected.summary}</p>
+                          </div>
+                        ) : null}
                         <p className="max-w-xl text-sm font-medium leading-relaxed text-white/90">
                           {selectedTrace?.verdict.reasoning ||
                             selected.description ||

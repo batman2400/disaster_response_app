@@ -46,6 +46,8 @@ export interface ReportRequest {
   photo_base64: string;
   help_request: boolean;
   description: string;
+  audio_base64?: string;
+  audio_mime?: string;
 }
 
 export interface ReportChecks {
@@ -64,6 +66,8 @@ export interface ReportResponse {
   is_road_blocked: boolean;
   checks: ReportChecks;
   reasoning: string;
+  summary?: string | null;
+  detected_language?: string | null;
 }
 
 export interface ResolveRequest {
@@ -73,9 +77,11 @@ export interface ResolveRequest {
 
 export interface ResolveResponse {
   incident_id: string;
-  status: "RESOLVED";
-  is_road_blocked: false;
+  status: HazardStatus;
+  is_road_blocked: boolean;
   resolved_at: string;
+  resolution_verified?: boolean;
+  resolution_notes?: string;
 }
 
 /** POST /api/confirm — crowdsourced NEED_INFO confirmation, bumps confirmations_count */
@@ -105,6 +111,10 @@ export interface HazardRow {
   created_at: string;
   resolved_at: string | null;
   closure_photo_url: string | null;
+  summary?: string | null;
+  detected_language?: string | null;
+  resolution_verified?: boolean;
+  resolution_notes?: string | null;
 }
 
 export interface WardRow {

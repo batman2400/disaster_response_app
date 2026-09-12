@@ -4,17 +4,16 @@ import { checkImage } from "./checks/image";
 import { checkLocation } from "./checks/location";
 import { checkRisk } from "./checks/risk";
 import { checkWeather } from "./checks/weather";
+import { summarizeCitizenInput } from "./checks/input-summary";
 import { getAiSettings, saveAiSettings, saveHazard, uploadPhoto } from "./db";
 import { geminiModel } from "./gemini";
 import { riskPassed, timed } from "./trace";
 import type { HazardRow, PipelineTrace, ReportChecks, ReportRequest, ReportResponse, TraceStep } from "./types";
 
 /**
- * Runs the five independent checks concurrently (per the locked pipeline
- * diagram): image + location + risk via Gemini, weather + cluster as plain
- * code. Each AI check already falls back to a deterministic result on its
- * own if Gemini is mocked, slow, or unavailable. Every step is timed and
- * tagged with its source for the Phase 4 audit screen.
+ * Runs the independent checks concurrently (per the pipeline diagram):
+ * image + location + risk + input summary via Gemini, weather + cluster as plain code.
+ * Each AI check falls back to a deterministic result if Gemini is mocked or unavailable.
  */
 export async function runChecks(body: ReportRequest): Promise<ReportChecks> {
   const { checks } = await runTracedChecks(body);
@@ -22,12 +21,20 @@ export async function runChecks(body: ReportRequest): Promise<ReportChecks> {
 }
 
 async function runTracedChecks(body: ReportRequest) {
-  const [image, weather, cluster, location, risk] = await Promise.all([
+  const [image, weather, cluster, location, risk, summaryRes] = await Promise.all([
     timed(() => checkImage(body.photo_base64, body.category, body.description)),
     timed(() => checkWeather(body.ward_id)),
     timed(() => checkCluster(body.lat, body.lng)),
     timed(() => checkLocation(body.lat, body.lng, body.ward_id, body.description)),
     timed(() => checkRisk(body.category, body.description, body.photo_base64)),
+    timed(() =>
+      summarizeCitizenInput({
+        description: body.description,
+        category: body.category,
+        audioBase64: body.audio_base64,
+        audioMime: body.audio_mime,
+      }),
+    ),
   ]);
 
   const checks: ReportChecks = {
@@ -40,6 +47,18 @@ async function runTracedChecks(body: ReportRequest) {
 
   const model = geminiModel();
   const steps: TraceStep[] = [
+    {
+      id: "summary",
+      name: "Input & Multilingual AI",
+      passed: Boolean(summaryRes.value.summary),
+      detail: `[${summaryRes.value.detected_language}] ${summaryRes.value.summary}`,
+      latency_ms: summaryRes.latency_ms,
+      source: summaryRes.value.source,
+      extra: {
+        detected_language: summaryRes.value.detected_language,
+        landmarks: summaryRes.value.extracted_landmarks,
+      },
+    },
     {
       id: "image",
       name: "Image AI (Gemini)",
@@ -94,7 +113,12 @@ async function runTracedChecks(body: ReportRequest) {
     },
   ];
 
-  return { checks, steps };
+  return {
+    checks,
+    steps,
+    summary: summaryRes.value.summary,
+    detected_language: summaryRes.value.detected_language,
+  };
 }
 
 /** Runs checks + aggregator and returns the locked response shape (minus incident_id). */
@@ -103,7 +127,7 @@ export async function buildVerdict(
 ): Promise<Omit<ReportResponse, "incident_id">> {
   const started = Date.now();
   const started_at = new Date(started).toISOString();
-  const { checks, steps } = await runTracedChecks(body);
+  const { checks, steps, summary, detected_language } = await runTracedChecks(body);
   const { value: verdict, latency_ms } = await timed(async () => {
     const result = await aggregate(body, checks);
     return result;
@@ -138,7 +162,7 @@ export async function buildVerdict(
     },
   };
 
-  return { ...publicVerdict, checks, trace };
+  return { ...publicVerdict, checks, trace, summary, detected_language };
 }
 
 export async function persistReport(body: ReportRequest, result: ReportResponse) {
@@ -162,6 +186,8 @@ export async function persistReport(body: ReportRequest, result: ReportResponse)
     resolved_at: null,
     closure_photo_url: null,
     trace: result.trace ?? null,
+    summary: result.summary ?? null,
+    detected_language: result.detected_language ?? null,
   };
   return saveHazard(row);
 }

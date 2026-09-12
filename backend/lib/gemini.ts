@@ -20,18 +20,24 @@ export function geminiModel() {
   return process.env.GEMINI_MODEL || "gemini-2.5-flash";
 }
 
-export function stripDataUrl(photoBase64: string) {
-  const match = photoBase64.match(/^data:(.+);base64,(.+)$/);
+export function stripDataUrl(dataUrl: string, defaultMime = "image/jpeg") {
+  const match = dataUrl.match(/^data:(.+);base64,(.+)$/);
   if (!match) {
-    return { mimeType: "image/jpeg", data: photoBase64 };
+    return { mimeType: defaultMime, data: dataUrl };
   }
   return { mimeType: match[1], data: match[2] };
+}
+
+export interface GeminiMediaPart {
+  mimeType: string;
+  data: string;
 }
 
 export async function callGeminiJson<T>(
   prompt: string,
   schema: Record<string, unknown>,
   photoBase64?: string,
+  extraMedia?: GeminiMediaPart[],
 ): Promise<T> {
   const keys = geminiKeys();
   if (!keys.length) {
@@ -40,10 +46,17 @@ export async function callGeminiJson<T>(
 
   const parts: Array<Record<string, unknown>> = [{ text: prompt }];
   if (photoBase64) {
-    const image = stripDataUrl(photoBase64);
+    const image = stripDataUrl(photoBase64, "image/jpeg");
     parts.unshift({
       inlineData: { mimeType: image.mimeType, data: image.data },
     });
+  }
+  if (extraMedia && extraMedia.length > 0) {
+    for (const m of extraMedia) {
+      parts.unshift({
+        inlineData: { mimeType: m.mimeType, data: m.data },
+      });
+    }
   }
 
   let lastError: Error | null = null;
@@ -85,7 +98,7 @@ export async function callGeminiJsonSafe<T>(
   prompt: string,
   schema: Record<string, unknown>,
   fallback: () => T,
-  options?: { photoBase64?: string; timeoutMs?: number },
+  options?: { photoBase64?: string; media?: GeminiMediaPart[]; timeoutMs?: number },
 ): Promise<{ value: T; source: "gemini" | "mock" | "fallback" }> {
   if (isMockAi()) {
     return { value: fallback(), source: "mock" };
@@ -94,7 +107,7 @@ export async function callGeminiJsonSafe<T>(
   const timeoutMs = options?.timeoutMs ?? 9000;
   try {
     const value = await Promise.race([
-      callGeminiJson<T>(prompt, schema, options?.photoBase64),
+      callGeminiJson<T>(prompt, schema, options?.photoBase64, options?.media),
       new Promise<never>((_, reject) => {
         setTimeout(() => reject(new Error(`Gemini call timed out after ${timeoutMs}ms`)), timeoutMs);
       }),

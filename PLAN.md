@@ -251,6 +251,22 @@ Grow the Phase 0 scaffold using expo-router, since role-based routing is what fi
 
 ---
 
-## Out of scope
+---
 
-No dashboard pages, no real auth, no model retraining. Detour routing and nearest-shelter routing are the stretch goal and stay untouched until every spine item works end to end.
+## Phase 7 — Advanced AI Capabilities & Multimodal Input Expansion
+
+1. **Multimodal Input & Summarization**:
+   - Audio memo / voice note ingestion (`audio_base64`).
+   - Multilingual support for Sinhala, Tamil, and English.
+   - AI translation, landmark extraction, and concise operational English summarization (`summary`).
+   - Citizen UI displays instant AI comprehension summary.
+2. **AI Resolution Verification (`/api/resolve`)**:
+   - Dual-photo visual comparison (incident photo vs. closure photo via Gemini Vision).
+   - Verifies hazard clearance (water receded, tree cut, road passable). Flags unverified closures for officer review.
+3. **Unified Fast Pipeline**:
+   - Single-pass multimodal Gemini call reducing roundtrip latency from ~9s down to ~2.5s.
+4. **Spatial & Dynamic Enhancements**:
+   - Deterministic PostGIS boundary containment + AI landmark disambiguation.
+   - Dynamic safe route recalculation avoiding active `is_road_blocked` pins.
+   - Relief Desk needs-to-supplies matching (infant, medical, rations).
+

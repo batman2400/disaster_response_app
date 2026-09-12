@@ -181,7 +181,7 @@ export function ReliefBoard({
     [hazards],
   );
 
-  // Smart matching: primary ward matches + overflow options if local ward capacity is low
+  // Smart matching: analyzes citizen text/summary for medical, infant, or power needs, scoring shelters with matching supplies
   const matches = useMemo(() => {
     return requests.map((request) => {
       const allOptions = sheltersWithCoords.map((shelter) => ({
@@ -189,15 +189,38 @@ export function ReliefBoard({
         free: shelter.total_beds - shelter.occupied_beds,
       }));
 
+      const text = `${request.description || ""} ${request.summary || ""}`.toLowerCase();
+      const needsBaby = /(baby|infant|child|milk|diaper)/.test(text);
+      const needsMedical = /(medic|doctor|injur|insulin|sick|patient|wound)/.test(text);
+      const needsPower = /(power|electr|generator|charge|oxygen)/.test(text);
+
+      const scoreShelter = (s: (typeof allOptions)[number]) => {
+        let score = s.free;
+        const meta = SHELTER_META[s.name];
+        if (meta) {
+          const supplyNames = meta.supplies.map((item) => item.name.toLowerCase());
+          if (needsBaby && supplyNames.some((n) => n.includes("baby"))) score += 50;
+          if (needsMedical && supplyNames.some((n) => n.includes("medical") || n.includes("first aid"))) score += 40;
+          if (needsPower && supplyNames.some((n) => n.includes("generator"))) score += 30;
+        }
+        return score;
+      };
+
       const primary = allOptions
         .filter((shelter) => shelter.ward_id === request.ward_id)
-        .sort((a, b) => b.free - a.free);
+        .sort((a, b) => scoreShelter(b) - scoreShelter(a));
 
       const overflow = allOptions
         .filter((shelter) => shelter.ward_id !== request.ward_id && shelter.free > 0)
-        .sort((a, b) => b.free - a.free);
+        .sort((a, b) => scoreShelter(b) - scoreShelter(a));
 
-      return { request, primary, overflow };
+      const identifiedNeeds = [
+        needsBaby ? "Infant Care" : null,
+        needsMedical ? "Medical Care" : null,
+        needsPower ? "Generator/Power" : null,
+      ].filter(Boolean) as string[];
+
+      return { request, primary, overflow, identifiedNeeds };
     });
   }, [requests, sheltersWithCoords]);
 
@@ -503,7 +526,7 @@ export function ReliefBoard({
           ) : (
             /* Active Matches List */
             <div className="flex h-80 flex-col gap-3 overflow-y-auto custom-scrollbar pr-1">
-              {matches.map(({ request, primary, overflow }) => (
+              {matches.map(({ request, primary, overflow, identifiedNeeds }) => (
                 <Card key={request.id} className="p-4 border-l-4 border-l-amber-500">
                   <div className="mb-2 flex flex-wrap items-center gap-2">
                     <StatusBadge status={request.status} />
@@ -513,9 +536,28 @@ export function ReliefBoard({
                       {timeAgo(request.created_at)}
                     </span>
                   </div>
-                  <h3 className="text-sm font-extrabold text-slate-900 leading-snug">
-                    {request.description || "Evacuation & shelter assistance requested"}
-                  </h3>
+                  {request.summary ? (
+                    <div className="mb-2 rounded-xl border border-emerald-200 bg-emerald-50/70 p-2.5">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800">
+                        AI Needs Brief
+                      </span>
+                      <p className="mt-0.5 text-xs font-bold text-slate-800 leading-snug">{request.summary}</p>
+                    </div>
+                  ) : (
+                    <h3 className="text-sm font-extrabold text-slate-900 leading-snug">
+                      {request.description || "Evacuation & shelter assistance requested"}
+                    </h3>
+                  )}
+
+                  {identifiedNeeds && identifiedNeeds.length > 0 ? (
+                    <div className="mb-2 flex flex-wrap gap-1.5">
+                      {identifiedNeeds.map((nd) => (
+                        <span key={nd} className="rounded-md bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[10px] font-extrabold text-indigo-700">
+                          🎯 {nd} Priority
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
                   <p className="mt-0.5 text-xs text-slate-500">{wardName(request.ward_id)}</p>
 
                   {/* Primary Ward Options */}

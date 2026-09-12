@@ -26,12 +26,14 @@ const SOURCE_LABEL: Record<CheckSource, string> = {
 };
 
 const DOT: Record<TraceStep["id"], string> = {
+  summary: "bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.7)]",
   image: "bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.7)]",
   weather: "bg-slate-400",
   cluster: "bg-purple-400 shadow-[0_0_12px_rgba(168,85,247,0.7)]",
   location: "bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.7)]",
   risk: "bg-amber-400",
   aggregator: "bg-rose-500 shadow-[0_0_14px_rgba(225,29,72,0.6)]",
+  resolution: "bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.7)]",
 };
 
 const TONE: Record<TraceEventTone, string> = {
