@@ -188,8 +188,8 @@ export function SafeRegistryClient() {
   return (
     <PublicShell>
       {/* 1. Mobile-Optimized Sticky Header */}
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200/80 bg-white/95 px-3 py-2.5 pt-safe backdrop-blur-xl sm:px-6">
-        <div className="flex items-center gap-2">
+      <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-slate-200/80 bg-white/95 px-3 py-2.5 pt-safe backdrop-blur-xl sm:px-6">
+        <div className="flex items-center gap-2 min-w-0">
           <Link
             href="/"
             onClick={() => {
@@ -198,36 +198,36 @@ export function SafeRegistryClient() {
               }, 250);
             }}
             title="Return to Home"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-xs transition-transform active:scale-90 touch-manipulation"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-xs transition-transform active:scale-90 touch-manipulation sm:h-10 sm:w-10 sm:rounded-2xl"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-4.5 w-4.5" />
           </Link>
 
-          <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 border border-emerald-200 shadow-xs">
-              <Users className="h-5 w-5" />
+          <div className="flex items-center gap-1.5 min-w-0">
+            <div className="hidden xs:flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-200 shadow-xs">
+              <Users className="h-4 w-4" />
             </div>
-            <div>
-              <h1 className="text-xs font-black tracking-tight text-slate-900 sm:text-sm">
-                Family Safety Registry
+            <div className="min-w-0">
+              <h1 className="text-xs font-black tracking-tight text-slate-900 truncate sm:text-sm">
+                Safety Registry
               </h1>
-              <p className="text-[9px] font-extrabold uppercase tracking-wider text-slate-500">
-                DMC · Colombo Evacuees
+              <p className="text-[9px] font-extrabold uppercase tracking-wider text-slate-500 truncate">
+                Colombo Evacuees
               </p>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 shrink-0 sm:gap-1.5">
           <LanguageSwitcher />
 
           <button
             type="button"
             onClick={() => setSosModalOpen(true)}
-            className="flex h-10 shrink-0 items-center gap-1 rounded-2xl bg-rose-600 px-3 text-xs font-black text-white shadow-sm shadow-rose-500/20 active:scale-95 touch-manipulation"
+            className="flex h-8.5 shrink-0 items-center gap-1 rounded-xl bg-rose-600 px-2.5 text-xs font-black text-white shadow-sm shadow-rose-500/20 active:scale-95 touch-manipulation sm:h-10 sm:px-3 sm:rounded-2xl"
           >
             <ShieldAlert className="h-3.5 w-3.5 animate-pulse" />
-            <span>SOS 117</span>
+            <span>117</span>
           </button>
         </div>
       </header>
@@ -272,35 +272,35 @@ export function SafeRegistryClient() {
         <div
           role="tablist"
           aria-label="Registry Mode"
-          className="flex rounded-2xl bg-slate-200/80 p-1.5 shadow-inner"
+          className="flex rounded-2xl bg-slate-200/80 p-1 shadow-inner"
         >
           <button
             type="button"
             role="tab"
             aria-selected={activeTab === "search"}
             onClick={() => setActiveTab("search")}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-black transition-all touch-manipulation ${
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 px-1 text-xs font-black transition-all touch-manipulation truncate ${
               activeTab === "search"
-                ? "bg-white text-slate-900 shadow-sm scale-[1.01]"
+                ? "bg-white text-slate-900 shadow-xs"
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            <Search className="h-4 w-4 text-brand" />
-            <span>Search Family</span>
+            <Search className="h-3.5 w-3.5 text-brand shrink-0" />
+            <span className="truncate">Search Family</span>
           </button>
           <button
             type="button"
             role="tab"
             aria-selected={activeTab === "checkin"}
             onClick={() => setActiveTab("checkin")}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-black transition-all touch-manipulation ${
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 px-1 text-xs font-black transition-all touch-manipulation truncate ${
               activeTab === "checkin"
-                ? "bg-white text-emerald-800 shadow-sm scale-[1.01]"
+                ? "bg-white text-emerald-800 shadow-xs"
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            <UserPlus className="h-4 w-4 text-emerald-600" />
-            <span>"I Am Safe" Check-In</span>
+            <UserPlus className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+            <span className="truncate">"I Am Safe" Check-In</span>
           </button>
         </div>
 

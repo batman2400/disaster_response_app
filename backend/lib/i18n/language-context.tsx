@@ -72,7 +72,7 @@ export function LanguageSwitcher({ className = "" }: { className?: string }) {
 
   return (
     <div
-      className={`inline-flex items-center rounded-xl border border-slate-200 bg-white/90 p-1 shadow-sm backdrop-blur-md ${className}`}
+      className={`inline-flex items-center rounded-xl border border-slate-200 bg-white/90 p-0.5 shadow-sm backdrop-blur-md ${className}`}
       role="group"
       aria-label="Select Language"
     >
@@ -84,7 +84,7 @@ export function LanguageSwitcher({ className = "" }: { className?: string }) {
             type="button"
             onClick={() => setLang(opt.id)}
             title={opt.full}
-            className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
+            className={`rounded-lg px-2 py-1 text-[11px] font-bold transition-all sm:px-2.5 sm:text-xs ${
               active
                 ? "bg-brand text-white shadow-xs"
                 : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
