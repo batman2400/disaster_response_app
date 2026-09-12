@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import { PIN_COLORS, URGENCY_COLORS, wardName, wardShort } from "@/lib/format";
 import type { HazardRow, ShelterRow, SuppliesStatus } from "@/lib/types";
+import { mapHazardRow, mapShelterRow, sortHazards, useLiveRows } from "@/lib/use-live";
 
 type ShelterOption = ShelterRow & { free: number };
 
@@ -20,28 +21,25 @@ export function ReliefBoard({
   initialHazards: HazardRow[];
   initialShelters: ShelterRow[];
 }) {
-  const [requests, setRequests] = useState(
-    initialHazards.filter((row) => row.category === "HELP_REQUEST" && row.status !== "RESOLVED"),
+  const { rows: hazards, updatedAt, live } = useLiveRows<HazardRow>({
+    table: "hazards",
+    initial: initialHazards,
+    mapRow: mapHazardRow,
+    sort: sortHazards,
+    fallbackFetch: () => fetch("/api/hazards").then((res) => res.json() as Promise<HazardRow[]>),
+  });
+
+  const { rows: shelters } = useLiveRows<ShelterRow>({
+    table: "shelters",
+    initial: initialShelters,
+    mapRow: mapShelterRow,
+    fallbackFetch: () => fetch("/api/shelters").then((res) => res.json() as Promise<ShelterRow[]>),
+  });
+
+  const requests = useMemo(
+    () => hazards.filter((row) => row.category === "HELP_REQUEST" && row.status !== "RESOLVED"),
+    [hazards],
   );
-  const [shelters, setShelters] = useState(initialShelters);
-  const [updatedAt, setUpdatedAt] = useState(new Date());
-
-  const load = useCallback(async () => {
-    const [hazards, nextShelters] = await Promise.all([
-      fetch("/api/hazards").then((res) => res.json() as Promise<HazardRow[]>),
-      fetch("/api/shelters").then((res) => res.json() as Promise<ShelterRow[]>),
-    ]);
-    setRequests(hazards.filter((row) => row.category === "HELP_REQUEST" && row.status !== "RESOLVED"));
-    setShelters(nextShelters);
-    setUpdatedAt(new Date());
-  }, []);
-
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      void load();
-    }, 8000);
-    return () => window.clearInterval(id);
-  }, [load]);
 
   const matches = useMemo(() => {
     return requests.map((request) => {
@@ -64,7 +62,9 @@ export function ReliefBoard({
         Help requests matched to shelters in the same ward, sorted by free beds. Filter and sort only — no
         routing algorithm.
       </p>
-      <p className="poll">Live poll every 8s · last refresh {updatedAt.toLocaleTimeString()}</p>
+      <p className="poll">
+        {live ? "Live" : "Polling every 8s"} · last update {updatedAt.toLocaleTimeString()}
+      </p>
 
       <div className="stat-row" style={{ margin: "18px 0 16px" }}>
         <div className="stat">

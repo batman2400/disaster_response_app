@@ -1,5 +1,4 @@
-import { useFocusEffect } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import {
@@ -14,6 +13,7 @@ import {
 } from "@/components/ui";
 import { fetchHazards, fetchWards, postConfirm } from "@/lib/api";
 import { categoryLabel, timeAgo, wardName } from "@/lib/format";
+import { mapHazardRow, mapWardRow, sortHazards, sortWards, useLiveRows } from "@/lib/live";
 import { SAFE_ROUTES } from "@/lib/safe-routes";
 import { colors } from "@/lib/theme";
 import { COLOMBO_CENTER, PIN_COLORS, type HazardRow, type WardId, type WardRow } from "@/lib/types";
@@ -26,22 +26,20 @@ if (Platform.OS !== "web") {
 }
 
 export default function PublicMapScreen() {
-  const [hazards, setHazards] = useState<HazardRow[]>([]);
-  const [wards, setWards] = useState<WardRow[]>([]);
+  const { rows: hazards } = useLiveRows<HazardRow>({
+    table: "hazards",
+    mapRow: mapHazardRow,
+    sort: sortHazards,
+    fallbackFetch: fetchHazards,
+  });
+  const { rows: wards, live } = useLiveRows<WardRow>({
+    table: "wards",
+    mapRow: mapWardRow,
+    sort: sortWards,
+    fallbackFetch: fetchWards,
+  });
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [confirmError, setConfirmError] = useState("");
-
-  const load = useCallback(async () => {
-    const [nextHazards, nextWards] = await Promise.all([fetchHazards(), fetchWards()]);
-    setHazards(nextHazards);
-    setWards(nextWards);
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      void load();
-    }, [load]),
-  );
 
   const needsConfirmation = useMemo(
     () => hazards.filter((hazard) => hazard.status === "NEED_INFO" || hazard.status === "PENDING"),
@@ -66,7 +64,6 @@ export default function PublicMapScreen() {
     setConfirmError("");
     try {
       await postConfirm({ incident_id });
-      await load();
     } catch (err) {
       setConfirmError(err instanceof Error ? err.message : "Confirm failed");
     } finally {
@@ -196,7 +193,9 @@ export default function PublicMapScreen() {
         ) : null}
 
         <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
-          <Text style={styles.listTitle}>{hazards.length} live pins</Text>
+          <Text style={styles.listTitle}>
+            {hazards.length} live pins{live ? "" : " · polling"}
+          </Text>
           {hazards.map((hazard) => (
             <Card key={hazard.id} accent={PIN_COLORS[hazard.status]} style={styles.item}>
               <View style={styles.badgeRow}>

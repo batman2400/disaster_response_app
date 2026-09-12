@@ -1,6 +1,5 @@
 import * as ImagePicker from "expo-image-picker";
-import { useFocusEffect } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import {
@@ -19,24 +18,24 @@ import {
 import { fetchHazards, postResolve } from "@/lib/api";
 import { useRequireRole } from "@/lib/auth-context";
 import { categoryLabel, timeAgo, wardName } from "@/lib/format";
+import { mapHazardRow, sortHazards, useLiveRows } from "@/lib/live";
 import { colors, urgencyColor } from "@/lib/theme";
 import { type HazardRow } from "@/lib/types";
 
 export default function CrewScreen() {
   const { ready, session } = useRequireRole("FIELD_CREW");
-  const [tickets, setTickets] = useState<HazardRow[]>([]);
+  const { rows: hazards } = useLiveRows<HazardRow>({
+    table: "hazards",
+    mapRow: mapHazardRow,
+    sort: sortHazards,
+    fallbackFetch: fetchHazards,
+  });
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    const rows = await fetchHazards();
-    setTickets(rows.filter((row) => row.status !== "RESOLVED"));
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      void load();
-    }, [load]),
+  const tickets = useMemo(
+    () => hazards.filter((row) => row.status !== "RESOLVED"),
+    [hazards],
   );
 
   const sorted = useMemo(() => {
@@ -62,7 +61,6 @@ export default function CrewScreen() {
         incident_id,
         closure_photo_base64: `data:image/jpeg;base64,${photo.assets[0].base64}`,
       });
-      await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Resolve failed");
     } finally {

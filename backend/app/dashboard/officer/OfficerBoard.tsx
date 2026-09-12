@@ -1,9 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { categoryLabel, PIN_COLORS, scorePct, timeAgo, URGENCY_COLORS, WARD_STATUS_COLORS, wardShort } from "@/lib/format";
 import type { HazardRow, HazardStatus, WardRow } from "@/lib/types";
+import { mapHazardRow, mapWardRow, sortHazards, sortWards, useLiveRows } from "@/lib/use-live";
+
+import { OfficerMap } from "./OfficerMap";
 
 const FILTERS = [
   { id: "OPEN", label: "Open" },
@@ -21,30 +24,28 @@ export function OfficerBoard({
   initialHazards: HazardRow[];
   initialWards: WardRow[];
 }) {
-  const [tickets, setTickets] = useState(initialHazards);
-  const [wards, setWards] = useState(initialWards);
   const [note, setNote] = useState("confirmed via CCTV");
   const [filter, setFilter] = useState<FilterId>("OPEN");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const [updatedAt, setUpdatedAt] = useState(new Date());
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const cardRefs = useRef<Record<string, HTMLElement | null>>({});
 
-  const load = useCallback(async () => {
-    const [nextTickets, nextWards] = await Promise.all([
-      fetch("/api/hazards").then((res) => res.json() as Promise<HazardRow[]>),
-      fetch("/api/wards").then((res) => res.json() as Promise<WardRow[]>),
-    ]);
-    setTickets(nextTickets);
-    setWards(nextWards);
-    setUpdatedAt(new Date());
-  }, []);
+  const { rows: tickets, updatedAt, live } = useLiveRows<HazardRow>({
+    table: "hazards",
+    initial: initialHazards,
+    mapRow: mapHazardRow,
+    sort: sortHazards,
+    fallbackFetch: () => fetch("/api/hazards").then((res) => res.json() as Promise<HazardRow[]>),
+  });
 
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      void load();
-    }, 8000);
-    return () => window.clearInterval(id);
-  }, [load]);
+  const { rows: wards } = useLiveRows<WardRow>({
+    table: "wards",
+    initial: initialWards,
+    mapRow: mapWardRow,
+    sort: sortWards,
+    fallbackFetch: () => fetch("/api/wards").then((res) => res.json() as Promise<WardRow[]>),
+  });
 
   const visible = useMemo(() => {
     return tickets.filter((ticket) => {
@@ -53,6 +54,11 @@ export function OfficerBoard({
       return ticket.status === filter;
     });
   }, [tickets, filter]);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    cardRefs.current[selectedId]?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [selectedId]);
 
   const openCount = tickets.filter((ticket) => ticket.status !== "RESOLVED").length;
   const needInfo = tickets.filter((ticket) => ticket.status === "NEED_INFO").length;
@@ -69,7 +75,6 @@ export function OfficerBoard({
       });
       const payload = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(payload.error || "Override failed");
-      await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Override failed");
     } finally {
@@ -82,17 +87,25 @@ export function OfficerBoard({
       <p className="dash-kicker">TICKET QUEUE</p>
       <h2 style={{ fontSize: 32, margin: "4px 0 8px" }}>Confirm or hold reports</h2>
       <p className="sub">Confirm publishes a pin. Need info holds it for nearby confirmations.</p>
-      <p className="poll">Live poll every 8s · last refresh {updatedAt.toLocaleTimeString()}</p>
+      <p className="poll">
+        {live ? "Live" : "Polling every 8s"} · last update {updatedAt.toLocaleTimeString()}
+      </p>
 
       <div className="ward-row">
         {wards.map((ward) => (
-          <div key={ward.id} className="ward-chip">
+          <div
+            key={ward.id}
+            className={`ward-chip${ward.status === "CRITICAL" ? " critical" : ward.status === "WATCH" ? " watch" : ""}`}
+          >
             <span className="badge" style={{ color: WARD_STATUS_COLORS[ward.status] }}>
               {ward.status}
             </span>
             <strong>{wardShort(ward.id)}</strong>
             <span className="meta">
               {ward.rainfall_mm} mm · {ward.river_level_pct}% river
+            </span>
+            <span className="ward-meter" aria-hidden>
+              <span style={{ width: `${Math.min(100, ward.rainfall_mm)}%` }} />
             </span>
           </div>
         ))}
@@ -134,54 +147,73 @@ export function OfficerBoard({
 
       {error ? <p className="error">{error}</p> : null}
 
-      {visible.length === 0 ? (
-        <div className="empty">No tickets match this filter.</div>
-      ) : (
-        <div className="ticket-list">
-          {visible.map((ticket) => (
-            <article key={ticket.id} className="card" style={{ borderLeftColor: PIN_COLORS[ticket.status] }}>
-              <div className="badge-row">
-                <span className="badge" style={{ color: PIN_COLORS[ticket.status] }}>
-                  {ticket.status}
-                </span>
-                <span className="badge" style={{ color: URGENCY_COLORS[ticket.urgency] }}>
-                  {ticket.urgency}
-                </span>
-              </div>
-              <strong className="card-title">
-                {categoryLabel(ticket.category)} · {scorePct(ticket.confidence_score)}
-              </strong>
-              <p className="sub" style={{ marginTop: 6 }}>
-                {ticket.description}
-              </p>
-              <p className="meta">
-                {wardShort(ticket.ward_id)} · {ticket.confirmations_count} confirms · {timeAgo(ticket.created_at)}
-              </p>
-              {ticket.photo_url ? <img className="photo" src={ticket.photo_url} alt="" /> : null}
-              {ticket.status !== "RESOLVED" ? (
-                <div className="action-row">
-                  <button
-                    type="button"
-                    className="primary small"
-                    disabled={busyId === ticket.id}
-                    onClick={() => void override(ticket.id, "PUBLISHED")}
-                  >
-                    {busyId === ticket.id ? "Saving…" : "Confirm"}
-                  </button>
-                  <button
-                    type="button"
-                    className="ghost small"
-                    disabled={busyId === ticket.id}
-                    onClick={() => void override(ticket.id, "NEED_INFO")}
-                  >
-                    Need info
-                  </button>
-                </div>
-              ) : null}
-            </article>
-          ))}
+      <div className="ops-grid">
+        <OfficerMap hazards={visible} selectedId={selectedId} onSelect={setSelectedId} />
+        <div className="ticket-pane">
+          {visible.length === 0 ? (
+            <div className="empty">No tickets match this filter.</div>
+          ) : (
+            <div className="ticket-list">
+              {visible.map((ticket) => (
+                <article
+                  key={ticket.id}
+                  ref={(node) => {
+                    cardRefs.current[ticket.id] = node;
+                  }}
+                  className={`card${selectedId === ticket.id ? " selected" : ""}`}
+                  style={{ borderLeftColor: PIN_COLORS[ticket.status] }}
+                  onClick={() => setSelectedId(ticket.id)}
+                >
+                  <div className="badge-row">
+                    <span className="badge" style={{ color: PIN_COLORS[ticket.status] }}>
+                      {ticket.status}
+                    </span>
+                    <span className="badge" style={{ color: URGENCY_COLORS[ticket.urgency] }}>
+                      {ticket.urgency}
+                    </span>
+                  </div>
+                  <strong className="card-title">
+                    {categoryLabel(ticket.category)} · {scorePct(ticket.confidence_score)}
+                  </strong>
+                  <p className="sub" style={{ marginTop: 6 }}>
+                    {ticket.description}
+                  </p>
+                  <p className="meta">
+                    {wardShort(ticket.ward_id)} · {ticket.confirmations_count} confirms · {timeAgo(ticket.created_at)}
+                  </p>
+                  {ticket.photo_url ? <img className="photo" src={ticket.photo_url} alt="" /> : null}
+                  {ticket.status !== "RESOLVED" ? (
+                    <div className="action-row">
+                      <button
+                        type="button"
+                        className="primary small"
+                        disabled={busyId === ticket.id}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void override(ticket.id, "PUBLISHED");
+                        }}
+                      >
+                        {busyId === ticket.id ? "Saving…" : "Confirm"}
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost small"
+                        disabled={busyId === ticket.id}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void override(ticket.id, "NEED_INFO");
+                        }}
+                      >
+                        Need info
+                      </button>
+                    </div>
+                  ) : null}
+                </article>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </main>
   );
 }

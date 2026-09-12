@@ -21,6 +21,7 @@ import { resolve } from "node:path";
 
 const env = Object.fromEntries(
   readFileSync(resolve(import.meta.dirname, "../.env.local"), "utf8")
+    .replace(/^\uFEFF/, "")
     .split(/\r?\n/)
     .filter((line) => line && !line.startsWith("#") && line.includes("="))
     .map((line) => {
