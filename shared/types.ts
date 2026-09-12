@@ -96,6 +96,17 @@ export interface ResolveResponse {
   resolved_at: string;
 }
 
+/** POST /api/confirm — crowdsourced NEED_INFO confirmation, bumps confirmations_count */
+export interface ConfirmRequest {
+  incident_id: string;
+}
+
+export interface ConfirmResponse {
+  incident_id: string;
+  confirmations_count: number;
+  status: HazardStatus;
+}
+
 /** Supabase `hazards` row. Use lat/lng — ignore `location`. */
 export interface HazardRow {
   id: string;

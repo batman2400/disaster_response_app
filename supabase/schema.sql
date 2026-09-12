@@ -24,7 +24,8 @@ CREATE TABLE hazards (
     confirmations_count INT DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     resolved_at TIMESTAMPTZ,
-    closure_photo_url TEXT
+    closure_photo_url TEXT,
+    officer_note TEXT
 );
 
 CREATE INDEX idx_hazards_location ON hazards USING GIST(location);

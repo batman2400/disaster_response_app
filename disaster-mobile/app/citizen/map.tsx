@@ -1,10 +1,22 @@
 import { useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { fetchHazards, fetchWards } from "@/lib/api";
+import {
+  Badge,
+  Card,
+  GhostButton,
+  Kicker,
+  StatusBadge,
+  Sub,
+  UrgencyBadge,
+  WardBadge,
+} from "@/components/ui";
+import { fetchHazards, fetchWards, postConfirm } from "@/lib/api";
+import { categoryLabel, timeAgo, wardName } from "@/lib/format";
+import { SAFE_ROUTES } from "@/lib/safe-routes";
 import { colors } from "@/lib/theme";
-import { COLOMBO_CENTER, PIN_COLORS, type HazardRow, type WardRow } from "@/lib/types";
+import { COLOMBO_CENTER, PIN_COLORS, type HazardRow, type WardId, type WardRow } from "@/lib/types";
 
 type MapsModule = typeof import("react-native-maps");
 
@@ -16,31 +28,122 @@ if (Platform.OS !== "web") {
 export default function PublicMapScreen() {
   const [hazards, setHazards] = useState<HazardRow[]>([]);
   const [wards, setWards] = useState<WardRow[]>([]);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [confirmError, setConfirmError] = useState("");
+
+  const load = useCallback(async () => {
+    const [nextHazards, nextWards] = await Promise.all([fetchHazards(), fetchWards()]);
+    setHazards(nextHazards);
+    setWards(nextWards);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      void Promise.all([fetchHazards(), fetchWards()]).then(([nextHazards, nextWards]) => {
-        setHazards(nextHazards);
-        setWards(nextWards);
-      });
-    }, []),
+      void load();
+    }, [load]),
   );
 
+  const needsConfirmation = useMemo(
+    () => hazards.filter((hazard) => hazard.status === "NEED_INFO" || hazard.status === "PENDING"),
+    [hazards],
+  );
+
+  // Trim-tier: static safe-route polylines, shown only while a ward is
+  // genuinely in trouble (CRITICAL telemetry or a confirmed area alert).
+  const activeSafeRouteWards = useMemo(() => {
+    const wardIds = new Set<WardId>();
+    for (const ward of wards) {
+      if (ward.status === "CRITICAL") wardIds.add(ward.id);
+    }
+    for (const hazard of hazards) {
+      if (hazard.status === "AREA_ALERT") wardIds.add(hazard.ward_id);
+    }
+    return Array.from(wardIds).filter((id) => SAFE_ROUTES[id]);
+  }, [wards, hazards]);
+
+  async function confirmNearby(incident_id: string) {
+    setConfirmingId(incident_id);
+    setConfirmError("");
+    try {
+      await postConfirm({ incident_id });
+      await load();
+    } catch (err) {
+      setConfirmError(err instanceof Error ? err.message : "Confirm failed");
+    } finally {
+      setConfirmingId(null);
+    }
+  }
+
   const criticalWard = wards.find((ward) => ward.status === "CRITICAL");
+  const alertHazard = hazards.find((hazard) => hazard.status === "AREA_ALERT");
   const MapView = maps?.default;
   const Marker = maps?.Marker;
+  const Polyline = maps?.Polyline;
   const provider = maps?.PROVIDER_GOOGLE;
 
   return (
     <View style={styles.screen}>
-      {criticalWard ? (
+      {criticalWard || alertHazard ? (
         <View style={styles.alert}>
-          <Text style={styles.alertTitle}>AREA ALERT · {criticalWard.name}</Text>
+          <Text style={styles.alertTitle}>
+            AREA ALERT · {criticalWard?.name ?? categoryLabel(alertHazard!.category)}
+          </Text>
           <Text style={styles.alertBody}>
-            Rain {criticalWard.rainfall_mm} mm · river {criticalWard.river_level_pct}%
+            {criticalWard
+              ? `Rain ${criticalWard.rainfall_mm} mm · river ${criticalWard.river_level_pct}%`
+              : alertHazard?.description}
           </Text>
         </View>
       ) : null}
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.wardScroll}
+        contentContainerStyle={styles.wardRow}
+      >
+        {wards.map((ward) => (
+          <View key={ward.id} style={styles.wardChip}>
+            <WardBadge status={ward.status} />
+            <Text style={styles.wardName} numberOfLines={1}>
+              {ward.name.split(" / ")[0]}
+            </Text>
+            <Text style={styles.wardMeta}>
+              {ward.rainfall_mm} mm · {ward.river_level_pct}%
+            </Text>
+          </View>
+        ))}
+      </ScrollView>
+
+      {needsConfirmation.length > 0 ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.confirmScroll}
+          contentContainerStyle={styles.confirmRow}
+        >
+          {needsConfirmation.map((hazard) => (
+            <View key={hazard.id} style={styles.confirmCard}>
+              <View style={styles.badgeRow}>
+                <StatusBadge status={hazard.status} />
+                <Badge label={`${hazard.confirmations_count} confirmed`} color={colors.blue} />
+              </View>
+              <Text style={styles.confirmTitle} numberOfLines={1}>
+                {categoryLabel(hazard.category)}
+              </Text>
+              <Text style={styles.confirmMeta} numberOfLines={1}>
+                {wardName(hazard.ward_id)} · {timeAgo(hazard.created_at)}
+              </Text>
+              <GhostButton
+                label={confirmingId === hazard.id ? "Confirming…" : "I see this too"}
+                disabled={confirmingId === hazard.id}
+                onPress={() => void confirmNearby(hazard.id)}
+              />
+            </View>
+          ))}
+        </ScrollView>
+      ) : null}
+      {confirmError ? <Text style={styles.confirmError}>{confirmError}</Text> : null}
 
       {MapView && Marker ? (
         <MapView
@@ -61,24 +164,47 @@ export default function PublicMapScreen() {
               description={`${hazard.status} · ${hazard.description ?? ""}`}
             />
           ))}
+          {Polyline
+            ? activeSafeRouteWards.map((wardId) => (
+                <Polyline
+                  key={`route-${wardId}`}
+                  coordinates={SAFE_ROUTES[wardId]}
+                  strokeColor={colors.green}
+                  strokeWidth={3}
+                  lineDashPattern={[8, 6]}
+                />
+              ))
+            : null}
         </MapView>
       ) : (
         <View style={styles.fallback}>
-          <Text style={styles.meta}>MapView is native-only. Use the device build.</Text>
+          <Kicker>MAP TILES</Kicker>
+          <Text style={styles.fallbackTitle}>Native MapView on device</Text>
+          <Sub>Expo web shows the live pin list below. Android tiles need the EAS build.</Sub>
         </View>
       )}
 
-      <ScrollView style={styles.list}>
+      {activeSafeRouteWards.length > 0 ? (
+        <Text style={styles.routeLegend}>
+          ┅ Dashed line marks a static safe route toward the nearest shelter — not computed.
+        </Text>
+      ) : null}
+
+      <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
+        <Text style={styles.listTitle}>{hazards.length} live pins</Text>
         {hazards.map((hazard) => (
-          <View key={hazard.id} style={styles.row}>
-            <View style={[styles.dot, { backgroundColor: PIN_COLORS[hazard.status] }]} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.title}>
-                {hazard.category} · {hazard.status}
-              </Text>
-              <Text style={styles.meta}>{hazard.description}</Text>
+          <Card key={hazard.id} accent={PIN_COLORS[hazard.status]} style={styles.item}>
+            <View style={styles.badgeRow}>
+              <StatusBadge status={hazard.status} />
+              <UrgencyBadge urgency={hazard.urgency} />
+              {hazard.is_road_blocked ? <Badge label="ROAD BLOCKED" color={colors.red} /> : null}
             </View>
-          </View>
+            <Text style={styles.itemTitle}>{categoryLabel(hazard.category)}</Text>
+            <Text style={styles.itemBody}>{hazard.description}</Text>
+            <Text style={styles.itemMeta}>
+              {wardName(hazard.ward_id)} · {timeAgo(hazard.created_at)}
+            </Text>
+          </Card>
         ))}
       </ScrollView>
     </View>
@@ -87,14 +213,63 @@ export default function PublicMapScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  alert: { backgroundColor: colors.red, padding: 12 },
+  alert: { backgroundColor: colors.red, paddingHorizontal: 16, paddingVertical: 12 },
   alertTitle: { color: colors.text, fontWeight: "700" },
   alertBody: { color: colors.text, marginTop: 4 },
-  map: { height: 280 },
-  fallback: { height: 80, justifyContent: "center", padding: 12 },
-  list: { flex: 1, padding: 12 },
-  row: { flexDirection: "row", gap: 10, marginBottom: 12 },
-  dot: { width: 12, height: 12, borderRadius: 6, marginTop: 5 },
-  title: { color: colors.text, fontWeight: "700" },
-  meta: { color: colors.muted },
+  wardScroll: { flexGrow: 0, maxHeight: 102 },
+  wardRow: { paddingHorizontal: 12, paddingVertical: 10, gap: 8, alignItems: "flex-start" },
+  wardChip: {
+    backgroundColor: colors.card,
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 10,
+    width: 168,
+  },
+  wardName: { color: colors.text, fontWeight: "700", marginTop: 8 },
+  wardMeta: { color: colors.muted, marginTop: 2, fontSize: 12 },
+  confirmScroll: { flexGrow: 0, maxHeight: 148 },
+  confirmRow: { paddingHorizontal: 12, paddingVertical: 10, gap: 8, alignItems: "flex-start" },
+  confirmCard: {
+    backgroundColor: colors.card,
+    borderColor: colors.amber,
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 10,
+    width: 200,
+  },
+  confirmTitle: { color: colors.text, fontWeight: "700", marginTop: 8 },
+  confirmMeta: { color: colors.muted, marginTop: 2, marginBottom: 8, fontSize: 12 },
+  confirmError: { color: colors.red, marginHorizontal: 16, marginBottom: 8, fontWeight: "600" },
+  map: { height: 240 },
+  fallback: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    backgroundColor: colors.card,
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+  },
+  fallbackTitle: { color: colors.text, fontWeight: "700", fontSize: 16 },
+  routeLegend: {
+    color: colors.green,
+    fontSize: 12,
+    fontWeight: "600",
+    marginHorizontal: 16,
+    marginBottom: 8,
+  },
+  list: { flex: 1 },
+  listContent: { padding: 16, paddingBottom: 32 },
+  listTitle: {
+    color: colors.muted,
+    fontWeight: "700",
+    marginBottom: 10,
+    fontSize: 12,
+  },
+  item: { marginBottom: 10 },
+  badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 8 },
+  itemTitle: { color: colors.text, fontWeight: "700", fontSize: 16 },
+  itemBody: { color: colors.text, marginTop: 4 },
+  itemMeta: { color: colors.muted, marginTop: 6, fontSize: 12 },
 });

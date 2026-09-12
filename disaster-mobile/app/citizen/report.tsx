@@ -1,18 +1,24 @@
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
-import { API_URL, postReport } from "@/lib/api";
-import { colors } from "@/lib/theme";
+import {
+  Badge,
+  Card,
+  CheckRow,
+  GhostButton,
+  Kicker,
+  PrimaryButton,
+  Screen,
+  StatusBadge,
+  Sub,
+  Title,
+  UrgencyBadge,
+} from "@/components/ui";
+import { postReport } from "@/lib/api";
+import { categoryLabel, scorePct, wardName } from "@/lib/format";
+import { colors, urgencyColor } from "@/lib/theme";
 import {
   CATEGORIES,
   WARDS,
@@ -80,10 +86,10 @@ export default function ReportScreen() {
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={styles.hint}>
-        API: {API_URL || "not set — add EXPO_PUBLIC_API_URL"}
-      </Text>
+    <Screen>
+      <Kicker>CITIZEN REPORT</Kicker>
+      <Title>Tag a hazard</Title>
+      <Sub>Take a photo, pin your location, and send the report. You get a status and reason back.</Sub>
 
       <Text style={styles.label}>Category</Text>
       <View style={styles.row}>
@@ -93,7 +99,9 @@ export default function ReportScreen() {
             onPress={() => setCategory(item.id)}
             style={[styles.chip, category === item.id && styles.chipOn]}
           >
-            <Text style={styles.chipText}>{item.label}</Text>
+            <Text style={[styles.chipText, category === item.id && styles.chipTextOn]}>
+              {item.label}
+            </Text>
           </Pressable>
         ))}
       </View>
@@ -105,74 +113,123 @@ export default function ReportScreen() {
           onPress={() => setWardId(item.id)}
           style={[styles.option, wardId === item.id && styles.optionOn]}
         >
-          <Text style={styles.optionText}>
-            {item.id} · {item.name}
-          </Text>
+          <Text style={styles.optionId}>{item.id}</Text>
+          <Text style={styles.optionText}>{item.name}</Text>
         </Pressable>
       ))}
 
-      <Text style={styles.label}>Description</Text>
+      <Text style={styles.label}>What is happening?</Text>
       <TextInput
         value={description}
         onChangeText={setDescription}
-        placeholder="What is happening?"
+        placeholder="Waist-deep water near the bridge…"
         placeholderTextColor={colors.muted}
         style={styles.input}
         multiline
       />
 
-      <Text style={styles.meta}>
-        GPS {lat}, {lng}
-      </Text>
-      <View style={styles.row}>
-        <Pressable style={styles.button} onPress={grabGps}>
-          <Text style={styles.buttonText}>Use GPS</Text>
-        </Pressable>
-        <Pressable style={styles.button} onPress={takePhoto}>
-          <Text style={styles.buttonText}>{photo ? "Photo attached" : "Take photo"}</Text>
-        </Pressable>
-      </View>
+      <Card style={styles.tight}>
+        <Text style={styles.cardTitle}>GPS lock</Text>
+        <Text style={styles.coords}>
+          {lat.toFixed(5)}, {lng.toFixed(5)}
+        </Text>
+        <Text style={styles.meta}>{wardName(wardId)}</Text>
+        <View style={styles.actions}>
+          <GhostButton label="Use GPS" onPress={() => void grabGps()} />
+        </View>
+      </Card>
 
-      <Pressable style={styles.submit} onPress={submit} disabled={busy}>
-        {busy ? (
-          <ActivityIndicator color={colors.bg} />
+      <Card style={styles.tight}>
+        <Text style={styles.cardTitle}>Evidence photo</Text>
+        {photo ? (
+          <Image source={{ uri: photo }} style={styles.preview} />
         ) : (
-          <Text style={styles.submitText}>Submit report</Text>
+          <View style={styles.photoSlot}>
+            <Text style={styles.meta}>Required for a strong image check</Text>
+          </View>
         )}
-      </Pressable>
+        <View style={styles.actions}>
+          <GhostButton
+            label={photo ? "Retake photo" : "Take photo"}
+            onPress={() => void takePhoto()}
+          />
+        </View>
+      </Card>
+
+      <PrimaryButton
+        label="Submit report"
+        onPress={() => void submit()}
+        loading={busy}
+      />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      {verdict ? (
-        <View style={styles.verdict}>
-          <Text style={styles.verdictTitle}>
-            {verdict.status} · {verdict.urgency}
-          </Text>
-          <Text style={styles.meta}>id {verdict.incident_id}</Text>
-          <Text style={styles.meta}>
-            confidence {verdict.confidence_score} · blocked{" "}
-            {String(verdict.is_road_blocked)}
-          </Text>
-          <Text style={styles.body}>{verdict.reasoning}</Text>
-          <Text style={styles.meta}>
-            image {String(verdict.checks.image_verified)} · weather{" "}
-            {String(verdict.checks.weather_supported)} · cluster{" "}
-            {verdict.checks.cluster_count} · location{" "}
-            {String(verdict.checks.location_matched)} · risk{" "}
-            {verdict.checks.risk_level}
-          </Text>
-        </View>
-      ) : null}
-    </ScrollView>
+      {verdict ? <VerdictCard verdict={verdict} category={category} /> : null}
+    </Screen>
+  );
+}
+
+function VerdictCard({
+  verdict,
+  category,
+}: {
+  verdict: ReportResponse;
+  category: HazardCategory;
+}) {
+  return (
+    <Card accent={urgencyColor[verdict.urgency]} style={{ marginTop: 16 }}>
+      <Kicker color={urgencyColor[verdict.urgency]}>PIPELINE VERDICT</Kicker>
+      <View style={styles.badgeRow}>
+        <StatusBadge status={verdict.status} />
+        <UrgencyBadge urgency={verdict.urgency} />
+        <Badge label={scorePct(verdict.confidence_score)} color={colors.blue} />
+      </View>
+      <Text style={styles.verdictTitle}>{categoryLabel(category)}</Text>
+      <Text style={styles.meta}>id {verdict.incident_id}</Text>
+      <Text style={styles.reason}>{verdict.reasoning}</Text>
+      <Text style={styles.meta}>
+        Road blocked {verdict.is_road_blocked ? "yes" : "no"}
+      </Text>
+      <View style={{ marginTop: 8 }}>
+        <CheckRow
+          label="Image verified"
+          ok={verdict.checks.image_verified}
+          detail="Photo accepted by the vision check"
+        />
+        <CheckRow
+          label="Weather supported"
+          ok={verdict.checks.weather_supported}
+          detail="Ward rainfall > 40 mm or river > 75%"
+        />
+        <CheckRow
+          label="Cluster"
+          ok={verdict.checks.cluster_count >= 2}
+          detail={`${verdict.checks.cluster_count} nearby reports`}
+        />
+        <CheckRow
+          label="Location matched"
+          ok={verdict.checks.location_matched}
+          detail="GPS sits inside the expected Colombo envelope"
+        />
+        <CheckRow
+          label="Risk level"
+          ok={verdict.checks.risk_level !== "LOW"}
+          detail={verdict.checks.risk_level}
+        />
+      </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: 16, paddingBottom: 40 },
-  hint: { color: colors.muted, marginBottom: 16 },
-  label: { color: colors.amber, fontWeight: "700", marginBottom: 8, marginTop: 8 },
-  row: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 },
+  label: {
+    color: colors.amber,
+    fontWeight: "700",
+    marginBottom: 8,
+    marginTop: 16,
+    fontSize: 12,
+  },
+  row: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
     backgroundColor: colors.card,
     borderColor: colors.line,
@@ -181,55 +238,49 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
-  chipOn: { borderColor: colors.amber },
-  chipText: { color: colors.text, fontWeight: "600" },
+  chipOn: { borderColor: colors.amber, backgroundColor: colors.cardSoft },
+  chipText: { color: colors.muted, fontWeight: "700" },
+  chipTextOn: { color: colors.text },
   option: {
     backgroundColor: colors.card,
     borderColor: colors.line,
     borderWidth: 1,
-    borderRadius: 10,
-    padding: 10,
+    borderRadius: 12,
+    padding: 12,
     marginBottom: 8,
   },
   optionOn: { borderColor: colors.amber },
-  optionText: { color: colors.text },
+  optionId: { color: colors.amber, fontWeight: "700", fontSize: 12 },
+  optionText: { color: colors.text, marginTop: 2 },
   input: {
-    minHeight: 80,
+    minHeight: 88,
     borderColor: colors.line,
     borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: 12,
     color: colors.text,
-    padding: 10,
+    padding: 12,
     textAlignVertical: "top",
     backgroundColor: colors.card,
   },
-  meta: { color: colors.muted, marginTop: 8 },
-  button: {
-    backgroundColor: colors.card,
-    borderColor: colors.line,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  buttonText: { color: colors.text, fontWeight: "600" },
-  submit: {
-    backgroundColor: colors.amber,
+  tight: { marginTop: 12, marginBottom: 0 },
+  cardTitle: { color: colors.text, fontWeight: "700", fontSize: 16 },
+  coords: { color: colors.text, fontSize: 20, fontWeight: "700", marginTop: 6 },
+  meta: { color: colors.muted, marginTop: 6 },
+  actions: { marginTop: 12 },
+  preview: { height: 160, borderRadius: 12, marginTop: 10 },
+  photoSlot: {
+    height: 88,
     borderRadius: 12,
-    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderStyle: "dashed",
+    marginTop: 10,
     alignItems: "center",
-    marginTop: 18,
+    justifyContent: "center",
+    backgroundColor: colors.bg2,
   },
-  submitText: { color: colors.bg, fontWeight: "700", fontSize: 16 },
-  error: { color: colors.red, marginTop: 12 },
-  verdict: {
-    marginTop: 18,
-    backgroundColor: colors.card,
-    borderColor: colors.line,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
-  },
-  verdictTitle: { color: colors.text, fontSize: 18, fontWeight: "700" },
-  body: { color: colors.text, marginTop: 10, lineHeight: 20 },
+  error: { color: colors.red, marginTop: 12, fontWeight: "600" },
+  badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 10 },
+  verdictTitle: { color: colors.text, fontSize: 20, fontWeight: "700" },
+  reason: { color: colors.text, marginTop: 10, lineHeight: 21 },
 });

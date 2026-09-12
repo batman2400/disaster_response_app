@@ -30,8 +30,9 @@ export default function Root({ children }: { children: ReactNode }) {
 
 const responsiveBackground = `
 html, body, #root, * {
-  font-family: "Segoe UI", system-ui, sans-serif !important;
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif !important;
   font-synthesis: none !important;
+  font-variant-ligatures: none !important;
   text-shadow: none !important;
   -webkit-text-stroke: 0 !important;
   -webkit-font-smoothing: antialiased;

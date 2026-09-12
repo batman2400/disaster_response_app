@@ -1,13 +1,12 @@
-import { MOCK_HAZARDS, MOCK_SHELTERS, MOCK_WARDS } from "./mock-data";
+import { MOCK_HAZARDS, MOCK_WARDS } from "./mock-data";
 import type {
+  ConfirmRequest,
+  ConfirmResponse,
   HazardRow,
-  OverrideRequest,
-  OverrideResponse,
   ReportRequest,
   ReportResponse,
   ResolveRequest,
   ResolveResponse,
-  ShelterRow,
   WardRow,
 } from "./types";
 
@@ -54,19 +53,18 @@ export async function postReport(body: ReportRequest): Promise<ReportResponse> {
         location_matched: true,
         risk_level: "CRITICAL",
       },
-      reasoning:
-        "Offline mock verdict. Set EXPO_PUBLIC_API_URL to hit the real /api/report pipeline.",
+      reasoning: "Offline mock verdict. Set EXPO_PUBLIC_API_URL to hit the live API.",
     };
   }
   return post<ReportResponse>("/api/report", body);
 }
 
-export function postOverride(body: OverrideRequest) {
-  return post<OverrideResponse>("/api/override", body);
-}
-
 export function postResolve(body: ResolveRequest) {
   return post<ResolveResponse>("/api/resolve", body);
+}
+
+export function postConfirm(body: ConfirmRequest) {
+  return post<ConfirmResponse>("/api/confirm", body);
 }
 
 export function fetchHazards() {
@@ -75,8 +73,4 @@ export function fetchHazards() {
 
 export function fetchWards() {
   return get<WardRow[]>("/api/wards", MOCK_WARDS);
-}
-
-export function fetchShelters() {
-  return get<ShelterRow[]>("/api/shelters", MOCK_SHELTERS);
 }

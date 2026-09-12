@@ -1,57 +1,95 @@
 import { useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { createElement } from "react";
+import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { useRole } from "@/context/RoleContext";
 import { colors } from "@/lib/theme";
 import { ROLES, type Role } from "@/lib/types";
 
+const logoSource = require("../assets/images/logo.png") as number | string | { uri?: string };
+
+const ROLE_COPY: Record<Role, { hint: string; accent: string }> = {
+  CITIZEN: { hint: "Report a hazard and watch the public map", accent: colors.blue },
+  FIELD_CREW: { hint: "Close a hazard with an after-fix photo", accent: colors.green },
+};
+
+function logoUri() {
+  if (typeof logoSource === "string") return logoSource;
+  if (typeof logoSource === "object" && logoSource.uri) return logoSource.uri;
+  return undefined;
+}
+
+function BrandMark() {
+  if (Platform.OS === "web") {
+    return createElement("img", {
+      src: logoUri(),
+      alt: "Fender",
+      style: { width: 92, height: 92, objectFit: "contain", display: "block" },
+    });
+  }
+  return (
+    <Image
+      source={logoSource as number}
+      style={styles.logo}
+      resizeMode="contain"
+      accessibilityLabel="Fender"
+    />
+  );
+}
+
 export default function RolePickerScreen() {
   const router = useRouter();
-  const { setRole } = useRole();
 
-  function pick(role: Role, route: string) {
-    setRole(role);
+  function pick(route: string) {
     router.push(route as never);
   }
 
   return (
-    <View style={styles.screen}>
-      <Text style={styles.kicker}>COLOMBO FLOOD RESPONSE</Text>
-      <Text style={styles.title}>Who is using the app?</Text>
-      <Text style={styles.sub}>
-        Demo role picker — no login. Switch roles from here any time.
-      </Text>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <View style={styles.logoWrap}>
+        <BrandMark />
+      </View>
+      <Text style={styles.kicker}>FIELD APP</Text>
+      <Text style={styles.title}>Fender</Text>
+      <Text style={styles.sub}>Report a hazard or close one on site. Desk work lives on the web.</Text>
+
       {ROLES.map((item) => (
         <Pressable
           key={item.id}
-          style={styles.card}
-          onPress={() => pick(item.id, item.route)}
+          style={[styles.card, { borderLeftColor: ROLE_COPY[item.id].accent }]}
+          onPress={() => pick(item.route)}
         >
           <Text style={styles.cardTitle}>{item.label}</Text>
-          <Text style={styles.cardHint}>{item.route}</Text>
+          <Text style={styles.cardHint}>{ROLE_COPY[item.id].hint}</Text>
         </Pressable>
       ))}
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.bg,
-    paddingHorizontal: 22,
-    paddingTop: 72,
+  screen: { flex: 1, backgroundColor: colors.bg },
+  content: { paddingHorizontal: 22, paddingTop: 72, paddingBottom: 48 },
+  logoWrap: {
+    width: 104,
+    height: 104,
+    borderRadius: 24,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 18,
+    overflow: "hidden",
   },
+  logo: { width: 92, height: 92 },
   kicker: {
     color: colors.amber,
     fontSize: 12,
-    letterSpacing: 1.4,
     fontWeight: "700",
+    letterSpacing: 0.8,
     marginBottom: 10,
   },
   title: {
     color: colors.text,
-    fontSize: 30,
+    fontSize: 34,
     fontWeight: "700",
     marginBottom: 8,
   },
@@ -59,13 +97,14 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 15,
     marginBottom: 28,
-    lineHeight: 21,
+    lineHeight: 22,
   },
   card: {
     backgroundColor: colors.card,
     borderColor: colors.line,
     borderWidth: 1,
-    borderRadius: 14,
+    borderLeftWidth: 4,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
   },
@@ -76,7 +115,8 @@ const styles = StyleSheet.create({
   },
   cardHint: {
     color: colors.muted,
-    marginTop: 4,
-    fontSize: 13,
+    marginTop: 6,
+    fontSize: 14,
+    lineHeight: 20,
   },
 });

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Colombo Response",
+    "name": "Fender",
     "slug": "disaster-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -16,17 +16,19 @@
       }
     },
     "android": {
+      "package": "com.uvaram2004.disastermobile",
       "adaptiveIcon": {
-        "backgroundColor": "#07111C",
+        "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
-        "CAMERA"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -41,7 +43,7 @@
         {
           "image": "./assets/images/splash-icon.png",
           "resizeMode": "contain",
-          "backgroundColor": "#07111C"
+          "backgroundColor": "#FFFFFF"
         }
       ],
       [
@@ -60,12 +62,19 @@
       [
         "react-native-maps",
         {
-          "androidGoogleMapsApiKey": "YOUR_ANDROID_MAPS_KEY"
+          "androidGoogleMapsApiKey": "AIzaSyCh6DUA9LMp1Vf8Zs4XVr19njlRpRS9vpM"
         }
       ]
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c3095ff7-b9b3-4a48-ace9-bfaacf21ac6f"
+      }
+    },
+    "owner": "uvaram2004"
   }
 }

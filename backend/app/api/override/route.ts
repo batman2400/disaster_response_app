@@ -28,6 +28,7 @@ export async function POST(request: Request) {
   await saveHazard({
     ...existing,
     status: body.new_status,
+    officer_note: body.officer_note || existing.officer_note,
   });
 
   return json({

@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS hazards (
     closure_photo_url TEXT
 );
 
+ALTER TABLE hazards ADD COLUMN IF NOT EXISTS officer_note TEXT;
+
 CREATE INDEX IF NOT EXISTS idx_hazards_location ON hazards USING GIST(location);
 
 CREATE TABLE IF NOT EXISTS shelters (

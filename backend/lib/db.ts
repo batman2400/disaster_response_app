@@ -27,6 +27,7 @@ function asHazard(row: Record<string, unknown>): HazardRow {
     created_at: String(row.created_at),
     resolved_at: (row.resolved_at as string | null) ?? null,
     closure_photo_url: (row.closure_photo_url as string | null) ?? null,
+    officer_note: (row.officer_note as string | undefined) ?? undefined,
   };
 }
 
@@ -65,11 +66,16 @@ export async function findHazard(id: string): Promise<HazardRow | null> {
   return asHazard(data as Record<string, unknown>);
 }
 
+// `supabase/apply.sql`'s `officer_note` column has been applied against the
+// live database (confirmed via a direct select on 2026-09-12), so writes can
+// safely include it now.
+const OFFICER_NOTE_COLUMN_EXISTS = true;
+
 export async function saveHazard(row: HazardRow) {
   memoryUpsert(row);
   const supabase = getSupabase();
   if (!supabase) return row;
-  const { error } = await supabase.from("hazards").upsert({
+  const payload: Record<string, unknown> = {
     id: row.id,
     lat: row.lat,
     lng: row.lng,
@@ -85,11 +91,38 @@ export async function saveHazard(row: HazardRow) {
     created_at: row.created_at,
     resolved_at: row.resolved_at,
     closure_photo_url: row.closure_photo_url,
-  });
+  };
+  if (OFFICER_NOTE_COLUMN_EXISTS && row.officer_note !== undefined) {
+    payload.officer_note = row.officer_note;
+  }
+  const { error } = await supabase.from("hazards").upsert(payload);
   if (error) {
     console.error("saveHazard", error.message);
   }
   return row;
+}
+
+// Crowdsource quorum: this many confirmations auto-publishes a held report.
+const CONFIRM_QUORUM = 3;
+const HOLDING_STATUSES = new Set<HazardRow["status"]>(["NEED_INFO", "PENDING"]);
+
+/**
+ * Trim-tier NEED_INFO crowdsource confirm — bumps `confirmations_count` and
+ * auto-publishes once the quorum is reached, per PLAN.md's "single confirm
+ * button" scope (no separate voting UI).
+ */
+export async function confirmHazard(id: string): Promise<HazardRow | null> {
+  const existing = await findHazard(id);
+  if (!existing) return null;
+
+  const confirmations_count = existing.confirmations_count + 1;
+  const shouldPublish = confirmations_count >= CONFIRM_QUORUM && HOLDING_STATUSES.has(existing.status);
+  const updated: HazardRow = {
+    ...existing,
+    confirmations_count,
+    status: shouldPublish ? "PUBLISHED" : existing.status,
+  };
+  return saveHazard(updated);
 }
 
 export async function getAiSettings(): Promise<AiSettings> {

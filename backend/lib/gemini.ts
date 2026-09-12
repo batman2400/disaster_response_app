@@ -55,3 +55,34 @@ export async function callGeminiJson<T>(
   }
   return JSON.parse(text) as T;
 }
+
+/**
+ * Calls Gemini for structured JSON, but never lets a flaky network or a
+ * missing key break the report pipeline. Honours MOCK_AI, races the call
+ * against a timeout, and falls back to a deterministic fixture on any
+ * failure — the demo must survive a dead hotspot.
+ */
+export async function callGeminiJsonSafe<T>(
+  prompt: string,
+  schema: Record<string, unknown>,
+  fallback: () => T,
+  options?: { photoBase64?: string; timeoutMs?: number },
+): Promise<{ value: T; source: "gemini" | "mock" | "fallback" }> {
+  if (isMockAi()) {
+    return { value: fallback(), source: "mock" };
+  }
+
+  const timeoutMs = options?.timeoutMs ?? 9000;
+  try {
+    const value = await Promise.race([
+      callGeminiJson<T>(prompt, schema, options?.photoBase64),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error(`Gemini call timed out after ${timeoutMs}ms`)), timeoutMs);
+      }),
+    ]);
+    return { value, source: "gemini" };
+  } catch (err) {
+    console.error("[gemini] call failed, using deterministic fallback:", (err as Error).message);
+    return { value: fallback(), source: "fallback" };
+  }
+}

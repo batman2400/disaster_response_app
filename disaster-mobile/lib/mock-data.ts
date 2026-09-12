@@ -1,4 +1,4 @@
-import type { HazardRow, ShelterRow, WardRow } from "./types";
+import type { HazardRow, WardRow } from "./types";
 
 export const MOCK_WARDS: WardRow[] = [
   {
@@ -21,49 +21,6 @@ export const MOCK_WARDS: WardRow[] = [
     rainfall_mm: 8,
     river_level_pct: 15,
     status: "NORMAL",
-  },
-];
-
-export const MOCK_SHELTERS: ShelterRow[] = [
-  {
-    id: "s-kelaniya",
-    ward_id: "ward_01",
-    name: "Kelaniya Temple Hall",
-    total_beds: 120,
-    occupied_beds: 96,
-    supplies_status: "LOW",
-  },
-  {
-    id: "s-peliyagoda",
-    ward_id: "ward_01",
-    name: "Peliyagoda Community Centre",
-    total_beds: 80,
-    occupied_beds: 22,
-    supplies_status: "ADEQUATE",
-  },
-  {
-    id: "s-townhall",
-    ward_id: "ward_02",
-    name: "Town Hall Relief Bay",
-    total_beds: 150,
-    occupied_beds: 61,
-    supplies_status: "ADEQUATE",
-  },
-  {
-    id: "s-thimbi",
-    ward_id: "ward_02",
-    name: "Thimbirigasyaya School",
-    total_beds: 90,
-    occupied_beds: 88,
-    supplies_status: "CRITICAL",
-  },
-  {
-    id: "s-fort",
-    ward_id: "ward_03",
-    name: "Fort Railway Waiting Hall",
-    total_beds: 60,
-    occupied_beds: 12,
-    supplies_status: "ADEQUATE",
   },
 ];
 

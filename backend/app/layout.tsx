@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Colombo Hazard API",
-  description: "API-only backend for the Colombo flood response platform",
+  title: "Fender",
+  description: "Hazard API and staff dashboard for Fender",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

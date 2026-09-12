@@ -83,7 +83,7 @@ The stretch goal (detour routing, nearest-shelter-with-space routing) stays unto
 - [ ] Supabase project (URL, anon key, service role key, public `hazard-photos` bucket)
 - [ ] Gemini API key; pin a confirmed model id into `GEMINI_MODEL`
 - [ ] Wire real Gemini calls with deterministic fallback on error/timeout
-- [ ] Deploy to Vercel; confirm endpoints work from the phone's network
+- [x] Deploy to Vercel; confirm endpoints work from the phone's network
 
 ### Phase 5 — Expo spine screens
 

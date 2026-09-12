@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "replay-rainy-day": "node scripts/replay-rainy-day.mjs",
+    "mock-reports": "node scripts/mock-reports.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.22.0",

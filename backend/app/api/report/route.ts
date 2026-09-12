@@ -1,5 +1,5 @@
 import { json, options } from "@/lib/cors";
-import { persistReport, stubAggregate, stubChecks } from "@/lib/pipeline";
+import { buildVerdict, persistReport } from "@/lib/pipeline";
 import type { ReportRequest } from "@/lib/types";
 
 export function OPTIONS() {
@@ -23,10 +23,9 @@ export async function POST(request: Request) {
     return json({ error: "lat, lng, ward_id, and category are required" }, 400);
   }
 
-  const checks = await stubChecks(body);
-  const aggregated = await stubAggregate(body, checks);
+  const verdict = await buildVerdict(body);
   const incident_id = crypto.randomUUID();
-  const response = { incident_id, ...aggregated };
+  const response = { incident_id, ...verdict };
   await persistReport(body, response);
   return json(response);
 }

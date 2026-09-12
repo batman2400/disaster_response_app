@@ -1,14 +1,8 @@
-export type Role =
-  | "CITIZEN"
-  | "COUNCIL_OFFICER"
-  | "FIELD_CREW"
-  | "RELIEF_COORDINATOR";
+export type Role = "CITIZEN" | "FIELD_CREW";
 
 export const ROLES: { id: Role; label: string; route: string }[] = [
   { id: "CITIZEN", label: "Citizen", route: "/citizen/report" },
-  { id: "COUNCIL_OFFICER", label: "Council Officer", route: "/officer" },
   { id: "FIELD_CREW", label: "Field Crew", route: "/crew" },
-  { id: "RELIEF_COORDINATOR", label: "Relief Coordinator", route: "/relief" },
 ];
 
 export type WardId = "ward_01" | "ward_02" | "ward_03";
@@ -44,8 +38,6 @@ export type Urgency = "LOW" | "MEDIUM" | "CRITICAL";
 
 export type WardStatus = "NORMAL" | "WATCH" | "CRITICAL";
 
-export type SuppliesStatus = "ADEQUATE" | "LOW" | "CRITICAL";
-
 export interface ReportRequest {
   lat: number;
   lng: number;
@@ -74,19 +66,6 @@ export interface ReportResponse {
   reasoning: string;
 }
 
-export interface OverrideRequest {
-  incident_id: string;
-  new_status: HazardStatus;
-  officer_note: string;
-}
-
-export interface OverrideResponse {
-  incident_id: string;
-  status: HazardStatus;
-  confirm_threshold: number;
-  reject_threshold: number;
-}
-
 export interface ResolveRequest {
   incident_id: string;
   closure_photo_base64: string;
@@ -97,6 +76,17 @@ export interface ResolveResponse {
   status: "RESOLVED";
   is_road_blocked: false;
   resolved_at: string;
+}
+
+/** POST /api/confirm — crowdsourced NEED_INFO confirmation, bumps confirmations_count */
+export interface ConfirmRequest {
+  incident_id: string;
+}
+
+export interface ConfirmResponse {
+  incident_id: string;
+  confirmations_count: number;
+  status: HazardStatus;
 }
 
 export interface HazardRow {
@@ -123,15 +113,6 @@ export interface WardRow {
   rainfall_mm: number;
   river_level_pct: number;
   status: WardStatus;
-}
-
-export interface ShelterRow {
-  id: string;
-  ward_id: WardId;
-  name: string;
-  total_beds: number;
-  occupied_beds: number;
-  supplies_status: SuppliesStatus;
 }
 
 export const PIN_COLORS: Record<HazardStatus, string> = {

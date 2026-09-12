@@ -59,6 +59,16 @@ export interface ResolveRequest {
   closure_photo_base64: string;
 }
 
+export interface ConfirmRequest {
+  incident_id: string;
+}
+
+export interface ConfirmResponse {
+  incident_id: string;
+  confirmations_count: number;
+  status: HazardStatus;
+}
+
 export interface HazardRow {
   id: string;
   lat: number;
