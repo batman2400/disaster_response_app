@@ -11,6 +11,7 @@ import { cn } from "@/lib/cn";
 import { categoryLabel, wardShort } from "@/lib/format";
 import { readFileAsDataUrl } from "@/lib/geo";
 import { latestDispatchNote } from "@/lib/officer-log";
+import { ROLE_THEME } from "@/lib/role-theme";
 import type { HazardRow } from "@/lib/types";
 
 export function ResolveTask({ hazard }: { hazard: HazardRow }) {
@@ -57,12 +58,15 @@ export function ResolveTask({ hazard }: { hazard: HazardRow }) {
     }
   }
 
+  const theme = ROLE_THEME.crew;
+  const Icon = theme.icon;
+
   return (
     <PublicShell>
-      <div className="ambient-orb pointer-events-none absolute -right-12 -top-12 h-64 w-64 rounded-full bg-brand/15 blur-3xl" />
+      <div className="ambient-orb pointer-events-none absolute -right-12 -top-12 h-64 w-64 rounded-full bg-brand-cyan/15 blur-3xl" />
       <div className="pointer-events-none absolute bottom-24 -left-16 h-72 w-72 rounded-full bg-emerald-400/10 blur-3xl" />
 
-      <div className="relative z-10 flex items-center justify-between px-6 py-4 lg:px-10">
+      <div className={cn("relative z-10 flex items-center justify-between border-t-4 px-6 py-4 lg:px-10", theme.accent)}>
         <Link
           href="/crew"
           className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-100 bg-white text-slate-600 shadow-sm"
@@ -70,8 +74,13 @@ export function ResolveTask({ hazard }: { hazard: HazardRow }) {
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div className="text-center">
-          <h1 className="text-lg font-extrabold tracking-tight text-slate-900">Resolve Task</h1>
-          <p className="mt-0.5 font-mono text-[10px] font-bold uppercase tracking-widest text-brand">
+          <div className="flex items-center justify-center gap-2">
+            <span className={cn("flex h-7 w-7 items-center justify-center rounded-lg text-white", theme.iconBg)}>
+              <Icon className="h-3.5 w-3.5" />
+            </span>
+            <h1 className="text-lg font-extrabold tracking-tight text-slate-900">Resolve Task</h1>
+          </div>
+          <p className={cn("mt-0.5 font-mono text-[10px] font-bold uppercase tracking-widest", theme.chipText)}>
             #{hazard.id.slice(0, 8).toUpperCase()}
           </p>
         </div>

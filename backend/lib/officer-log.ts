@@ -13,6 +13,7 @@ const ACTIONS: OfficerAction[] = [
   "crowdsource",
   "dispatch",
   "detour",
+  "assign",
 ];
 
 export const OFFICER_ACTION_LABEL: Record<OfficerAction, string> = {
@@ -22,6 +23,7 @@ export const OFFICER_ACTION_LABEL: Record<OfficerAction, string> = {
   crowdsource: "Revert to Crowdsource",
   dispatch: "Dispatch Crew",
   detour: "Suggest Detour",
+  assign: "Assign to Shelter",
 };
 
 function isAction(value: unknown): value is OfficerAction {

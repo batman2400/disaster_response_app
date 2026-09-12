@@ -172,3 +172,17 @@ export function upsertHazard(row: HazardRow) {
   hazards.set(row.id, row);
   return row;
 }
+
+export function getShelter(id: string) {
+  return shelters.find((shelter) => shelter.id === id) ?? null;
+}
+
+export function upsertShelter(row: ShelterRow) {
+  const index = shelters.findIndex((shelter) => shelter.id === row.id);
+  if (index >= 0) {
+    shelters[index] = row;
+  } else {
+    shelters.push(row);
+  }
+  return row;
+}

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { json } from "./cors";
 import {
   homeFor,
   loginPathFor,
@@ -12,6 +13,13 @@ export async function requireDashboardRole(expected: DashRole | DashRole[]) {
   const allowed = Array.isArray(expected) ? expected : [expected];
   if (role && allowed.includes(role)) return role;
   redirect(role ? homeFor(role) : loginPathFor(allowed[0]));
+}
+
+export async function requireApiRole(expected: DashRole | DashRole[]) {
+  const role = await readDashboardRole();
+  const allowed = Array.isArray(expected) ? expected : [expected];
+  if (role && allowed.includes(role)) return null;
+  return json({ error: "Unauthorized" }, 401);
 }
 
 export async function redirectIfSignedIn() {

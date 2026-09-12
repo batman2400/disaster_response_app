@@ -5,8 +5,10 @@ import {
   aiSettings,
   getHazard as memoryGetHazard,
   listHazards as memoryListHazards,
+  getShelter as memoryGetShelter,
   shelters as memoryShelters,
   upsertHazard as memoryUpsert,
+  upsertShelter as memoryUpsertShelter,
   wards as memoryWards,
 } from "./store";
 import { parseTrace } from "./trace";
@@ -79,6 +81,30 @@ export async function listShelters(): Promise<ShelterRow[]> {
   const { data, error } = await supabase.from("shelters").select("*");
   if (error || !data) return memoryShelters;
   return data as ShelterRow[];
+}
+
+export async function findShelter(id: string): Promise<ShelterRow | null> {
+  const supabase = getSupabase();
+  if (!supabase) return memoryGetShelter(id);
+  const { data, error } = await supabase.from("shelters").select("*").eq("id", id).maybeSingle();
+  if (error || !data) return memoryGetShelter(id);
+  return data as ShelterRow;
+}
+
+export async function saveShelter(row: ShelterRow) {
+  memoryUpsertShelter(row);
+  const supabase = getSupabase();
+  if (!supabase) return row;
+  const { error } = await supabase.from("shelters").upsert({
+    id: row.id,
+    ward_id: row.ward_id,
+    name: row.name,
+    total_beds: row.total_beds,
+    occupied_beds: row.occupied_beds,
+    supplies_status: row.supplies_status,
+  });
+  if (error) console.error("saveShelter", error.message);
+  return row;
 }
 
 export async function findHazard(id: string): Promise<HazardRow | null> {

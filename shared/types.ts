@@ -106,7 +106,8 @@ export type OfficerAction =
   | "reject"
   | "crowdsource"
   | "dispatch"
-  | "detour";
+  | "detour"
+  | "assign";
 
 export interface OfficerLogEntry {
   at: string;
@@ -134,6 +135,21 @@ export interface OverrideResponse {
 export interface ResolveRequest {
   incident_id: string;
   closure_photo_base64: string;
+}
+
+/** POST /api/relief/assign */
+export interface AssignRequest {
+  incident_id: string;
+  shelter_id: string;
+  beds?: number;
+  note?: string;
+}
+
+/** PATCH /api/shelters */
+export interface ShelterUpdateRequest {
+  shelter_id: string;
+  occupied_beds?: number;
+  supplies_status?: SuppliesStatus;
 }
 
 export interface ResolveResponse {

@@ -1,7 +1,9 @@
-import { Bell, Bug, CloudRain, LogOut, Shield } from "lucide-react";
+import { Bell, Bug, CloudRain, LogOut } from "lucide-react";
 import Link from "next/link";
 
+import { cn } from "@/lib/cn";
 import type { DashRole } from "@/lib/dashboard-auth";
+import { ROLE_THEME } from "@/lib/role-theme";
 
 const TITLES = {
   officer: { title: "Command Control", desk: "Council Officer Desk" },
@@ -11,15 +13,40 @@ const TITLES = {
 
 export function DashboardChrome({ role }: { role: Exclude<DashRole, "crew"> }) {
   const copy = TITLES[role];
+  const theme = ROLE_THEME[role];
+  const Icon = theme.icon;
 
   return (
-    <header className="z-20 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 shadow-sm sm:px-6">
+    <header
+      className={cn(
+        "z-20 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-slate-200 border-t-4 bg-white px-4 shadow-sm sm:px-6",
+        theme.accent,
+      )}
+    >
       <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-        <Link href="/" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-white shadow-md">
-          <Shield className="h-5 w-5" />
+        <Link
+          href="/"
+          className={cn(
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white shadow-md",
+            theme.iconBg,
+            theme.glow,
+          )}
+        >
+          <Icon className="h-5 w-5" />
         </Link>
         <div className="min-w-0">
-          <h1 className="truncate text-base font-extrabold leading-tight text-slate-900 sm:text-lg">{copy.title}</h1>
+          <div className="flex min-w-0 items-center gap-2">
+            <h1 className="truncate text-base font-extrabold leading-tight text-slate-900 sm:text-lg">{copy.title}</h1>
+            <span
+              className={cn(
+                "hidden shrink-0 items-center rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide sm:inline-flex",
+                theme.chipBg,
+                theme.chipText,
+              )}
+            >
+              {theme.label}
+            </span>
+          </div>
           <p className="hidden text-[10px] font-bold uppercase tracking-widest text-slate-400 sm:block">{copy.desk}</p>
         </div>
       </div>

@@ -1,13 +1,15 @@
 "use client";
 
-import { ChevronRight, LogOut, Shield, Truck } from "lucide-react";
+import { ChevronRight, LogOut, Truck } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
 
 import { PublicShell } from "@/components/public-shell";
 import { Badge, StatusBadge, UrgencyBadge } from "@/components/ui";
+import { cn } from "@/lib/cn";
 import { categoryLabel, timeAgo, wardShort } from "@/lib/format";
 import { latestDispatchNote } from "@/lib/officer-log";
+import { ROLE_THEME } from "@/lib/role-theme";
 import type { HazardRow } from "@/lib/types";
 import { mapHazardRow, useLiveRows } from "@/lib/use-live";
 
@@ -34,16 +36,18 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
 
   const open = useMemo(() => hazards.filter((row) => row.status !== "RESOLVED"), [hazards]);
   const dispatchedCount = open.filter((row) => row.dispatched_at).length;
+  const theme = ROLE_THEME.crew;
+  const Icon = theme.icon;
 
   return (
     <PublicShell>
-      <div className="flex items-center justify-between px-6 pb-2 pt-8 lg:px-10 lg:pt-10">
+      <div className={cn("flex items-center justify-between border-t-4 px-6 pb-2 pt-8 lg:px-10 lg:pt-10", theme.accent)}>
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand text-white shadow-glow">
-            <Shield className="h-5 w-5" />
+          <div className={cn("flex h-11 w-11 items-center justify-center rounded-2xl text-white", theme.iconBg, theme.glow)}>
+            <Icon className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-[10px] font-extrabold uppercase tracking-widest text-brand">Field Crew</p>
+            <p className={cn("text-[10px] font-extrabold uppercase tracking-widest", theme.chipText)}>{theme.label}</p>
             <h1 className="text-lg font-extrabold text-slate-900 lg:text-2xl">Open tasks</h1>
           </div>
         </div>
