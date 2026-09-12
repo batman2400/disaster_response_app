@@ -55,12 +55,15 @@ const TOPIC: Record<TraceEventTone, string> = {
 export function PipelineAudit({
   hazard,
   siblings,
+  isDrawer = false,
 }: {
   hazard: HazardRow;
   siblings: HazardRow[];
+  isDrawer?: boolean;
 }) {
   const [tab, setTab] = useState<TabId>("trace");
   const [copied, setCopied] = useState(false);
+  const [selectedHazardId, setSelectedHazardId] = useState(hazard.id);
   const [storedTrace, setStoredTrace] = useState(hazard.trace ?? null);
   const { rows } = useLiveRows<HazardRow>({
     table: "hazards",
@@ -70,16 +73,17 @@ export function PipelineAudit({
     fallbackFetch: () => fetch("/api/hazards").then((res) => res.json() as Promise<HazardRow[]>),
   });
 
-  const selected = rows.find((row) => row.id === hazard.id) ?? hazard;
+  const activeId = isDrawer ? hazard.id : selectedHazardId;
+  const selected = rows.find((row) => row.id === activeId) ?? hazard;
   const trace = useMemo(
     () => parseTrace(storedTrace) ?? parseTrace(selected.trace) ?? inferTrace(selected),
     [storedTrace, selected],
   );
 
   useEffect(() => {
-    setStoredTrace(hazard.trace ?? null);
+    setStoredTrace(selected.trace ?? null);
     let cancelled = false;
-    void fetch(`/api/hazards/${hazard.id}`)
+    void fetch(`/api/hazards/${selected.id}`)
       .then((res) => res.json() as Promise<HazardRow>)
       .then((row) => {
         if (!cancelled && row.trace) setStoredTrace(row.trace);
@@ -88,7 +92,7 @@ export function PipelineAudit({
     return () => {
       cancelled = true;
     };
-  }, [hazard.id, hazard.trace]);
+  }, [selected.id, selected.trace]);
   const payload = useMemo(() => exportTracePayload(selected, trace), [selected, trace]);
   const events = useMemo(() => eventBusFromTrace(selected, trace), [selected, trace]);
   const jsonText = useMemo(() => JSON.stringify(payload, null, 2), [payload]);
@@ -112,43 +116,60 @@ export function PipelineAudit({
   }
 
   return (
-    <div className="relative mx-auto flex min-h-dvh max-w-3xl flex-col px-6 pb-28 pt-6">
-      <div className="pointer-events-none absolute -left-24 -top-16 h-80 w-80 rounded-full bg-cyan-400/15 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-24 -right-20 h-96 w-96 rounded-full bg-purple-500/15 blur-3xl" />
+    <div
+      className={cn(
+        "relative mx-auto flex flex-col text-slate-100 overflow-x-hidden",
+        isDrawer ? "w-full max-w-full px-5 py-4 pb-12" : "min-h-dvh max-w-3xl px-6 pb-28 pt-6",
+      )}
+    >
+      {!isDrawer ? (
+        <>
+          <div className="pointer-events-none absolute -left-24 -top-16 h-80 w-80 rounded-full bg-cyan-400/15 blur-3xl" />
+          <div className="pointer-events-none absolute bottom-24 -right-20 h-96 w-96 rounded-full bg-purple-500/15 blur-3xl" />
 
-      <div className="relative z-10 mb-5 flex items-center justify-between">
-        <Link
-          href="/dashboard/admin/pipeline"
-          className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-700 bg-[#1e293b] text-slate-400"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <div className="text-center">
-          <h1 className="text-lg font-extrabold tracking-tight text-white">Pipeline Audit</h1>
-          <p className="mt-0.5 font-mono text-[10px] font-bold uppercase tracking-widest text-purple-400">
-            DEV_ENV · VERCEL
-          </p>
-        </div>
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-cyan-400/40 bg-cyan-400/20 text-cyan-300">
-          <Bug className="h-4 w-4" />
-        </div>
-      </div>
+          <div className="relative z-10 mb-5 flex items-center justify-between">
+            <Link
+              href="/dashboard/admin/pipeline"
+              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-700 bg-[#1e293b] text-slate-400 hover:bg-slate-800 hover:text-white"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+            <div className="text-center">
+              <h1 className="text-lg font-extrabold tracking-tight text-white">Pipeline Audit</h1>
+              <p className="mt-0.5 font-mono text-[10px] font-bold uppercase tracking-widest text-purple-400">
+                DEV_ENV · VERCEL
+              </p>
+            </div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-cyan-400/40 bg-cyan-400/20 text-cyan-300">
+              <Bug className="h-4 w-4" />
+            </div>
+          </div>
+        </>
+      ) : null}
 
-      <label className="relative z-10 mb-4 block rounded-2xl border border-slate-700 bg-[#1e293b]/90 p-3 shadow-lg">
-        <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Trace ID</div>
-        <select
-          className="mt-1 w-full bg-transparent font-mono text-sm font-bold text-cyan-300 outline-none"
-          value={selected.id}
-          onChange={(event) => {
-            window.location.href = `/dashboard/admin/pipeline/${event.target.value}`;
-          }}
-        >
-          {rows.map((row) => (
-            <option key={row.id} value={row.id} className="bg-[#1e293b] text-slate-100">
-              {row.id.slice(0, 8).toUpperCase()} · {categoryLabel(row.category)} · {wardShort(row.ward_id)}
-            </option>
-          ))}
-        </select>
+      <label className="relative z-10 mb-4 block rounded-2xl border border-slate-800 bg-[#1e293b]/90 p-3 shadow-lg">
+        <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+          {isDrawer ? "Active Incident Trace" : "Trace ID"}
+        </div>
+        {isDrawer ? (
+          <div className="mt-1 font-mono text-sm font-bold text-cyan-300 truncate">
+            #{selected.id.slice(0, 8).toUpperCase()} · {categoryLabel(selected.category)} · {wardShort(selected.ward_id)}
+          </div>
+        ) : (
+          <select
+            className="mt-1 w-full bg-transparent font-mono text-sm font-bold text-cyan-300 outline-none"
+            value={selected.id}
+            onChange={(event) => {
+              setSelectedHazardId(event.target.value);
+            }}
+          >
+            {rows.map((row) => (
+              <option key={row.id} value={row.id} className="bg-[#1e293b] text-slate-100">
+                {row.id.slice(0, 8).toUpperCase()} · {categoryLabel(row.category)} · {wardShort(row.ward_id)}
+              </option>
+            ))}
+          </select>
+        )}
       </label>
 
       <div className="relative z-10 mb-5 flex rounded-xl bg-slate-800/50 p-1">

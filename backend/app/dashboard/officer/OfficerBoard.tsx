@@ -880,25 +880,32 @@ export function OfficerBoard({
 
       {/* 1. Slide-over Pipeline Audit Drawer */}
       {showAuditDrawer && selected ? (
-        <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-          <div className="flex h-full w-full max-w-2xl flex-col bg-white shadow-2xl animate-slide-left">
-            <div className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 px-6">
-              <div className="flex items-center gap-2">
-                <Bug className="h-5 w-5 text-brand" />
-                <h3 className="text-base font-extrabold text-slate-900">
-                  Pipeline Audit: Case #{selected.id.slice(0, 8).toUpperCase()}
-                </h3>
+        <div className="fixed inset-0 z-[9999] flex justify-end bg-slate-950/70 backdrop-blur-md animate-fade-in">
+          <div className="flex h-full w-full max-w-2xl flex-col bg-slate-950 text-white border-l border-slate-800 shadow-2xl animate-slide-left overflow-x-hidden">
+            <div className="flex h-16 shrink-0 items-center justify-between border-b border-slate-800 bg-slate-900/90 px-6 backdrop-blur-md">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-cyan-400/30 bg-cyan-400/20 text-cyan-300 shadow-sm">
+                  <Bug className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-white">
+                    Pipeline Audit · Case #{selected.id.slice(0, 8).toUpperCase()}
+                  </h3>
+                  <p className="font-mono text-[10px] font-bold tracking-wider text-cyan-400">
+                    GEMINI & POSTGIS VERIFICATION TRACE
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowAuditDrawer(false)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                className="rounded-xl border border-slate-800 bg-slate-900 p-1.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto">
-              <PipelineAudit hazard={selected} siblings={tickets} />
+            <div className="flex-1 overflow-y-auto custom-scrollbar overflow-x-hidden">
+              <PipelineAudit hazard={selected} siblings={tickets} isDrawer={true} />
             </div>
           </div>
         </div>
