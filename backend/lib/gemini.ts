@@ -1,9 +1,23 @@
 import { GoogleGenAI } from "@google/genai";
 
 function geminiKeys() {
-  return [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_FALLBACK]
-    .map((key) => key?.trim())
-    .filter((key): key is string => Boolean(key));
+  const sources = [
+    process.env.GEMINI_API_KEY,
+    process.env.GEMINI_API_KEY_FALLBACK,
+    process.env.GEMINI_API_KEY_FALLBACK_2,
+    process.env.GEMINI_FALLBACK_KEYS,
+  ];
+  const keys: string[] = [];
+  for (const src of sources) {
+    if (!src) continue;
+    for (const part of src.split(",")) {
+      const trimmed = part.trim();
+      if (trimmed && !keys.includes(trimmed)) {
+        keys.push(trimmed);
+      }
+    }
+  }
+  return keys;
 }
 
 export function isMockAi() {
