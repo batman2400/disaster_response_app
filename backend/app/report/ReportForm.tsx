@@ -4,20 +4,28 @@ import {
   ArrowLeft,
   Building2,
   Camera,
+  CheckCircle2,
   CircleHelp,
   Compass,
   Construction,
   Cpu,
   Droplets,
+  Globe,
   LifeBuoy,
   LoaderCircle,
   LocateFixed,
   Map as MapIcon,
+  Mic,
   Mountain,
   PhoneCall,
   RotateCw,
   ShieldAlert,
+  Sparkles,
+  Square,
+  Trash2,
   TreeDeciduous,
+  Upload,
+  Volume2,
   Waves,
   Zap,
 } from "lucide-react";
@@ -57,8 +65,57 @@ const WARD_OPTIONS: { id: WardId; name: string; lat: number; lng: number }[] = [
   { id: "ward_03", name: "Ward 03 - Pettah / Colombo Fort", lat: 6.9355, lng: 79.85 },
 ];
 
+const LANGUAGE_CONFIG = {
+  en: {
+    label: "English",
+    placeholder: "Additional context (landmarks, street names, urgency)...",
+    sampleText: "Rising floodwaters near Nagalagam St bridge, 3 people trapped in house.",
+  },
+  si: {
+    label: "සිංහල",
+    placeholder: "අමතර විස්තර (මාර්ග, හඳුනාගැනීමේ ස්ථාන, හදිසි තත්ත්වය)...",
+    sampleText: "නගලගම් වීදිය පාලම අසල වතුර පිරිලා, මිනිස්සු තුන්දෙනෙක් කොටුවෙලා ඉන්නවා.",
+  },
+  ta: {
+    label: "தமிழ்",
+    placeholder: "கூடுதல் விவரங்கள் (அடையாளங்கள், தெருப் பெயர்கள், அவசரநிலை)...",
+    sampleText: "நாகலகம் வீதி பாலம் அருகில் வெள்ள நீர் புகுந்துள்ளது, 3 பேர் சிக்கியுள்ளனர்.",
+  },
+} as const;
+
+function encodeWav(samples: Float32Array, sampleRate: number): ArrayBuffer {
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+  function writeString(offset: number, string: string) {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
+    }
+  }
+  writeString(0, "RIFF");
+  view.setUint32(4, 36 + samples.length * 2, true);
+  writeString(8, "WAVE");
+  writeString(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeString(36, "data");
+  view.setUint32(40, samples.length * 2, true);
+  let offset = 44;
+  for (let i = 0; i < samples.length; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+    offset += 2;
+  }
+  return buffer;
+}
+
 const PIPELINE_META = [
   { id: "image", title: "Vision AI Model", pending: "Awaiting image stream..." },
+  { id: "summary", title: "Multilingual & Voice AI", pending: "Analyzing voice audio & translation..." },
   { id: "location", title: "Metadata Locator", pending: "Pending..." },
   { id: "cluster", title: "PostGIS Cluster Check", pending: "Pending..." },
   { id: "weather", title: "Weather Telemetry", pending: "Pending..." },
@@ -78,6 +135,7 @@ function detailsFromVerdict(verdict: ReportResponse): string[] {
   const checks = verdict.checks;
   return [
     checks.image_verified ? "Verified: image matches category" : "Low confidence on image",
+    verdict.summary ? `[${verdict.detected_language || "AI"}] ${verdict.summary}` : "Input synthesized",
     checks.location_matched ? "Verified: matches GPS" : "Location mismatch",
     `Cluster count: ${checks.cluster_count}`,
     checks.weather_supported ? "Weather supports this report" : "Weather not elevated",
@@ -102,10 +160,145 @@ export function ReportForm() {
   const [modalOpen, setModalOpen] = useState(false);
   const [sosModalOpen, setSosModalOpen] = useState(false);
 
+  // Voice recording & Multilingual states
+  const [audioBase64, setAudioBase64] = useState<string>("");
+  const [audioMime, setAudioMime] = useState<string>("audio/webm");
+  const [audioUrl, setAudioUrl] = useState<string>("");
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [selectedLanguage, setSelectedLanguage] = useState<"en" | "si" | "ta">("en");
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const audioFileInputRef = useRef<HTMLInputElement>(null);
+
   // Rescue specific details
   const [rescuePhone, setRescuePhone] = useState("");
   const [rescuePeopleCount, setRescuePeopleCount] = useState("");
   const [requiresBoat, setRequiresBoat] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    };
+  }, []);
+
+  const startRecording = async () => {
+    setError("");
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("MediaDevices not supported in this browser.");
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType =
+        typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+          ? "audio/webm;codecs=opus"
+          : typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported("audio/webm")
+          ? "audio/webm"
+          : "audio/mp4";
+
+      const recorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = recorder;
+      audioChunksRef.current = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const result = reader.result as string;
+          setAudioBase64(result);
+          setAudioMime(mimeType);
+        };
+        reader.readAsDataURL(audioBlob);
+        setAudioUrl(URL.createObjectURL(audioBlob));
+
+        // Stop mic hardware stream
+        stream.getTracks().forEach((track) => track.stop());
+      };
+
+      recorder.start(250);
+      setIsRecording(true);
+      setRecordingDuration(0);
+
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingDuration((prev) => {
+          if (prev >= 120) {
+            stopRecording();
+            return 120;
+          }
+          return prev + 1;
+        });
+      }, 1000);
+    } catch (err) {
+      console.error("Microphone error:", err);
+      setError("Microphone access unavailable. You can upload an audio file or click Demo Sinhala.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+  };
+
+  const removeAudio = () => {
+    if (isRecording) stopRecording();
+    setAudioBase64("");
+    setAudioMime("audio/webm");
+    setAudioUrl("");
+    setRecordingDuration(0);
+  };
+
+  const handleAudioFile = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      setAudioBase64(dataUrl);
+      setAudioMime(file.type || "audio/mp3");
+      setAudioUrl(URL.createObjectURL(file));
+    } catch {
+      setError("Failed to read audio file.");
+    }
+  };
+
+  const loadDemoSinhalaAudio = () => {
+    setDescription("නගලගම් වීදිය පාලම අසල වතුර අඩි 4ක් පිරිලා, පාර සම්පූර්ණයෙන්ම වැහිලා. මිනිස්සු 3 දෙනෙක් කොටුවෙලා ඉන්නවා.");
+    setSelectedLanguage("si");
+    try {
+      const audioCtx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      const sampleRate = 16000;
+      const numSamples = sampleRate * 1.5;
+      const buffer = audioCtx.createBuffer(1, numSamples, sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < numSamples; i++) {
+        data[i] = Math.sin((i / sampleRate) * 440 * 2 * Math.PI) * 0.2;
+      }
+      const wavBytes = encodeWav(data, sampleRate);
+      const blob = new Blob([wavBytes], { type: "audio/wav" });
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAudioBase64(reader.result as string);
+        setAudioMime("audio/wav");
+        setAudioUrl(URL.createObjectURL(blob));
+        setRecordingDuration(2);
+      };
+      reader.readAsDataURL(blob);
+    } catch {
+      // AudioContext fallback
+    }
+  };
 
   useEffect(() => {
     if (!navigator.geolocation) return;
@@ -187,6 +380,8 @@ export function ReportForm() {
           photo_base64: photo,
           help_request: isRescue,
           description: fullDescription,
+          audio_base64: audioBase64 || undefined,
+          audio_mime: audioBase64 ? audioMime : undefined,
         }),
       });
       const payload = (await response.json()) as ReportResponse & { error?: string };
@@ -470,12 +665,165 @@ export function ReportForm() {
             </div>
           )}
 
-          <textarea
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            placeholder="Additional context (landmarks, street names, urgency)..."
-            className="mb-6 h-24 w-full resize-none rounded-3xl border border-slate-100 bg-white p-5 text-sm font-semibold text-slate-700 shadow-soft placeholder:text-slate-300 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand-light"
-          />
+          {/* Section 4: Voice Recording & Multilingual Context */}
+          <SectionLabel
+            hint={
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-brand">
+                <Globe className="h-3 w-3" />
+                <span>Sinhala · Tamil · English</span>
+              </div>
+            }
+          >
+            4. Voice Memo & Context (AI Multimodal)
+          </SectionLabel>
+
+          <div className="mb-6 rounded-3xl border border-slate-100 bg-white p-5 shadow-soft">
+            {/* Language Quick Selector */}
+            <div className="mb-3 flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                Input Language
+              </span>
+              <div className="flex items-center gap-1.5">
+                {(["en", "si", "ta"] as const).map((lang) => (
+                  <button
+                    key={lang}
+                    type="button"
+                    onClick={() => setSelectedLanguage(lang)}
+                    className={cn(
+                      "rounded-xl px-2.5 py-1 text-xs font-bold transition-all",
+                      selectedLanguage === lang
+                        ? "bg-brand text-white shadow-sm"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200",
+                    )}
+                  >
+                    {LANGUAGE_CONFIG[lang].label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Voice Memo Recording Studio */}
+            <div className="mb-4 rounded-2xl border border-slate-100 bg-slate-50/80 p-3.5">
+              {!audioBase64 && !isRecording ? (
+                <div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={startRecording}
+                      className="flex items-center gap-2 rounded-xl bg-brand px-3.5 py-2 text-xs font-bold text-white shadow-sm shadow-blue-500/20 transition-all hover:bg-brand-indigo active:scale-95"
+                    >
+                      <Mic className="h-4 w-4" />
+                      <span>Record Voice Memo</span>
+                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => audioFileInputRef.current?.click()}
+                        className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                        title="Attach audio file (.mp3, .wav, .m4a, .webm)"
+                      >
+                        <Upload className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Upload Audio</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={loadDemoSinhalaAudio}
+                        className="flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-2.5 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100"
+                        title="Load demo Sinhala voice note to test AI"
+                      >
+                        <Sparkles className="h-3.5 w-3.5" />
+                        <span>Demo Sinhala</span>
+                      </button>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-[11px] font-medium text-slate-400">
+                    Tap to speak directly in Sinhala, Tamil, or English. Gemini automatically translates, extracts landmarks, and synthesizes operational brief.
+                  </p>
+                </div>
+              ) : isRecording ? (
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="relative flex h-3.5 w-3.5">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75" />
+                      <span className="relative inline-flex h-3.5 w-3.5 rounded-full bg-rose-500" />
+                    </span>
+                    <div>
+                      <p className="text-xs font-bold text-slate-900">Recording Voice Memo...</p>
+                      <p className="font-mono text-xs font-semibold text-rose-600">
+                        {Math.floor(recordingDuration / 60)
+                          .toString()
+                          .padStart(2, "0")}
+                        :
+                        {(recordingDuration % 60).toString().padStart(2, "0")} / 02:00
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={stopRecording}
+                    className="flex items-center gap-1.5 rounded-xl bg-rose-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-rose-700 active:scale-95"
+                  >
+                    <Square className="h-3.5 w-3.5 fill-current" />
+                    <span>Stop & Attach</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+                        <CheckCircle2 className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-900">Voice Memo Attached</p>
+                        <p className="text-[10px] font-medium text-emerald-600">
+                          Ready for Gemini audio inference & translation
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={removeAudio}
+                      className="flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-500 hover:bg-rose-50 hover:text-rose-600"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>Remove</span>
+                    </button>
+                  </div>
+                  {audioUrl ? (
+                    <audio src={audioUrl} controls className="h-9 w-full rounded-lg" />
+                  ) : null}
+                </div>
+              )}
+            </div>
+
+            <input
+              ref={audioFileInputRef}
+              type="file"
+              accept="audio/*"
+              className="hidden"
+              onChange={(e) => void handleAudioFile(e.target.files?.[0])}
+            />
+
+            {/* Multilingual Textarea */}
+            <div className="relative">
+              <textarea
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                placeholder={LANGUAGE_CONFIG[selectedLanguage].placeholder}
+                className="h-24 w-full resize-none rounded-2xl border border-slate-200 bg-slate-50/50 p-3.5 text-xs font-semibold text-slate-800 placeholder:text-slate-300 focus:border-brand focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-light"
+              />
+              {!description && (
+                <button
+                  type="button"
+                  onClick={() => setDescription(LANGUAGE_CONFIG[selectedLanguage].sampleText)}
+                  className="absolute bottom-3 right-3 text-[10px] font-bold text-brand hover:underline"
+                >
+                  Insert {LANGUAGE_CONFIG[selectedLanguage].label} sample →
+                </button>
+              )}
+            </div>
+          </div>
           {error ? <p className="mb-4 text-sm font-semibold text-status-crimson">{error}</p> : null}
 
           <div className="mt-auto hidden lg:block">
@@ -519,6 +867,34 @@ export function ReportForm() {
             </div>
 
             <PipelineStepper steps={steps} />
+
+            {/* AI Multilingual Translation & Operational Brief Card */}
+            {verdict?.summary ? (
+              <div className="relative mt-6 overflow-hidden rounded-[24px] border border-blue-100 bg-blue-50/70 p-5 shadow-md animate-pop">
+                <div className="flex items-center justify-between mb-3 border-b border-blue-200/50 pb-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-brand" />
+                    <span className="text-xs font-extrabold uppercase tracking-wide text-brand">
+                      AI Multilingual Ingestion Verdict
+                    </span>
+                  </div>
+                  {verdict.detected_language ? (
+                    <span className="rounded-full bg-brand px-2.5 py-0.5 text-[10px] font-extrabold text-white uppercase shadow-sm">
+                      {verdict.detected_language}
+                    </span>
+                  ) : null}
+                </div>
+
+                <div>
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                    Standardized Operational English Brief
+                  </span>
+                  <p className="mt-1 text-sm font-extrabold leading-relaxed text-slate-900">
+                    {verdict.summary}
+                  </p>
+                </div>
+              </div>
+            ) : null}
 
             {verdict ? (
               <div className="relative mt-6 overflow-hidden rounded-[24px] bg-slate-900 p-6 shadow-xl animate-pop">
