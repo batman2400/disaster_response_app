@@ -7,7 +7,7 @@ export function PublicShell({
 }: {
   children: React.ReactNode;
   className?: string;
-  variant?: "page" | "bleed";
+  variant?: "page" | "bleed" | "wide";
 }) {
   if (variant === "bleed") {
     return (
@@ -17,15 +17,11 @@ export function PublicShell({
     );
   }
 
+  const maxWidth = variant === "wide" ? "max-w-7xl" : "max-w-6xl";
+
   return (
-    <div className="flex min-h-dvh justify-center bg-slate-200/80 lg:bg-slate-200 lg:px-6 lg:py-8">
-      <div
-        className={cn(
-          "relative flex min-h-dvh w-full max-w-md flex-col overflow-hidden bg-slate-50 shadow-2xl",
-          "lg:min-h-[calc(100dvh-4rem)] lg:max-w-6xl lg:rounded-[32px]",
-          className,
-        )}
-      >
+    <div className="relative min-h-dvh w-full flex flex-col bg-slate-50 text-slate-900">
+      <div className={cn("relative mx-auto flex w-full flex-1 flex-col", maxWidth, className)}>
         {children}
       </div>
     </div>
