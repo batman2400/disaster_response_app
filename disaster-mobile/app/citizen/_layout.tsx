@@ -1,26 +1,23 @@
-import { useRouter } from "expo-router";
 import { Tabs } from "expo-router";
-import { Pressable, Text } from "react-native";
+import { View } from "react-native";
 
+import { SignOutLink } from "@/components/sign-out";
+import { useRequireRole } from "@/lib/auth-context";
 import { colors } from "@/lib/theme";
 
-function RolesLink() {
-  const router = useRouter();
-  return (
-    <Pressable onPress={() => router.replace("/")} style={{ paddingHorizontal: 12 }}>
-      <Text style={{ color: colors.amber, fontWeight: "700" }}>Home</Text>
-    </Pressable>
-  );
-}
-
 export default function CitizenLayout() {
+  const { ready, session } = useRequireRole("CITIZEN");
+  if (!ready || session?.role !== "CITIZEN") {
+    return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
+  }
+
   return (
     <Tabs
       screenOptions={{
         headerStyle: { backgroundColor: colors.bg },
         headerTintColor: colors.text,
         headerShadowVisible: false,
-        headerLeft: () => <RolesLink />,
+        headerLeft: () => <SignOutLink />,
         tabBarStyle: { backgroundColor: colors.bg, borderTopColor: colors.line },
         tabBarActiveTintColor: colors.amber,
         tabBarInactiveTintColor: colors.muted,

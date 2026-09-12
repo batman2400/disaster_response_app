@@ -2,7 +2,13 @@
   "expo": {
     "name": "Fender",
     "slug": "disaster-mobile",
-    "version": "1.0.0",
+    "version": "1.0.2",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/c3095ff7-b9b3-4a48-ace9-bfaacf21ac6f"
+    },
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "disastermobile",

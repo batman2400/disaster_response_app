@@ -1,7 +1,20 @@
 import { useRouter } from "expo-router";
-import { createElement } from "react";
-import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { createElement, useEffect, useState } from "react";
+import {
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
+import { PrimaryButton } from "@/components/ui";
+import { useAuth } from "@/lib/auth-context";
+import { displayName, verifyCrewPassword } from "@/lib/session";
 import { colors } from "@/lib/theme";
 import { ROLES, type Role } from "@/lib/types";
 
@@ -36,33 +49,132 @@ function BrandMark() {
   );
 }
 
-export default function RolePickerScreen() {
-  const router = useRouter();
+function homeFor(role: Role) {
+  return role === "FIELD_CREW" ? "/crew" : "/citizen/report";
+}
 
-  function pick(route: string) {
-    router.push(route as never);
+export default function LoginScreen() {
+  const router = useRouter();
+  const { session, ready, signIn } = useAuth();
+  const [role, setRole] = useState<Role>("CITIZEN");
+  const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!ready || !session) return;
+    router.replace(homeFor(session.role) as never);
+  }, [ready, router, session]);
+
+  async function submit() {
+    setBusy(true);
+    setError("");
+    try {
+      if (role === "FIELD_CREW") {
+        if (!password.trim()) {
+          throw new Error("Crew password is required");
+        }
+        await verifyCrewPassword(password);
+      }
+      signIn({ role, name: displayName(name, role) });
+      router.replace(homeFor(role) as never);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Sign in failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!ready || session) {
+    return <View style={styles.screen} />;
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <View style={styles.logoWrap}>
-        <BrandMark />
-      </View>
-      <Text style={styles.kicker}>FIELD APP</Text>
-      <Text style={styles.title}>Fender</Text>
-      <Text style={styles.sub}>Report a hazard or close one on site. Desk work lives on the web.</Text>
+    <KeyboardAvoidingView
+      style={styles.screen}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <View style={styles.logoWrap}>
+          <BrandMark />
+        </View>
+        <Text style={styles.kicker}>FIELD APP</Text>
+        <Text style={styles.title}>Sign in</Text>
+        <Text style={styles.sub}>
+          Citizens continue without a password. Field crew uses the shared site password.
+        </Text>
 
-      {ROLES.map((item) => (
-        <Pressable
-          key={item.id}
-          style={[styles.card, { borderLeftColor: ROLE_COPY[item.id].accent }]}
-          onPress={() => pick(item.route)}
-        >
-          <Text style={styles.cardTitle}>{item.label}</Text>
-          <Text style={styles.cardHint}>{ROLE_COPY[item.id].hint}</Text>
-        </Pressable>
-      ))}
-    </ScrollView>
+        <View style={styles.card}>
+          <Text style={styles.label}>Role</Text>
+          <View style={styles.roleRow}>
+            {ROLES.map((item) => {
+              const on = role === item.id;
+              return (
+                <Pressable
+                  key={item.id}
+                  accessibilityRole="button"
+                  onPress={() => {
+                    setRole(item.id);
+                    setError("");
+                  }}
+                  style={[
+                    styles.roleChip,
+                    on && styles.roleChipOn,
+                    on && { borderColor: ROLE_COPY[item.id].accent },
+                  ]}
+                >
+                  <Text style={[styles.roleTitle, on && styles.roleTitleOn]}>{item.label}</Text>
+                  <Text style={styles.roleHint}>{ROLE_COPY[item.id].hint}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Text style={styles.label}>Your name</Text>
+          <TextInput
+            value={name}
+            onChangeText={setName}
+            placeholder={role === "FIELD_CREW" ? "Crew name" : "Optional"}
+            placeholderTextColor={colors.muted}
+            autoCapitalize="words"
+            style={styles.input}
+          />
+
+          {role === "FIELD_CREW" ? (
+            <>
+              <Text style={styles.label}>Password</Text>
+              <TextInput
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Shared crew password"
+                placeholderTextColor={colors.muted}
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+                textContentType="password"
+                style={styles.input}
+              />
+            </>
+          ) : null}
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          <View style={styles.action}>
+            <PrimaryButton
+              label={role === "FIELD_CREW" ? "Enter crew queue" : "Continue as citizen"}
+              onPress={() => void submit()}
+              loading={busy}
+            />
+          </View>
+        </View>
+
+        <Text style={styles.foot}>
+          Officer and relief desks stay on the web dashboard. This app is for reports and field
+          closures.
+        </Text>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -96,27 +208,53 @@ const styles = StyleSheet.create({
   sub: {
     color: colors.muted,
     fontSize: 15,
-    marginBottom: 28,
+    marginBottom: 22,
     lineHeight: 22,
   },
   card: {
     backgroundColor: colors.card,
     borderColor: colors.line,
     borderWidth: 1,
-    borderLeftWidth: 4,
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 16,
-    marginBottom: 12,
   },
-  cardTitle: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  cardHint: {
+  label: {
     color: colors.muted,
-    marginTop: 6,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 12,
+    fontWeight: "700",
+    marginBottom: 8,
+    marginTop: 12,
+  },
+  roleRow: { gap: 10 },
+  roleChip: {
+    backgroundColor: colors.bg2,
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+  },
+  roleChipOn: {
+    backgroundColor: colors.cardSoft,
+  },
+  roleTitle: { color: colors.muted, fontSize: 16, fontWeight: "700" },
+  roleTitleOn: { color: colors.text },
+  roleHint: { color: colors.muted, marginTop: 4, fontSize: 13, lineHeight: 18 },
+  input: {
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: 12,
+    color: colors.text,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: colors.bg2,
+    fontSize: 16,
+  },
+  action: { marginTop: 18 },
+  error: { color: colors.red, marginTop: 12, fontWeight: "600" },
+  foot: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 18,
   },
 });

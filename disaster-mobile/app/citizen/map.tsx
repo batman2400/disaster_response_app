@@ -83,136 +83,156 @@ export default function PublicMapScreen() {
 
   return (
     <View style={styles.screen}>
-      {criticalWard || alertHazard ? (
-        <View style={styles.alert}>
-          <Text style={styles.alertTitle}>
-            AREA ALERT · {criticalWard?.name ?? categoryLabel(alertHazard!.category)}
-          </Text>
-          <Text style={styles.alertBody}>
-            {criticalWard
-              ? `Rain ${criticalWard.rainfall_mm} mm · river ${criticalWard.river_level_pct}%`
-              : alertHazard?.description}
-          </Text>
-        </View>
-      ) : null}
+      <View style={styles.mapContainer}>
+        {MapView && Marker ? (
+          <MapView
+            style={styles.map}
+            provider={provider}
+            initialRegion={{
+              ...COLOMBO_CENTER,
+              latitudeDelta: 0.08,
+              longitudeDelta: 0.08,
+            }}
+          >
+            {hazards.map((hazard) => (
+              <Marker
+                key={hazard.id}
+                coordinate={{ latitude: hazard.lat, longitude: hazard.lng }}
+                pinColor={PIN_COLORS[hazard.status]}
+                title={hazard.category}
+                description={`${hazard.status} · ${hazard.description ?? ""}`}
+              />
+            ))}
+            {Polyline
+              ? activeSafeRouteWards.map((wardId) => (
+                  <Polyline
+                    key={`route-${wardId}`}
+                    coordinates={SAFE_ROUTES[wardId]}
+                    strokeColor={colors.green}
+                    strokeWidth={3}
+                    lineDashPattern={[8, 6]}
+                  />
+                ))
+              : null}
+          </MapView>
+        ) : (
+          <View style={styles.fallback}>
+            <Kicker>MAP TILES</Kicker>
+            <Text style={styles.fallbackTitle}>Native MapView on device</Text>
+            <Sub>Expo web shows the live pin list below. Android tiles need the EAS build.</Sub>
+          </View>
+        )}
+      </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.wardScroll}
-        contentContainerStyle={styles.wardRow}
-      >
-        {wards.map((ward) => (
-          <View key={ward.id} style={styles.wardChip}>
-            <WardBadge status={ward.status} />
-            <Text style={styles.wardName} numberOfLines={1}>
-              {ward.name.split(" / ")[0]}
+      <View style={styles.overlayContainer} pointerEvents="box-none">
+        {criticalWard || alertHazard ? (
+          <View style={styles.alert}>
+            <Text style={styles.alertTitle}>
+              AREA ALERT · {criticalWard?.name ?? categoryLabel(alertHazard!.category)}
             </Text>
-            <Text style={styles.wardMeta}>
-              {ward.rainfall_mm} mm · {ward.river_level_pct}%
+            <Text style={styles.alertBody}>
+              {criticalWard
+                ? `Rain ${criticalWard.rainfall_mm} mm · river ${criticalWard.river_level_pct}%`
+                : alertHazard?.description}
             </Text>
           </View>
-        ))}
-      </ScrollView>
+        ) : null}
 
-      {needsConfirmation.length > 0 ? (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={styles.confirmScroll}
-          contentContainerStyle={styles.confirmRow}
+          style={styles.wardScroll}
+          contentContainerStyle={styles.wardRow}
         >
-          {needsConfirmation.map((hazard) => (
-            <View key={hazard.id} style={styles.confirmCard}>
-              <View style={styles.badgeRow}>
-                <StatusBadge status={hazard.status} />
-                <Badge label={`${hazard.confirmations_count} confirmed`} color={colors.blue} />
-              </View>
-              <Text style={styles.confirmTitle} numberOfLines={1}>
-                {categoryLabel(hazard.category)}
+          {wards.map((ward) => (
+            <View key={ward.id} style={styles.wardChip}>
+              <WardBadge status={ward.status} />
+              <Text style={styles.wardName} numberOfLines={1}>
+                {ward.name.split(" / ")[0]}
               </Text>
-              <Text style={styles.confirmMeta} numberOfLines={1}>
-                {wardName(hazard.ward_id)} · {timeAgo(hazard.created_at)}
+              <Text style={styles.wardMeta}>
+                {ward.rainfall_mm} mm · {ward.river_level_pct}%
               </Text>
-              <GhostButton
-                label={confirmingId === hazard.id ? "Confirming…" : "I see this too"}
-                disabled={confirmingId === hazard.id}
-                onPress={() => void confirmNearby(hazard.id)}
-              />
             </View>
           ))}
         </ScrollView>
-      ) : null}
-      {confirmError ? <Text style={styles.confirmError}>{confirmError}</Text> : null}
 
-      {MapView && Marker ? (
-        <MapView
-          style={styles.map}
-          provider={provider}
-          initialRegion={{
-            ...COLOMBO_CENTER,
-            latitudeDelta: 0.08,
-            longitudeDelta: 0.08,
-          }}
-        >
-          {hazards.map((hazard) => (
-            <Marker
-              key={hazard.id}
-              coordinate={{ latitude: hazard.lat, longitude: hazard.lng }}
-              pinColor={PIN_COLORS[hazard.status]}
-              title={hazard.category}
-              description={`${hazard.status} · ${hazard.description ?? ""}`}
-            />
-          ))}
-          {Polyline
-            ? activeSafeRouteWards.map((wardId) => (
-                <Polyline
-                  key={`route-${wardId}`}
-                  coordinates={SAFE_ROUTES[wardId]}
-                  strokeColor={colors.green}
-                  strokeWidth={3}
-                  lineDashPattern={[8, 6]}
+        {needsConfirmation.length > 0 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.confirmScroll}
+            contentContainerStyle={styles.confirmRow}
+          >
+            {needsConfirmation.map((hazard) => (
+              <View key={hazard.id} style={styles.confirmCard}>
+                <View style={styles.badgeRow}>
+                  <StatusBadge status={hazard.status} />
+                  <Badge label={`${hazard.confirmations_count} confirmed`} color={colors.blue} />
+                </View>
+                <Text style={styles.confirmTitle} numberOfLines={1}>
+                  {categoryLabel(hazard.category)}
+                </Text>
+                <Text style={styles.confirmMeta} numberOfLines={1}>
+                  {wardName(hazard.ward_id)} · {timeAgo(hazard.created_at)}
+                </Text>
+                <GhostButton
+                  label={confirmingId === hazard.id ? "Confirming…" : "I see this too"}
+                  disabled={confirmingId === hazard.id}
+                  onPress={() => void confirmNearby(hazard.id)}
                 />
-              ))
-            : null}
-        </MapView>
-      ) : (
-        <View style={styles.fallback}>
-          <Kicker>MAP TILES</Kicker>
-          <Text style={styles.fallbackTitle}>Native MapView on device</Text>
-          <Sub>Expo web shows the live pin list below. Android tiles need the EAS build.</Sub>
-        </View>
-      )}
+              </View>
+            ))}
+          </ScrollView>
+        ) : null}
+        {confirmError ? <Text style={styles.confirmError}>{confirmError}</Text> : null}
+      </View>
 
-      {activeSafeRouteWards.length > 0 ? (
-        <Text style={styles.routeLegend}>
-          ┅ Dashed line marks a static safe route toward the nearest shelter — not computed.
-        </Text>
-      ) : null}
+      <View style={styles.bottomSheet}>
+        {activeSafeRouteWards.length > 0 ? (
+          <Text style={styles.routeLegend}>
+            ┅ Dashed line marks a static safe route toward the nearest shelter — not computed.
+          </Text>
+        ) : null}
 
-      <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
-        <Text style={styles.listTitle}>{hazards.length} live pins</Text>
-        {hazards.map((hazard) => (
-          <Card key={hazard.id} accent={PIN_COLORS[hazard.status]} style={styles.item}>
-            <View style={styles.badgeRow}>
-              <StatusBadge status={hazard.status} />
-              <UrgencyBadge urgency={hazard.urgency} />
-              {hazard.is_road_blocked ? <Badge label="ROAD BLOCKED" color={colors.red} /> : null}
-            </View>
-            <Text style={styles.itemTitle}>{categoryLabel(hazard.category)}</Text>
-            <Text style={styles.itemBody}>{hazard.description}</Text>
-            <Text style={styles.itemMeta}>
-              {wardName(hazard.ward_id)} · {timeAgo(hazard.created_at)}
-            </Text>
-          </Card>
-        ))}
-      </ScrollView>
+        <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
+          <Text style={styles.listTitle}>{hazards.length} live pins</Text>
+          {hazards.map((hazard) => (
+            <Card key={hazard.id} accent={PIN_COLORS[hazard.status]} style={styles.item}>
+              <View style={styles.badgeRow}>
+                <StatusBadge status={hazard.status} />
+                <UrgencyBadge urgency={hazard.urgency} />
+                {hazard.is_road_blocked ? <Badge label="ROAD BLOCKED" color={colors.red} /> : null}
+              </View>
+              <Text style={styles.itemTitle}>{categoryLabel(hazard.category)}</Text>
+              <Text style={styles.itemBody}>{hazard.description}</Text>
+              <Text style={styles.itemMeta}>
+                {wardName(hazard.ward_id)} · {timeAgo(hazard.created_at)}
+              </Text>
+            </Card>
+          ))}
+        </ScrollView>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
+  mapContainer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 0,
+  },
+  map: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  overlayContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
   alert: { backgroundColor: colors.red, paddingHorizontal: 16, paddingVertical: 12 },
   alertTitle: { color: colors.text, fontWeight: "700" },
   alertBody: { color: colors.text, marginTop: 4 },
@@ -241,23 +261,38 @@ const styles = StyleSheet.create({
   confirmTitle: { color: colors.text, fontWeight: "700", marginTop: 8 },
   confirmMeta: { color: colors.muted, marginTop: 2, marginBottom: 8, fontSize: 12 },
   confirmError: { color: colors.red, marginHorizontal: 16, marginBottom: 8, fontWeight: "600" },
-  map: { height: 240 },
   fallback: {
+    flex: 1,
     marginHorizontal: 16,
+    marginTop: 220,
     marginBottom: 8,
     backgroundColor: colors.card,
     borderColor: colors.line,
     borderWidth: 1,
     borderRadius: 16,
     padding: 14,
+    alignSelf: "stretch",
+    maxHeight: 140,
   },
   fallbackTitle: { color: colors.text, fontWeight: "700", fontSize: 16 },
+  bottomSheet: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    maxHeight: "38%",
+    zIndex: 10,
+    backgroundColor: colors.bg,
+    borderTopColor: colors.line,
+    borderTopWidth: 1,
+  },
   routeLegend: {
     color: colors.green,
     fontSize: 12,
     fontWeight: "600",
     marginHorizontal: 16,
-    marginBottom: 8,
+    marginTop: 10,
+    marginBottom: 4,
   },
   list: { flex: 1 },
   listContent: { padding: 16, paddingBottom: 32 },

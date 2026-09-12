@@ -1,11 +1,13 @@
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 
+import { SignOutLink } from "@/components/sign-out";
+import { AuthProvider } from "@/lib/auth-context";
 import { colors } from "@/lib/theme";
 
 export default function RootLayout() {
   return (
-    <>
+    <AuthProvider>
       <StatusBar style="light" />
       <Stack
         screenOptions={{
@@ -18,8 +20,11 @@ export default function RootLayout() {
       >
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="citizen" options={{ headerShown: false }} />
-        <Stack.Screen name="crew/index" options={{ title: "Field crew" }} />
+        <Stack.Screen
+          name="crew/index"
+          options={{ title: "Field crew", headerRight: () => <SignOutLink /> }}
+        />
       </Stack>
-    </>
+    </AuthProvider>
   );
 }

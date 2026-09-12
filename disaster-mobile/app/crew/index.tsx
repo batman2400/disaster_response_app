@@ -17,11 +17,13 @@ import {
   UrgencyBadge,
 } from "@/components/ui";
 import { fetchHazards, postResolve } from "@/lib/api";
+import { useRequireRole } from "@/lib/auth-context";
 import { categoryLabel, timeAgo, wardName } from "@/lib/format";
 import { colors, urgencyColor } from "@/lib/theme";
 import { type HazardRow } from "@/lib/types";
 
 export default function CrewScreen() {
+  const { ready, session } = useRequireRole("FIELD_CREW");
   const [tickets, setTickets] = useState<HazardRow[]>([]);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -68,11 +70,18 @@ export default function CrewScreen() {
     }
   }
 
+  if (!ready || session?.role !== "FIELD_CREW") {
+    return null;
+  }
+
   return (
     <Screen>
       <Kicker>FIELD CREW</Kicker>
       <Title>Resolution queue</Title>
-      <Sub>Closing a ticket requires a new after-fix photo. The public map pin flips to RESOLVED.</Sub>
+      <Sub>
+        {session.name} · Closing a ticket requires a new after-fix photo. The public map pin flips
+        to RESOLVED.
+      </Sub>
 
       <View style={styles.stats}>
         <Stat label="Open jobs" value={tickets.length} color={colors.amber} />

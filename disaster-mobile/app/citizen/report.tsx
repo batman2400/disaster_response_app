@@ -52,15 +52,21 @@ export default function ReportScreen() {
     setPhoto(`data:image/jpeg;base64,${result.assets[0].base64}`);
   }
 
+  const hasCoordinates = Boolean(lat && lng);
+  const canSubmit = hasCoordinates && Boolean(photo);
+
   async function grabGps() {
     const permission = await Location.requestForegroundPermissionsAsync();
     if (!permission.granted) {
-      setError("Location permission is required.");
+      if (!hasCoordinates) {
+        setError("Location permission is required.");
+      }
       return;
     }
     const pos = await Location.getCurrentPositionAsync({});
     setLat(Number(pos.coords.latitude.toFixed(5)));
     setLng(Number(pos.coords.longitude.toFixed(5)));
+    setError("");
   }
 
   async function submit() {
@@ -159,6 +165,7 @@ export default function ReportScreen() {
       <PrimaryButton
         label="Submit report"
         onPress={() => void submit()}
+        disabled={!canSubmit}
         loading={busy}
       />
 

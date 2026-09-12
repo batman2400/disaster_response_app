@@ -95,6 +95,7 @@ export function PrimaryButton({
 }) {
   return (
     <Pressable
+      accessibilityRole="button"
       onPress={onPress}
       disabled={disabled || loading}
       style={[styles.primary, { backgroundColor: color, opacity: disabled ? 0.5 : 1 }]}

@@ -1,11 +1,17 @@
 import { GoogleGenAI } from "@google/genai";
 
+function geminiKeys() {
+  return [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_FALLBACK]
+    .map((key) => key?.trim())
+    .filter((key): key is string => Boolean(key));
+}
+
 export function isMockAi() {
-  return process.env.MOCK_AI === "1" || !process.env.GEMINI_API_KEY;
+  return process.env.MOCK_AI === "1" || geminiKeys().length === 0;
 }
 
 export function getGemini() {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = geminiKeys()[0];
   if (!apiKey) return null;
   return new GoogleGenAI({ apiKey });
 }
@@ -27,8 +33,8 @@ export async function callGeminiJson<T>(
   schema: Record<string, unknown>,
   photoBase64?: string,
 ): Promise<T> {
-  const ai = getGemini();
-  if (!ai) {
+  const keys = geminiKeys();
+  if (!keys.length) {
     throw new Error("GEMINI_API_KEY is not set");
   }
 
@@ -40,20 +46,33 @@ export async function callGeminiJson<T>(
     });
   }
 
-  const response = await ai.models.generateContent({
-    model: geminiModel(),
-    contents: [{ role: "user", parts }],
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: schema,
-    },
-  });
+  let lastError: Error | null = null;
+  for (const [index, apiKey] of keys.entries()) {
+    try {
+      const ai = new GoogleGenAI({ apiKey });
+      const response = await ai.models.generateContent({
+        model: geminiModel(),
+        contents: [{ role: "user", parts }],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: schema,
+        },
+      });
 
-  const text = response.text;
-  if (!text) {
-    throw new Error("Gemini returned an empty response");
+      const text = response.text;
+      if (!text) {
+        throw new Error("Gemini returned an empty response");
+      }
+      return JSON.parse(text) as T;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      if (index < keys.length - 1) {
+        console.error("[gemini] primary key failed, trying fallback:", lastError.message);
+      }
+    }
   }
-  return JSON.parse(text) as T;
+
+  throw lastError ?? new Error("Gemini call failed");
 }
 
 /**
