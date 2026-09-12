@@ -242,3 +242,25 @@ body {
 .metric-value {
   transition: color 0.5s ease;
 }
+
+/* PWA Mobile & Safe Area Insets */
+.pt-safe {
+  padding-top: max(env(safe-area-inset-top, 0px), 8px);
+}
+
+.pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 16px);
+}
+
+.pb-safe-nav {
+  padding-bottom: calc(max(env(safe-area-inset-bottom, 0px), 16px) + 72px);
+}
+
+.mb-safe {
+  margin-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.touch-manipulation {
+  touch-action: manipulation;
+}
+
