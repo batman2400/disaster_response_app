@@ -40,9 +40,22 @@ export async function POST(request: Request) {
       };
 
   const thresholds = await nudgeThresholds(existing.status, body.new_status);
+  const resolved_at =
+    body.new_status === "RESOLVED"
+      ? existing.resolved_at ?? new Date().toISOString()
+      : null;
+  const is_road_blocked =
+    body.is_road_blocked !== undefined
+      ? body.is_road_blocked
+      : body.new_status === "RESOLVED"
+        ? false
+        : existing.is_road_blocked;
+
   const updated = await saveHazard({
     ...existing,
     status: body.new_status,
+    resolved_at,
+    is_road_blocked,
     ...trail,
   });
 

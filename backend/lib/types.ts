@@ -102,7 +102,9 @@ export type OfficerAction =
   | "crowdsource"
   | "dispatch"
   | "detour"
-  | "assign";
+  | "assign"
+  | "resolve"
+  | "alert";
 
 export interface OfficerLogEntry {
   at: string;
@@ -116,6 +118,7 @@ export interface OverrideRequest {
   new_status: HazardStatus;
   officer_note: string;
   action?: OfficerAction;
+  is_road_blocked?: boolean;
 }
 
 export interface ResolveRequest {

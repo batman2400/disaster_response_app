@@ -14,6 +14,8 @@ const ACTIONS: OfficerAction[] = [
   "dispatch",
   "detour",
   "assign",
+  "resolve",
+  "alert",
 ];
 
 export const OFFICER_ACTION_LABEL: Record<OfficerAction, string> = {
@@ -24,6 +26,8 @@ export const OFFICER_ACTION_LABEL: Record<OfficerAction, string> = {
   dispatch: "Dispatch Crew",
   detour: "Suggest Detour",
   assign: "Assign to Shelter",
+  resolve: "Resolve Hazard",
+  alert: "Area Alert Broadcast",
 };
 
 function isAction(value: unknown): value is OfficerAction {
