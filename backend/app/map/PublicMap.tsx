@@ -8,8 +8,10 @@ import {
   Camera,
   Check,
   Compass,
+  ExternalLink,
   LocateFixed,
   Map as MapIcon,
+  Navigation,
   PhoneCall,
   Plus,
   Route,
@@ -242,6 +244,15 @@ function ShelterDetail({
             <span>Navigate Safe Evacuation Route (Detour Active)</span>
           </button>
         )}
+        <a
+          href={`https://www.google.com/maps/dir/?api=1&destination=${shelter.lat},${shelter.lng}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white py-3 text-xs font-bold text-slate-800 shadow-sm hover:border-slate-300 hover:bg-slate-50 active:scale-98"
+        >
+          <Navigation className="h-3.5 w-3.5 text-blue-600" />
+          <span>Open in Google Maps GPS (Live Turn-by-Turn)</span>
+        </a>
         <a
           href="tel:117"
           className="flex w-full items-center justify-center gap-2 rounded-2xl bg-brand py-3 text-xs font-extrabold text-white shadow-md shadow-brand/20 active:scale-98"
@@ -737,6 +748,16 @@ export function PublicMap({
                       <Route className="h-3.5 w-3.5" />
                       Navigate Detour
                     </Button>
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${shelter.lat},${shelter.lng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Open Turn-by-Turn in Google Maps"
+                      className="inline-flex h-8 items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 active:scale-95"
+                    >
+                      <Navigation className="h-3 w-3 text-blue-600" />
+                      <span className="hidden sm:inline">Google Maps</span>
+                    </a>
                     <Button
                       type="button"
                       variant="ghost"
@@ -965,26 +986,39 @@ export function PublicMap({
               </div>
             </div>
 
-            <div className="flex gap-2 pt-2 border-t border-slate-100">
-              <Button
-                type="button"
-                variant="ghost"
-                className="flex-1 py-2 text-xs font-bold text-slate-600"
-                onClick={() => {
-                  setActiveDetourRoute(null);
-                  setDetourDrawerOpen(false);
-                }}
+            <div className="flex flex-col gap-2 pt-2 border-t border-slate-100">
+              <a
+                href={`https://www.google.com/maps/dir/?api=1&destination=${activeDetourRoute.destination[0]},${activeDetourRoute.destination[1]}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-extrabold text-slate-800 shadow-sm hover:border-slate-300 hover:bg-slate-50 active:scale-98"
               >
-                Clear Route
-              </Button>
-              <Button
-                type="button"
-                variant="gradient"
-                className="flex-1 py-2 text-xs font-black"
-                onClick={() => setDetourDrawerOpen(false)}
-              >
-                View on Live Map
-              </Button>
+                <Navigation className="h-3.5 w-3.5 text-blue-600" />
+                <span>Launch Google Maps Turn-by-Turn (Voice Navigation)</span>
+                <ExternalLink className="h-3 w-3 text-slate-400" />
+              </a>
+
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="flex-1 py-2 text-xs font-bold text-slate-600"
+                  onClick={() => {
+                    setActiveDetourRoute(null);
+                    setDetourDrawerOpen(false);
+                  }}
+                >
+                  Clear Route
+                </Button>
+                <Button
+                  type="button"
+                  variant="gradient"
+                  className="flex-1 py-2 text-xs font-black"
+                  onClick={() => setDetourDrawerOpen(false)}
+                >
+                  View on Live Map
+                </Button>
+              </div>
             </div>
           </div>
         )}
