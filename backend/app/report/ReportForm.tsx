@@ -335,6 +335,20 @@ export function ReportForm() {
     setPhoto(await readFileAsDataUrl(file));
   }
 
+  function getOrCreateReporterId(): string {
+    if (typeof window === "undefined") return "rep-web-client";
+    try {
+      let id = localStorage.getItem("fender_reporter_id");
+      if (!id) {
+        id = `rep-${Math.random().toString(36).slice(2, 8)}`;
+        localStorage.setItem("fender_reporter_id", id);
+      }
+      return id;
+    } catch {
+      return "rep-fallback-client";
+    }
+  }
+
   async function submit() {
     if (!category || !photo) return;
     if (isRescue && !rescuePhone.trim()) {
@@ -380,6 +394,7 @@ export function ReportForm() {
           photo_base64: photo,
           help_request: isRescue,
           description: fullDescription,
+          reporter_id: getOrCreateReporterId(),
           audio_base64: audioBase64 || undefined,
           audio_mime: audioBase64 ? audioMime : undefined,
         }),
@@ -412,6 +427,15 @@ export function ReportForm() {
   function SubmitButton() {
     return (
       <div className="flex flex-col gap-2">
+        {error && (
+          <div className="mb-2 flex items-start gap-3 rounded-2xl border border-rose-300 bg-rose-50 p-4 text-xs text-rose-900 shadow-sm animate-pop">
+            <ShieldAlert className="h-5 w-5 text-status-crimson shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="font-extrabold text-rose-900">Submission Alert</p>
+              <p className="font-medium leading-relaxed text-rose-700">{error}</p>
+            </div>
+          </div>
+        )}
         <Button
           type="button"
           variant="gradient"

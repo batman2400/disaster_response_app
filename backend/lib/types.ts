@@ -32,6 +32,7 @@ export interface ReportRequest {
   photo_base64: string;
   help_request: boolean;
   description: string;
+  reporter_id?: string;
   audio_base64?: string;
   audio_mime?: string;
 }
@@ -236,4 +237,37 @@ export interface ReplayState {
   clock: string;
   interval_ms: number;
   events: ReplayEvent[];
+}
+
+export interface BannedReporter {
+  id: string;
+  device_label: string;
+  ip_address?: string;
+  reason: string;
+  banned_at: string;
+  flagged_reports_count: number;
+}
+
+export interface RetuneLogEntry {
+  id: string;
+  timestamp: string;
+  trigger: "OFFICER_OVERRIDE" | "ADMIN_MANUAL";
+  incident_id?: string;
+  previous_confirm: number;
+  new_confirm: number;
+  previous_reject: number;
+  new_reject: number;
+  note: string;
+}
+
+export interface RoadClosureCorridor {
+  id: string;
+  ward_id: WardId;
+  name: string;
+  description: string;
+  status: "OPEN" | "CLOSED";
+  reason?: string;
+  closed_at?: string;
+  detour_suggestion?: string;
+  incident_id?: string;
 }

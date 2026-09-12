@@ -199,16 +199,32 @@ export async function persistReport(body: ReportRequest, result: ReportResponse)
 export async function nudgeThresholds(
   previous: HazardRow["status"],
   next: HazardRow["status"],
+  incidentId?: string,
 ) {
   const settings = await getAiSettings();
+  const oldConfirm = settings.confirm_threshold;
   const published = new Set(["PUBLISHED", "AREA_ALERT", "COUNCIL_TICKET"]);
   const wasPublished = published.has(previous);
   const nowPublished = published.has(next);
   if (!wasPublished && nowPublished) {
-    settings.confirm_threshold = Math.max(0.45, settings.confirm_threshold - 0.02);
+    settings.confirm_threshold = Math.max(0.45, Number((settings.confirm_threshold - 0.02).toFixed(2)));
   }
   if (wasPublished && !nowPublished) {
-    settings.confirm_threshold = Math.min(0.85, settings.confirm_threshold + 0.02);
+    settings.confirm_threshold = Math.min(0.85, Number((settings.confirm_threshold + 0.02).toFixed(2)));
   }
+  
+  if (oldConfirm !== settings.confirm_threshold) {
+    const { recordRetuneLog } = await import("./admin");
+    await recordRetuneLog({
+      trigger: "OFFICER_OVERRIDE",
+      incident_id: incidentId,
+      previous_confirm: oldConfirm,
+      new_confirm: settings.confirm_threshold,
+      previous_reject: settings.reject_threshold,
+      new_reject: settings.reject_threshold,
+      note: `Officer changed status ${previous} → ${next}. Retuned confirm threshold ${oldConfirm} → ${settings.confirm_threshold} (${oldConfirm > settings.confirm_threshold ? "-0.02 sensitivity boost" : "+0.02 strictness increase"}).`,
+    }).catch(() => {});
+  }
+  
   return saveAiSettings(settings);
 }

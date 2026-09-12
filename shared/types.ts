@@ -52,6 +52,7 @@ export interface ReportRequest {
   photo_base64: string;
   help_request: boolean;
   description: string;
+  reporter_id?: string;
 }
 
 export interface ReportChecks {

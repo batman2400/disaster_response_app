@@ -17,6 +17,7 @@ import {
   Map,
   MapPin,
   Shield,
+  ShieldAlert,
   Truck,
   Volume2,
   VolumeX,
@@ -281,14 +282,24 @@ export function DashboardChrome({ role }: { role: DashRole }) {
         </div>
 
         {role === "officer" ? (
-          <Link
-            href="/dashboard/admin/weather"
-            title="Open Historical Simulation Replay"
-            className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-600 shadow-sm hover:bg-slate-50 hover:text-brand sm:px-3"
-          >
-            <CloudRain className="h-4 w-4 text-blue-500" />
-            <span className="hidden xl:inline">Weather replay</span>
-          </Link>
+          <>
+            <Link
+              href="/dashboard/admin"
+              title="Open System Administration (Closures, Moderation & AI Retune)"
+              className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-600 shadow-sm transition hover:bg-purple-50 hover:text-purple-700 sm:px-3"
+            >
+              <ShieldAlert className="h-4 w-4 text-purple-600" />
+              <span className="hidden lg:inline">System admin</span>
+            </Link>
+            <Link
+              href="/dashboard/admin/weather"
+              title="Open Historical Simulation Replay"
+              className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-600 shadow-sm hover:bg-slate-50 hover:text-brand sm:px-3"
+            >
+              <CloudRain className="h-4 w-4 text-blue-500" />
+              <span className="hidden xl:inline">Weather replay</span>
+            </Link>
+          </>
         ) : null}
 
         {/* Interactive Notification Bell Popover */}

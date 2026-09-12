@@ -39,7 +39,7 @@ export async function POST(request: Request) {
         dispatched_at: existing.dispatched_at,
       };
 
-  const thresholds = await nudgeThresholds(existing.status, body.new_status);
+  const thresholds = await nudgeThresholds(existing.status, body.new_status, existing.id);
   const resolved_at =
     body.new_status === "RESOLVED"
       ? existing.resolved_at ?? new Date().toISOString()
