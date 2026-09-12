@@ -5,8 +5,9 @@ import { checkLocation } from "./checks/location";
 import { checkRisk } from "./checks/risk";
 import { checkWeather } from "./checks/weather";
 import { summarizeCitizenInput } from "./checks/input-summary";
-import { getAiSettings, saveAiSettings, saveHazard, uploadAudio, uploadPhoto } from "./db";
+import { getAiSettings, listHazards, saveAiSettings, saveHazard, uploadAudio, uploadPhoto } from "./db";
 import { geminiModel } from "./gemini";
+import { haversineKm } from "./geo";
 import { riskPassed, timed } from "./trace";
 import type { HazardRow, PipelineTrace, ReportChecks, ReportRequest, ReportResponse, TraceStep } from "./types";
 
@@ -172,6 +173,48 @@ export async function persistReport(body: ReportRequest, result: ReportResponse)
   const audio_url = body.audio_base64
     ? await uploadAudio(result.incident_id, body.audio_base64, body.audio_mime || "audio/webm")
     : null;
+
+  // Spatial duplicate detection: check for active incidents within 75m of same category in last 4 hours
+  let parentIncidentId: string | null = null;
+  try {
+    const existing = await listHazards();
+    const fourHoursAgo = Date.now() - 4 * 60 * 60 * 1000;
+    const matchCategory = body.help_request ? "HELP_REQUEST" : body.category;
+
+    const parent = existing.find((h) => {
+      if (h.status === "RESOLVED") return false;
+      if (h.category !== matchCategory) return false;
+      if (h.parent_incident_id) return false; // don't link to an existing child
+      const createdTime = new Date(h.created_at).getTime();
+      if (createdTime < fourHoursAgo) return false;
+      const distance = haversineKm([h.lat, h.lng], [body.lat, body.lng]);
+      return distance <= 0.075; // 75 meters
+    });
+
+    if (parent) {
+      parentIncidentId = parent.id;
+      const distanceKm = haversineKm([parent.lat, parent.lng], [body.lat, body.lng]);
+      const corroboration = {
+        id: result.incident_id,
+        created_at: new Date().toISOString(),
+        photo_url,
+        description: body.description || null,
+        reporter_id: body.reporter_id || null,
+        distance_m: Math.round(distanceKm * 1000),
+      };
+
+      const updatedParent: HazardRow = {
+        ...parent,
+        confirmations_count: (parent.confirmations_count || 0) + 1,
+        corroborations_count: (parent.corroborations_count || 0) + 1,
+        corroborating_reports: [...(parent.corroborating_reports || []), corroboration],
+      };
+      await saveHazard(updatedParent);
+    }
+  } catch (err) {
+    console.warn("Spatial duplicate check error:", err);
+  }
+
   const row: HazardRow = {
     id: result.incident_id,
     lat: body.lat,
@@ -189,6 +232,7 @@ export async function persistReport(body: ReportRequest, result: ReportResponse)
     created_at: new Date().toISOString(),
     resolved_at: null,
     closure_photo_url: null,
+    parent_incident_id: parentIncidentId,
     trace: result.trace ?? null,
     summary: result.summary ?? null,
     detected_language: result.detected_language ?? null,

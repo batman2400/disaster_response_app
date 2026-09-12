@@ -2,6 +2,8 @@ import { DEMO_SAMPLE_AUDIO_URL } from "./demo-audio";
 import type {
   AiSettings,
   HazardRow,
+  ShelterNeed,
+  ShelterPledge,
   ShelterRow,
   WardRow,
 } from "./types";
@@ -189,4 +191,162 @@ export function upsertShelter(row: ShelterRow) {
     shelters.push(row);
   }
   return row;
+}
+
+export interface CrewTeam {
+  id: string;
+  name: string;
+  categorySpecialty: string[];
+  contactPhone: string;
+  station: string;
+  specialty: string;
+  eta: string;
+}
+
+export const CREW_TEAMS: CrewTeam[] = [
+  {
+    id: "crew_drainage_01",
+    name: "CMC Drainage Unit 01 (Basin North)",
+    categorySpecialty: ["DRAINAGE_OVERFLOW", "FLOOD"],
+    contactPhone: "+94 11 269 1111",
+    station: "Kelani Basin Depot, Nagalagam St",
+    specialty: "High-capacity submersible pumps & culvert clearing",
+    eta: "15 mins",
+  },
+  {
+    id: "crew_watercraft_01",
+    name: "Kelani Watercraft & Boat Rescue Unit",
+    categorySpecialty: ["HELP_REQUEST", "FLOOD"],
+    contactPhone: "+94 11 267 0002",
+    station: "Peliyagoda Rapid Water Response Base",
+    specialty: "Inflatable rescue dinghies & citizen extraction",
+    eta: "20 mins",
+  },
+  {
+    id: "crew_ceb_01",
+    name: "CEB Colombo Emergency Line Crew",
+    categorySpecialty: ["ELECTRICAL_HAZARD"],
+    contactPhone: "+94 11 242 1198",
+    station: "CEB Area Depot, Pettah",
+    specialty: "Submerged transformer & live wire hazard isolation",
+    eta: "25 mins",
+  },
+  {
+    id: "crew_roads_01",
+    name: "CMC Road & Culvert Clearing Unit",
+    categorySpecialty: ["BLOCKED_ROAD", "FALLEN_TREE", "LANDSLIDE"],
+    contactPhone: "+94 11 268 4422",
+    station: "Town Hall Mechanical Works Yard",
+    specialty: "Heavy hydraulic winches, chainsaws & tree removal",
+    eta: "30 mins",
+  },
+  {
+    id: "crew_general_01",
+    name: "CMC Rapid Disaster Taskforce",
+    categorySpecialty: ["STRUCTURAL_DAMAGE", "FLOOD", "HELP_REQUEST"],
+    contactPhone: "+94 11 269 3333",
+    station: "CMC Central Depot, Maligawatta",
+    specialty: "Medical first responders & sandbag barrier deployment",
+    eta: "20 mins",
+  },
+];
+
+export const shelterNeeds: ShelterNeed[] = [
+  {
+    id: "need-01",
+    shelter_id: "s-peliyagoda",
+    shelter_name: "Peliyagoda Community Centre",
+    ward_id: "ward_01",
+    item_name: "Clean Drinking Water (5L Bottles)",
+    category: "WATER",
+    quantity_needed: "150 Bottles",
+    quantity_pledged: "60 Bottles",
+    urgency: "CRITICAL",
+    status: "PARTIALLY_PLEDGED",
+    coordinator_name: "Mr. D. Wickramasinghe",
+    coordinator_phone: "+94 11 293 0511",
+    pledges: [
+      {
+        id: "p-01",
+        donor_name: "Rotary Club Colombo West",
+        contact_phone: "077 345 6789",
+        quantity: "60 Bottles",
+        created_at: new Date(Date.now() - 3600000).toISOString(),
+      },
+    ],
+    created_at: new Date(Date.now() - 7200000).toISOString(),
+  },
+  {
+    id: "need-02",
+    shelter_id: "s-thimbirigasyaya",
+    shelter_name: "Thimbirigasyaya School",
+    ward_id: "ward_02",
+    item_name: "Infant Formula & Diapers (Medium)",
+    category: "BABY_CARE",
+    quantity_needed: "40 Packs",
+    quantity_pledged: "10 Packs",
+    urgency: "CRITICAL",
+    status: "PARTIALLY_PLEDGED",
+    coordinator_name: "Principal M. Jayasuriya",
+    coordinator_phone: "+94 11 258 7320",
+    pledges: [],
+    created_at: new Date(Date.now() - 5400000).toISOString(),
+  },
+  {
+    id: "need-03",
+    shelter_id: "s-kelaniya",
+    shelter_name: "Kelaniya Temple Hall",
+    ward_id: "ward_01",
+    item_name: "Dry Rations (Dhal, Rice, Canned Fish)",
+    category: "FOOD",
+    quantity_needed: "80 Food Hampers",
+    quantity_pledged: "80 Food Hampers",
+    urgency: "MEDIUM",
+    status: "FULFILLED",
+    coordinator_name: "Ven. Sarananda Thero",
+    coordinator_phone: "+94 11 291 1422",
+    pledges: [
+      {
+        id: "p-02",
+        donor_name: "Sarvodaya Shramadana Relief",
+        contact_phone: "071 889 0012",
+        quantity: "80 Food Hampers",
+        created_at: new Date(Date.now() - 10800000).toISOString(),
+      },
+    ],
+    created_at: new Date(Date.now() - 14400000).toISOString(),
+  },
+  {
+    id: "need-04",
+    shelter_id: "s-townhall",
+    shelter_name: "Town Hall Relief Bay",
+    ward_id: "ward_02",
+    item_name: "Sleeping Mats & Waterproof Tarpaulins",
+    category: "BEDDING",
+    quantity_needed: "50 Mats",
+    quantity_pledged: "0",
+    urgency: "MEDIUM",
+    status: "OPEN",
+    coordinator_name: "Officer K. Perera",
+    coordinator_phone: "+94 11 268 4211",
+    pledges: [],
+    created_at: new Date(Date.now() - 1800000).toISOString(),
+  },
+];
+
+export function listShelterNeeds() {
+  return [...shelterNeeds];
+}
+
+export function createShelterNeed(need: ShelterNeed) {
+  shelterNeeds.unshift(need);
+  return need;
+}
+
+export function pledgeShelterNeed(needId: string, pledge: ShelterPledge) {
+  const found = shelterNeeds.find((n) => n.id === needId);
+  if (!found) return null;
+  found.pledges.push(pledge);
+  found.status = "PARTIALLY_PLEDGED";
+  return found;
 }

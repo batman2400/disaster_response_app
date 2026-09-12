@@ -15,6 +15,7 @@ import {
   LifeBuoy,
   Map,
   MapPin,
+  Package,
   PhoneCall,
   Shield,
   ShieldAlert,
@@ -104,6 +105,22 @@ export default async function Home() {
             >
               <Map className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Live</span> Map
+            </Link>
+
+            <Link
+              href="/supplies"
+              className="flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50/80 px-3 py-2 text-xs font-bold text-indigo-700 transition-all hover:bg-indigo-100 hover:text-indigo-900"
+            >
+              <Package className="h-3.5 w-3.5" />
+              <span>Supplies</span>
+            </Link>
+
+            <Link
+              href="/report/track"
+              className="hidden md:flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 transition-all hover:border-brand hover:bg-brand-light hover:text-brand"
+            >
+              <Activity className="h-3.5 w-3.5" />
+              <span>Track</span>
             </Link>
 
             <Link

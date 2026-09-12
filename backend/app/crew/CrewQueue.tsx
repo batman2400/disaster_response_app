@@ -11,6 +11,7 @@ import {
   EyeOff,
   Flame,
   LifeBuoy,
+  Link2,
   List,
   Loader2,
   Lock,
@@ -33,6 +34,7 @@ import { categoryLabel, timeAgo, wardShort } from "@/lib/format";
 import { haversineKm } from "@/lib/geo";
 import { latestDispatchNote } from "@/lib/officer-log";
 import { ROLE_THEME } from "@/lib/role-theme";
+import { CREW_TEAMS } from "@/lib/store";
 import type { HazardRow, WardId } from "@/lib/types";
 import { mapHazardRow, useLiveRows } from "@/lib/use-live";
 
@@ -87,6 +89,7 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedWard, setSelectedWard] = useState<string>("all");
+  const [selectedCrewUnit, setSelectedCrewUnit] = useState<string>("all");
   const [sortMode, setSortMode] = useState<SortOption>("priority");
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [locationStatus, setLocationStatus] = useState<"pending" | "ready" | "denied">("pending");
@@ -205,6 +208,19 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
       result = result.filter((row) => row.ward_id === selectedWard);
     }
 
+    if (selectedCrewUnit !== "all") {
+      result = result.filter(
+        (row) =>
+          row.assigned_crew_id === selectedCrewUnit ||
+          row.assigned_crew_name?.toLowerCase().includes(selectedCrewUnit.toLowerCase())
+      );
+    }
+
+    // Hide child corroboration reports from the root field queue unless actively searching
+    if (!searchQuery.trim()) {
+      result = result.filter((row) => !row.parent_incident_id);
+    }
+
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       result = result.filter((row) => {
@@ -212,12 +228,13 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
         const ward = wardShort(row.ward_id).toLowerCase();
         const desc = (row.description || "").toLowerCase();
         const id = row.id.toLowerCase();
-        return cat.includes(q) || ward.includes(q) || desc.includes(q) || id.includes(q);
+        const crew = (row.assigned_crew_name || "").toLowerCase();
+        return cat.includes(q) || ward.includes(q) || desc.includes(q) || id.includes(q) || crew.includes(q);
       });
     }
 
     return sortCrewQueue(result, userLocation, sortMode);
-  }, [tabFiltered, selectedWard, searchQuery, userLocation, sortMode]);
+  }, [tabFiltered, selectedWard, selectedCrewUnit, searchQuery, userLocation, sortMode]);
 
   const theme = ROLE_THEME.crew;
   const Icon = theme.icon;
@@ -497,7 +514,20 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={selectedCrewUnit}
+              onChange={(e) => setSelectedCrewUnit(e.target.value)}
+              className="h-10 rounded-2xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-sm focus:border-indigo-500 focus:outline-none"
+            >
+              <option value="all">All Response Units</option>
+              {CREW_TEAMS.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+
             <select
               value={selectedWard}
               onChange={(e) => setSelectedWard(e.target.value)}
@@ -564,12 +594,23 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
                         <StatusBadge status={ticket.status} />
                         <UrgencyBadge urgency={ticket.urgency} />
 
-                        {isDispatched && (
+                        {ticket.assigned_crew_name ? (
+                          <Badge className="bg-blue-600 text-white font-extrabold shadow-sm">
+                            <Truck className="mr-1 h-3 w-3" />
+                            {ticket.assigned_crew_name}
+                          </Badge>
+                        ) : isDispatched ? (
                           <Badge className="bg-indigo-600 text-white font-extrabold shadow-sm">
                             <Truck className="mr-1 h-3 w-3" />
                             DISPATCHED
                           </Badge>
-                        )}
+                        ) : null}
+
+                        {(ticket.corroborations_count ?? 0) > 0 ? (
+                          <span className="flex items-center gap-0.5 rounded px-2 py-0.5 text-[9px] font-extrabold uppercase bg-amber-100 text-amber-800 border border-amber-300 shadow-2xs">
+                            <Link2 className="h-2.5 w-2.5 text-amber-600" /> +{ticket.corroborations_count} Corrob
+                          </span>
+                        ) : null}
 
                         {isBlocked && (
                           <Badge className="bg-rose-500 text-white font-extrabold shadow-sm">

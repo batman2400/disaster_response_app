@@ -97,6 +97,8 @@ export interface ReportResponse {
   reasoning: string;
   summary?: string | null;
   detected_language?: string | null;
+  parent_incident_id?: string | null;
+  is_corroboration?: boolean;
   trace?: PipelineTrace;
 }
 
@@ -124,6 +126,8 @@ export interface OverrideRequest {
   officer_note: string;
   action?: OfficerAction;
   is_road_blocked?: boolean;
+  assigned_crew_id?: string;
+  assigned_crew_name?: string;
 }
 
 export interface ResolveRequest {
@@ -163,6 +167,15 @@ export interface ConfirmResponse {
   status: HazardStatus;
 }
 
+export interface CorroboratingReport {
+  id: string;
+  created_at: string;
+  photo_url?: string | null;
+  description?: string | null;
+  reporter_id?: string | null;
+  distance_m?: number;
+}
+
 export interface HazardRow {
   id: string;
   lat: number;
@@ -183,6 +196,11 @@ export interface HazardRow {
   officer_note?: string;
   officer_log?: OfficerLogEntry[];
   dispatched_at?: string | null;
+  assigned_crew_id?: string | null;
+  assigned_crew_name?: string | null;
+  parent_incident_id?: string | null;
+  corroborations_count?: number;
+  corroborating_reports?: CorroboratingReport[];
   trace?: PipelineTrace | null;
   summary?: string | null;
   detected_language?: string | null;
@@ -205,6 +223,35 @@ export interface ShelterRow {
   total_beds: number;
   occupied_beds: number;
   supplies_status: SuppliesStatus;
+}
+
+export type ShelterNeedCategory = "WATER" | "FOOD" | "MEDICAL" | "BEDDING" | "BABY_CARE" | "SANITATION" | "OTHER";
+export type ShelterNeedStatus = "OPEN" | "PARTIALLY_PLEDGED" | "FULFILLED";
+
+export interface ShelterPledge {
+  id: string;
+  donor_name: string;
+  contact_phone: string;
+  quantity: string;
+  notes?: string;
+  created_at: string;
+}
+
+export interface ShelterNeed {
+  id: string;
+  shelter_id: string;
+  shelter_name: string;
+  ward_id: WardId;
+  item_name: string;
+  category: ShelterNeedCategory;
+  quantity_needed: string;
+  quantity_pledged: string;
+  urgency: Urgency;
+  status: ShelterNeedStatus;
+  coordinator_name: string;
+  coordinator_phone: string;
+  pledges: ShelterPledge[];
+  created_at: string;
 }
 
 export interface AiSettings {

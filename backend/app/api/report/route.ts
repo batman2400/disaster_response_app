@@ -1,7 +1,7 @@
 import { json, options } from "@/lib/cors";
 import { buildVerdict, persistReport } from "@/lib/pipeline";
 import { runUnifiedPipeline } from "@/lib/unified-pipeline";
-import type { ReportRequest } from "@/lib/types";
+import type { ReportRequest, ReportResponse } from "@/lib/types";
 
 export function OPTIONS() {
   return options();
@@ -48,7 +48,14 @@ export async function POST(request: Request) {
 
   const verdict = useFast ? await runUnifiedPipeline(body) : await buildVerdict(body);
   const incident_id = crypto.randomUUID();
-  const response = { incident_id, ...verdict };
-  await persistReport(body, response);
-  return json(response);
+  const fullVerdict: ReportResponse = {
+    incident_id,
+    ...verdict,
+  };
+  const saved = await persistReport(body, fullVerdict);
+  return json({
+    ...fullVerdict,
+    parent_incident_id: saved.parent_incident_id ?? null,
+    is_corroboration: Boolean(saved.parent_incident_id),
+  });
 }

@@ -51,11 +51,21 @@ export async function POST(request: Request) {
         ? false
         : existing.is_road_blocked;
 
+  const dispatched_at =
+    body.action === "dispatch" || body.assigned_crew_id
+      ? existing.dispatched_at ?? new Date().toISOString()
+      : existing.dispatched_at;
+  const assigned_crew_id = body.assigned_crew_id !== undefined ? body.assigned_crew_id : existing.assigned_crew_id;
+  const assigned_crew_name = body.assigned_crew_name !== undefined ? body.assigned_crew_name : existing.assigned_crew_name;
+
   const updated = await saveHazard({
     ...existing,
     status: body.new_status,
     resolved_at,
     is_road_blocked,
+    dispatched_at,
+    assigned_crew_id,
+    assigned_crew_name,
     ...trail,
   });
 
@@ -65,6 +75,8 @@ export async function POST(request: Request) {
     officer_note: updated.officer_note,
     officer_log: updated.officer_log ?? [],
     dispatched_at: updated.dispatched_at ?? null,
+    assigned_crew_id: updated.assigned_crew_id ?? null,
+    assigned_crew_name: updated.assigned_crew_name ?? null,
     confirm_threshold: thresholds.confirm_threshold,
     reject_threshold: thresholds.reject_threshold,
   });

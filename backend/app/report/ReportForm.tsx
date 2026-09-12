@@ -1,11 +1,14 @@
 "use client";
 
 import {
+  Activity,
   ArrowLeft,
   Building2,
   Camera,
+  Check,
   CheckCircle2,
   CircleHelp,
+  CloudOff,
   Compass,
   Construction,
   Cpu,
@@ -27,6 +30,7 @@ import {
   Upload,
   Volume2,
   Waves,
+  X,
   Zap,
 } from "lucide-react";
 import Link from "next/link";
@@ -41,6 +45,12 @@ import { cn } from "@/lib/cn";
 import { DEMO_GPS, nearestWard, readFileAsDataUrl } from "@/lib/geo";
 import { categoryLabel, wardShort } from "@/lib/format";
 import { LanguageSwitcher, useI18n } from "@/lib/i18n/language-context";
+import {
+  getOfflineReports,
+  saveOfflineReport,
+  setupAutoSync,
+  syncAllOfflineReports,
+} from "@/lib/offline-queue";
 import type { HazardCategory, ReportResponse, WardId } from "@/lib/types";
 import { parseTrace } from "@/lib/trace";
 
@@ -185,11 +195,43 @@ export function ReportForm() {
   const [rescuePeopleCount, setRescuePeopleCount] = useState("");
   const [requiresBoat, setRequiresBoat] = useState(false);
 
+  // Offline queue states
+  const [offlineCount, setOfflineCount] = useState(0);
+  const [offlineSavedNotice, setOfflineSavedNotice] = useState(false);
+  const [syncingOffline, setSyncingOffline] = useState(false);
+
+  const refreshOfflineCount = async () => {
+    try {
+      const list = await getOfflineReports();
+      setOfflineCount(list.length);
+    } catch {
+      // ignore
+    }
+  };
+
   useEffect(() => {
+    refreshOfflineCount();
+    const cleanup = setupAutoSync(() => {
+      refreshOfflineCount();
+    });
     return () => {
+      cleanup();
       if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
     };
   }, []);
+
+  const handleManualSync = async () => {
+    setSyncingOffline(true);
+    try {
+      const { success, failed } = await syncAllOfflineReports();
+      await refreshOfflineCount();
+      if (success > 0) {
+        setOfflineSavedNotice(false);
+      }
+    } finally {
+      setSyncingOffline(false);
+    }
+  };
 
   const startRecording = async () => {
     setError("");
@@ -422,7 +464,43 @@ export function ReportForm() {
         }),
       );
       setVerdict(payload);
+
+      // Save to My Reports in localStorage
+      try {
+        const stored = JSON.parse(localStorage.getItem("fender_my_reports") || "[]");
+        const updated = [payload.incident_id, ...stored.filter((id: string) => id !== payload.incident_id)];
+        localStorage.setItem("fender_my_reports", JSON.stringify(updated.slice(0, 15)));
+      } catch {
+        // ignore
+      }
     } catch (err) {
+      const isNetworkIssue =
+        typeof navigator !== "undefined" &&
+        (!navigator.onLine || (err instanceof TypeError && err.message.toLowerCase().includes("fetch")));
+
+      if (isNetworkIssue) {
+        try {
+          await saveOfflineReport({
+            lat,
+            lng,
+            ward_id: wardId,
+            category: category!,
+            photo_base64: photo,
+            help_request: isRescue,
+            description: fullDescription,
+            reporter_id: getOrCreateReporterId(),
+            audio_base64: audioBase64 || undefined,
+            audio_mime: audioBase64 ? audioMime : undefined,
+          });
+          setOfflineSavedNotice(true);
+          await refreshOfflineCount();
+          setModalOpen(false);
+          return;
+        } catch (queueErr) {
+          console.warn("Failed to queue offline report:", queueErr);
+        }
+      }
+
       setError(err instanceof Error ? err.message : "Report failed");
       setModalOpen(false);
     } finally {
@@ -522,6 +600,19 @@ export function ReportForm() {
         </div>
 
         <div className="flex items-center gap-2">
+          {offlineCount > 0 && (
+            <button
+              type="button"
+              onClick={handleManualSync}
+              disabled={syncingOffline}
+              className="flex h-10 items-center gap-1.5 rounded-2xl border border-amber-300 bg-amber-50 px-3 text-xs font-extrabold text-amber-900 shadow-sm animate-pulse"
+              title="Reports queued locally while offline. Click to sync."
+            >
+              <CloudOff className="h-4 w-4 text-amber-600" />
+              <span>{syncingOffline ? "Syncing…" : `${offlineCount} Offline`}</span>
+            </button>
+          )}
+
           <LanguageSwitcher />
 
           {/* SOS Emergency Hotline Button */}
@@ -535,6 +626,32 @@ export function ReportForm() {
           </button>
         </div>
       </div>
+
+      {/* Offline Saved Non-Blocking Banner */}
+      {offlineSavedNotice && (
+        <div className="mx-6 mt-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 shadow-sm lg:mx-10 animate-slide-down">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <CloudOff className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-wider text-amber-900">
+                  Report Saved to Offline Emergency Queue
+                </h4>
+                <p className="mt-0.5 text-xs font-semibold text-amber-800">
+                  Network connection is currently unavailable. Your photo, location, and hazard details are secured locally on your device and will auto-sync with municipal response as soon as connectivity resumes.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setOfflineSavedNotice(false)}
+              className="rounded-lg p-1 text-amber-700 hover:bg-amber-100"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Emergency Broadcast Marquee */}
       <div className="px-6 pt-3 lg:px-10">
@@ -1007,10 +1124,47 @@ export function ReportForm() {
           </div>
 
           {verdict ? (
-            <div className="border-t border-slate-100 bg-white/90 p-6 backdrop-blur">
-              <Button type="button" className="w-full py-4" onClick={() => router.push("/map")}>
-                Return to Live Map
-              </Button>
+            <div className="border-t border-slate-100 bg-white/90 p-6 backdrop-blur space-y-3">
+              <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-3.5 text-xs">
+                <div>
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
+                    Public Tracking Reference
+                  </span>
+                  <span className="font-mono text-sm font-black text-slate-900">
+                    #CLM-{verdict.incident_id.slice(0, 8).toUpperCase()}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(verdict.incident_id);
+                    alert("Tracking Reference ID copied to clipboard!");
+                  }}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 active:scale-95"
+                >
+                  Copy ID
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant="gradient"
+                  className="w-full py-3.5 text-xs font-extrabold"
+                  onClick={() => router.push(`/report/track/${verdict.incident_id}`)}
+                >
+                  <Activity className="h-4 w-4" />
+                  Track Live Status
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full py-3.5 text-xs font-extrabold"
+                  onClick={() => router.push("/map")}
+                >
+                  Return to Map
+                </Button>
+              </div>
             </div>
           ) : null}
         </div>

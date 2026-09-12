@@ -15,6 +15,7 @@ import {
   FileSpreadsheet,
   Filter,
   Headphones,
+  Link2,
   LocateFixed,
   Maximize2,
   Megaphone,
@@ -39,6 +40,7 @@ import { BroadcastEditorModal } from "@/components/broadcast-editor-modal";
 import { SitRepExportModal } from "@/components/sitrep-export-modal";
 import { VoiceModal } from "@/components/voice-modal";
 import { DEMO_SAMPLE_AUDIO_URL } from "@/lib/demo-audio";
+import { CREW_TEAMS } from "@/lib/store";
 
 import { PipelineAudit } from "@/app/dashboard/admin/pipeline/PipelineAudit";
 import { Badge, Button, Card, Chip, Modal, SectionLabel, StatusBadge, UrgencyBadge } from "@/components/ui";
@@ -69,12 +71,7 @@ const CANNED_TAGS = [
   "[Road Impassable]",
 ];
 
-const CREW_UNITS = [
-  { id: "alpha", name: "Team Alpha", specialty: "Rapid Dewatering & High-Capacity Pumps", eta: "15 mins" },
-  { id: "beta", name: "Team Beta", specialty: "Tree Removal & Structural Clearance", eta: "20 mins" },
-  { id: "gamma", name: "Team Gamma", specialty: "Evacuation & Inflatable Boat Unit", eta: "25 mins" },
-  { id: "delta", name: "Team Delta", specialty: "Electrical Isolation & Utility Repair", eta: "30 mins" },
-];
+const CREW_UNITS = CREW_TEAMS;
 
 const GEAR_OPTIONS = [
   "Submersible Dewatering Pump (3\")",
@@ -155,7 +152,7 @@ export function OfficerBoard({
   } | null>(null);
 
   // Dispatch modal form state
-  const [selectedCrew, setSelectedCrew] = useState("alpha");
+  const [selectedCrew, setSelectedCrew] = useState(CREW_TEAMS[0].id);
   const [selectedPriority, setSelectedPriority] = useState<"Normal" | "Urgent" | "Critical">("Urgent");
   const [selectedGear, setSelectedGear] = useState<string[]>([GEAR_OPTIONS[0], GEAR_OPTIONS[3]]);
   const [customEta, setCustomEta] = useState("20 mins");
@@ -207,6 +204,8 @@ export function OfficerBoard({
 
   const visible = useMemo(() => {
     const list = tickets.filter((ticket) => {
+      // Hide child corroborations from the main queue (they are grouped under the parent ticket)
+      if (!query && ticket.parent_incident_id) return false;
       const matchesFilter =
         filter === "OPEN"
           ? ticket.status !== "RESOLVED"
@@ -299,7 +298,7 @@ export function OfficerBoard({
     new_status: HazardStatus,
     officer_note: string,
     action: OfficerAction,
-    extras?: { is_road_blocked?: boolean },
+    extras?: { is_road_blocked?: boolean; assigned_crew_id?: string; assigned_crew_name?: string },
   ) {
     setBusy(true);
     setError("");
@@ -313,6 +312,8 @@ export function OfficerBoard({
           officer_note,
           action,
           is_road_blocked: extras?.is_road_blocked,
+          assigned_crew_id: extras?.assigned_crew_id,
+          assigned_crew_name: extras?.assigned_crew_name,
         }),
       });
       const payload = (await response.json()) as { error?: string };
@@ -436,7 +437,7 @@ export function OfficerBoard({
               >
                 {active ? <span className="absolute inset-y-0 left-0 w-1.5 bg-brand" /> : null}
                 <div className={cn("flex items-start justify-between", active && "pl-2")}>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <span className="font-mono text-[10px] font-extrabold text-slate-400">
                       #{ticket.id.slice(0, 8).toUpperCase()}
                     </span>
@@ -444,6 +445,16 @@ export function OfficerBoard({
                     {ticket.audio_url ? (
                       <span className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] font-extrabold uppercase bg-cyan-50 text-cyan-700 border border-cyan-200">
                         <Mic className="h-2.5 w-2.5 text-cyan-600" /> Voice
+                      </span>
+                    ) : null}
+                    {(ticket.corroborations_count ?? 0) > 0 ? (
+                      <span className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] font-extrabold uppercase bg-amber-50 text-amber-800 border border-amber-200">
+                        <Link2 className="h-2.5 w-2.5 text-amber-600" /> +{ticket.corroborations_count} Corrob
+                      </span>
+                    ) : null}
+                    {ticket.assigned_crew_name ? (
+                      <span className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200 truncate max-w-[130px]" title={ticket.assigned_crew_name}>
+                        <Truck className="h-2.5 w-2.5 text-blue-600 shrink-0" /> {ticket.assigned_crew_name}
                       </span>
                     ) : null}
                   </div>
@@ -509,10 +520,21 @@ export function OfficerBoard({
                     <span>{copied ? "Copied" : "Copy ID"}</span>
                   </button>
                   <StatusBadge status={selected.status} />
-                  {selected.dispatched_at ? (
+                  {selected.assigned_crew_name ? (
+                    <Badge className="bg-blue-50 text-blue-800 border border-blue-200">
+                      <Truck className="mr-1 h-3 w-3 text-blue-600" />
+                      Assigned: {selected.assigned_crew_name}
+                    </Badge>
+                  ) : selected.dispatched_at ? (
                     <Badge className="bg-indigo-50 text-brand-indigo">
                       <Truck className="mr-1 h-3 w-3" />
                       Dispatched
+                    </Badge>
+                  ) : null}
+                  {(selected.corroborations_count ?? 0) > 0 ? (
+                    <Badge className="bg-amber-50 text-amber-800 border border-amber-200">
+                      <Link2 className="mr-1 h-3 w-3 text-amber-600" />
+                      {selected.corroborations_count} Corroborated Reports
                     </Badge>
                   ) : null}
                   {selected.is_road_blocked ? (
@@ -792,6 +814,41 @@ export function OfficerBoard({
                       onSelect={setSelectedId}
                     />
                   </div>
+
+                  {/* Corroboration Proximity Cluster Card */}
+                  {(selected.corroborations_count ?? 0) > 0 || (selected.corroborating_reports && selected.corroborating_reports.length > 0) ? (
+                    <Card className="p-4 border-amber-200 bg-amber-50/40">
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="text-[11px] font-extrabold uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
+                          <Link2 className="h-3.5 w-3.5 text-amber-600" />
+                          Proximity Corroborations ({selected.corroborating_reports?.length ?? selected.corroborations_count ?? 0})
+                        </span>
+                        <span className="text-[10px] font-extrabold text-amber-800 bg-amber-100 rounded-full px-2 py-0.5">
+                          ≤ 75m Cluster
+                        </span>
+                      </div>
+                      <p className="text-xs text-amber-900/80 mb-2.5">
+                        Spatial duplicate detection linked {selected.corroborating_reports?.length ?? selected.corroborations_count} subsequent citizen report(s) within 75m and 4 hours.
+                      </p>
+                      {selected.corroborating_reports && selected.corroborating_reports.length > 0 ? (
+                        <div className="space-y-1.5 max-h-36 overflow-y-auto custom-scrollbar">
+                          {selected.corroborating_reports.map((c, idx) => (
+                            <div key={idx} className="rounded-xl bg-white p-2.5 border border-amber-200/70 shadow-2xs flex items-center justify-between text-xs">
+                              <div>
+                                <span className="font-mono font-bold text-slate-800">
+                                  #{c.id.slice(0, 8).toUpperCase()}
+                                </span>
+                                <span className="text-amber-700 font-semibold ml-2 text-[11px]">
+                                  {c.distance_m}m away
+                                </span>
+                              </div>
+                              <span className="text-[10px] text-slate-400">{timeAgo(c.created_at)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </Card>
+                  ) : null}
                 </div>
 
                 {/* Right Column: AI Verdict & Officer Tuning */}
@@ -1202,9 +1259,12 @@ export function OfficerBoard({
                   type="button"
                   disabled={busy}
                   onClick={() => {
-                    const unitName = CREW_UNITS.find((u) => u.id === selectedCrew)?.name || "Crew Unit";
-                    const dispatchNote = `Dispatched ${unitName} (${selectedPriority} priority, ETA: ${customEta}). Gear: ${selectedGear.join(", ")}. ${note}`.trim();
-                    void override(selected.id, selected.status, dispatchNote, "dispatch");
+                    const unit = CREW_TEAMS.find((u) => u.id === selectedCrew) || CREW_TEAMS[0];
+                    const dispatchNote = `Dispatched ${unit.name} (${selectedPriority} priority, ETA: ${customEta}). Gear: ${selectedGear.join(", ")}. ${note}`.trim();
+                    void override(selected.id, selected.status, dispatchNote, "dispatch", {
+                      assigned_crew_id: unit.id,
+                      assigned_crew_name: unit.name,
+                    });
                     setShowDispatchModal(false);
                   }}
                   className="rounded-xl px-4 py-2 text-xs font-bold"

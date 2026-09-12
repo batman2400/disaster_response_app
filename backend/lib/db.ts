@@ -89,6 +89,24 @@ function asHazard(row: Record<string, unknown>): HazardRow {
       (row.resolution_notes as string | null) ??
       memoryGetHazard(String(row.id))?.resolution_notes ??
       null,
+    assigned_crew_id:
+      (row.assigned_crew_id as string | null) ??
+      memoryGetHazard(String(row.id))?.assigned_crew_id ??
+      null,
+    assigned_crew_name:
+      (row.assigned_crew_name as string | null) ??
+      memoryGetHazard(String(row.id))?.assigned_crew_name ??
+      null,
+    parent_incident_id:
+      (row.parent_incident_id as string | null) ??
+      memoryGetHazard(String(row.id))?.parent_incident_id ??
+      null,
+    corroborations_count:
+      Number(row.corroborations_count ?? memoryGetHazard(String(row.id))?.corroborations_count ?? 0),
+    corroborating_reports:
+      (row.corroborating_reports as HazardRow["corroborating_reports"]) ??
+      memoryGetHazard(String(row.id))?.corroborating_reports ??
+      [],
   };
 }
 
@@ -451,4 +469,7 @@ export async function saveBroadcastAlert(alert: BroadcastAlert): Promise<Broadca
   }
   return inMemoryBroadcast;
 }
+
+export { listShelterNeeds, createShelterNeed, pledgeShelterNeed } from "./store";
+
 
