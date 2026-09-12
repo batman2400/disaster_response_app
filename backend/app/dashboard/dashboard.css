@@ -291,6 +291,7 @@
 }
 
 .officer-map {
+  position: relative;
   height: 420px;
   border-radius: 16px;
   border: 1px solid var(--line);
@@ -301,6 +302,22 @@
 .officer-map-canvas {
   width: 100%;
   height: 100%;
+}
+
+.officer-map-canvas.leaflet-container {
+  background: var(--card);
+  font: inherit;
+}
+
+.officer-map-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .officer-map-fallback {

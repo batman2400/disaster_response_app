@@ -1,11 +1,12 @@
-"use client";
+import { createElement, useEffect, useRef, useState } from "react";
 
-import { useEffect, useRef, useState } from "react";
+import { SAFE_ROUTES } from "@/lib/safe-routes";
+import { colors } from "@/lib/theme";
+import { COLOMBO_CENTER, PIN_COLORS, type WardId } from "@/lib/types";
 
-import { categoryLabel, PIN_COLORS, wardShort } from "@/lib/format";
-import type { HazardRow } from "@/lib/types";
+import type { HazardMapProps } from "./hazard-map-types";
 
-const COLOMBO: [number, number] = [6.9271, 79.8612];
+const COLOMBO: [number, number] = [COLOMBO_CENTER.latitude, COLOMBO_CENTER.longitude];
 const LEAFLET_CSS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
 const LEAFLET_JS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
 const TILES = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
@@ -16,18 +17,19 @@ type LeafletMap = {
   remove: () => void;
 };
 
-type LeafletMarker = {
-  addTo: (map: LeafletMap) => LeafletMarker;
-  setLatLng: (latLng: [number, number]) => void;
-  setStyle: (opts: Record<string, unknown>) => void;
-  on: (event: string, fn: () => void) => void;
+type LeafletLayer = {
+  addTo: (map: LeafletMap) => LeafletLayer;
+  setLatLng?: (latLng: [number, number]) => void;
+  setStyle?: (opts: Record<string, unknown>) => void;
+  bindPopup?: (html: string) => void;
   remove: () => void;
 };
 
 type LeafletNS = {
   map: (el: HTMLElement, opts: Record<string, unknown>) => LeafletMap;
   tileLayer: (url: string, opts: Record<string, unknown>) => { addTo: (map: LeafletMap) => void };
-  circleMarker: (latLng: [number, number], opts: Record<string, unknown>) => LeafletMarker;
+  circleMarker: (latLng: [number, number], opts: Record<string, unknown>) => LeafletLayer;
+  polyline: (latLngs: [number, number][], opts: Record<string, unknown>) => LeafletLayer;
 };
 
 declare global {
@@ -62,27 +64,18 @@ function loadLeaflet(): Promise<LeafletNS> {
   });
 }
 
-export function OfficerMap({
-  hazards,
-  selectedId,
-  onSelect,
-}: {
-  hazards: HazardRow[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-}) {
-  const [mode, setMode] = useState<"loading" | "map" | "list">("loading");
-  const hostRef = useRef<HTMLDivElement>(null);
+export function HazardMap({ hazards, routeWards }: HazardMapProps) {
+  const hostRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
-  const markersRef = useRef(new Map<string, LeafletMarker>());
+  const markersRef = useRef(new Map<string, LeafletLayer>());
+  const linesRef = useRef(new Map<string, LeafletLayer>());
   const hazardsRef = useRef(hazards);
-  const selectedRef = useRef(selectedId);
-  const selectRef = useRef(onSelect);
+  const routesRef = useRef(routeWards);
+  const [ready, setReady] = useState(false);
   hazardsRef.current = hazards;
-  selectedRef.current = selectedId;
-  selectRef.current = onSelect;
+  routesRef.current = routeWards;
 
-  function syncMarkers(L: LeafletNS, map: LeafletMap) {
+  function sync(L: LeafletNS, map: LeafletMap) {
     const rows = hazardsRef.current;
     const keep = new Set(rows.map((hazard) => hazard.id));
     for (const [id, marker] of markersRef.current) {
@@ -102,16 +95,34 @@ export function OfficerMap({
           fillColor: color,
           fillOpacity: 1,
         }).addTo(map);
-        const id = hazard.id;
-        marker.on("click", () => selectRef.current(id));
+        marker.bindPopup?.(`${hazard.category} · ${hazard.status}`);
         markersRef.current.set(hazard.id, marker);
       } else {
-        marker.setLatLng([hazard.lat, hazard.lng]);
-        marker.setStyle({ fillColor: color });
+        marker.setLatLng?.([hazard.lat, hazard.lng]);
+        marker.setStyle?.({ fillColor: color });
+        marker.bindPopup?.(`${hazard.category} · ${hazard.status}`);
       }
     }
-    const chosen = rows.find((hazard) => hazard.id === selectedRef.current);
-    if (chosen) map.setView([chosen.lat, chosen.lng], 14);
+
+    const active = new Set<WardId>(routesRef.current);
+    for (const [id, line] of linesRef.current) {
+      if (!active.has(id as WardId)) {
+        line.remove();
+        linesRef.current.delete(id);
+      }
+    }
+    for (const wardId of routesRef.current) {
+      const points = SAFE_ROUTES[wardId].map((point) => [point.latitude, point.longitude] as [number, number]);
+      let line = linesRef.current.get(wardId);
+      if (!line) {
+        line = L.polyline(points, {
+          color: colors.green,
+          weight: 3,
+          dashArray: "8,6",
+        }).addTo(map);
+        linesRef.current.set(wardId, line);
+      }
+    }
   }
 
   useEffect(() => {
@@ -122,16 +133,16 @@ export function OfficerMap({
       .then((L) => {
         const el = hostRef.current;
         if (cancelled || !el) return;
-        map = L.map(el, { zoomControl: true, attributionControl: false });
+        map = L.map(el, { zoomControl: false, attributionControl: false });
         map.setView(COLOMBO, 12);
         L.tileLayer(TILES, { maxZoom: 19 }).addTo(map);
         mapRef.current = map;
-        syncMarkers(L, map);
+        sync(L, map);
         window.setTimeout(() => map?.invalidateSize(), 80);
-        setMode("map");
+        setReady(true);
       })
       .catch(() => {
-        if (!cancelled) setMode("list");
+        if (!cancelled) setReady(false);
       });
 
     return () => {
@@ -139,6 +150,7 @@ export function OfficerMap({
       map?.remove();
       mapRef.current = null;
       markersRef.current.clear();
+      linesRef.current.clear();
     };
   }, []);
 
@@ -146,42 +158,41 @@ export function OfficerMap({
     const L = window.L;
     const map = mapRef.current;
     if (!L || !map) return;
-    syncMarkers(L, map);
-  }, [hazards, selectedId]);
+    sync(L, map);
+    window.setTimeout(() => map.invalidateSize(), 80);
+  }, [hazards, routeWards]);
 
-  if (mode === "list") {
-    return (
-      <div className="officer-map">
-        <div className="officer-map-fallback">
-          <p className="dash-kicker">MAP PINS</p>
-          {hazards.length === 0 ? (
-            <p className="sub">No pins.</p>
-          ) : (
-            hazards.map((hazard) => (
-              <button
-                key={hazard.id}
-                type="button"
-                className={`pin-row${selectedId === hazard.id ? " on" : ""}`}
-                onClick={() => onSelect(hazard.id)}
-              >
-                <span className="pin-dot" style={{ background: PIN_COLORS[hazard.status] }} />
-                <span>
-                  {categoryLabel(hazard.category)} · {hazard.status}
-                  <br />
-                  <span className="meta">{wardShort(hazard.ward_id)}</span>
-                </span>
-              </button>
-            ))
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="officer-map">
-      {mode === "loading" ? <p className="officer-map-loading">Loading map…</p> : null}
-      <div ref={hostRef} className="officer-map-canvas" />
-    </div>
+  return createElement(
+    "div",
+    {
+      style: {
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        background: colors.bg,
+      },
+    },
+    ready
+      ? null
+      : createElement(
+          "div",
+          {
+            style: {
+              position: "absolute",
+              inset: 0,
+              display: "grid",
+              placeItems: "center",
+              color: colors.muted,
+              fontWeight: 700,
+              fontSize: 13,
+            },
+          },
+          "Loading map…",
+        ),
+    createElement("div", {
+      ref: hostRef,
+      style: { position: "absolute", inset: 0, width: "100%", height: "100%" },
+    }),
   );
 }

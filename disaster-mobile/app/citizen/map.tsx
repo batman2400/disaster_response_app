@@ -1,13 +1,12 @@
 import { useMemo, useState } from "react";
-import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { HazardMap } from "@/components/HazardMap";
 import {
   Badge,
   Card,
   GhostButton,
-  Kicker,
   StatusBadge,
-  Sub,
   UrgencyBadge,
   WardBadge,
 } from "@/components/ui";
@@ -16,14 +15,7 @@ import { categoryLabel, timeAgo, wardName } from "@/lib/format";
 import { mapHazardRow, mapWardRow, sortHazards, sortWards, useLiveRows } from "@/lib/live";
 import { SAFE_ROUTES } from "@/lib/safe-routes";
 import { colors } from "@/lib/theme";
-import { COLOMBO_CENTER, PIN_COLORS, type HazardRow, type WardId, type WardRow } from "@/lib/types";
-
-type MapsModule = typeof import("react-native-maps");
-
-let maps: MapsModule | null = null;
-if (Platform.OS !== "web") {
-  maps = require("react-native-maps") as MapsModule;
-}
+import { PIN_COLORS, type HazardRow, type WardId, type WardRow } from "@/lib/types";
 
 export default function PublicMapScreen() {
   const { rows: hazards } = useLiveRows<HazardRow>({
@@ -73,52 +65,11 @@ export default function PublicMapScreen() {
 
   const criticalWard = wards.find((ward) => ward.status === "CRITICAL");
   const alertHazard = hazards.find((hazard) => hazard.status === "AREA_ALERT");
-  const MapView = maps?.default;
-  const Marker = maps?.Marker;
-  const Polyline = maps?.Polyline;
-  const provider = maps?.PROVIDER_GOOGLE;
 
   return (
     <View style={styles.screen}>
       <View style={styles.mapContainer}>
-        {MapView && Marker ? (
-          <MapView
-            style={styles.map}
-            provider={provider}
-            initialRegion={{
-              ...COLOMBO_CENTER,
-              latitudeDelta: 0.08,
-              longitudeDelta: 0.08,
-            }}
-          >
-            {hazards.map((hazard) => (
-              <Marker
-                key={hazard.id}
-                coordinate={{ latitude: hazard.lat, longitude: hazard.lng }}
-                pinColor={PIN_COLORS[hazard.status]}
-                title={hazard.category}
-                description={`${hazard.status} · ${hazard.description ?? ""}`}
-              />
-            ))}
-            {Polyline
-              ? activeSafeRouteWards.map((wardId) => (
-                  <Polyline
-                    key={`route-${wardId}`}
-                    coordinates={SAFE_ROUTES[wardId]}
-                    strokeColor={colors.green}
-                    strokeWidth={3}
-                    lineDashPattern={[8, 6]}
-                  />
-                ))
-              : null}
-          </MapView>
-        ) : (
-          <View style={styles.fallback}>
-            <Kicker>MAP TILES</Kicker>
-            <Text style={styles.fallbackTitle}>Native MapView on device</Text>
-            <Sub>Expo web shows the live pin list below. Android tiles need the EAS build.</Sub>
-          </View>
-        )}
+        <HazardMap hazards={hazards} routeWards={activeSafeRouteWards} />
       </View>
 
       <View style={styles.overlayContainer} pointerEvents="box-none">
@@ -222,9 +173,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     zIndex: 0,
   },
-  map: {
-    ...StyleSheet.absoluteFillObject,
-  },
   overlayContainer: {
     position: "absolute",
     top: 0,
@@ -260,20 +208,6 @@ const styles = StyleSheet.create({
   confirmTitle: { color: colors.text, fontWeight: "700", marginTop: 8 },
   confirmMeta: { color: colors.muted, marginTop: 2, marginBottom: 8, fontSize: 12 },
   confirmError: { color: colors.red, marginHorizontal: 16, marginBottom: 8, fontWeight: "600" },
-  fallback: {
-    flex: 1,
-    marginHorizontal: 16,
-    marginTop: 220,
-    marginBottom: 8,
-    backgroundColor: colors.card,
-    borderColor: colors.line,
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 14,
-    alignSelf: "stretch",
-    maxHeight: 140,
-  },
-  fallbackTitle: { color: colors.text, fontWeight: "700", fontSize: 16 },
   bottomSheet: {
     position: "absolute",
     bottom: 0,

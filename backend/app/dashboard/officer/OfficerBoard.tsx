@@ -87,7 +87,7 @@ export function OfficerBoard({
       <p className="dash-kicker">TICKET QUEUE</p>
       <h2 style={{ fontSize: 32, margin: "4px 0 8px" }}>Confirm or hold reports</h2>
       <p className="sub">Confirm publishes a pin. Need info holds it for nearby confirmations.</p>
-      <p className="poll">
+      <p className="poll" suppressHydrationWarning>
         {live ? "Live" : "Polling every 8s"} · last update {updatedAt.toLocaleTimeString()}
       </p>
 
