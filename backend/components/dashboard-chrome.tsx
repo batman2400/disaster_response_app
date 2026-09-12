@@ -1,4 +1,4 @@
-import { Bell, Bug, CloudRain, LogOut } from "lucide-react";
+import { ArrowLeft, Bell, Bug, CloudRain, LogOut, Map } from "lucide-react";
 import Link from "next/link";
 
 import { cn } from "@/lib/cn";
@@ -23,9 +23,16 @@ export function DashboardChrome({ role }: { role: Exclude<DashRole, "crew"> }) {
         theme.accent,
       )}
     >
-      <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
         <Link
           href="/"
+          title="Return to Home Portal"
+          className="flex h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-700 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 active:scale-95 sm:px-3"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span className="hidden sm:inline">Home</span>
+        </Link>
+        <div
           className={cn(
             "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white shadow-md",
             theme.iconBg,
@@ -33,7 +40,7 @@ export function DashboardChrome({ role }: { role: Exclude<DashRole, "crew"> }) {
           )}
         >
           <Icon className="h-5 w-5" />
-        </Link>
+        </div>
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-2">
             <h1 className="truncate text-base font-extrabold leading-tight text-slate-900 sm:text-lg">{copy.title}</h1>
@@ -51,7 +58,15 @@ export function DashboardChrome({ role }: { role: Exclude<DashRole, "crew"> }) {
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-        <div className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 md:flex">
+        <Link
+          href="/map"
+          title="View Live Public Hazard & Evacuation Map"
+          className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-brand sm:px-3"
+        >
+          <Map className="h-4 w-4" />
+          <span className="hidden md:inline">Public map</span>
+        </Link>
+        <div className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 xl:flex">
           <div className="relative flex h-2 w-2 items-center justify-center">
             <span className="absolute h-full w-full animate-ping rounded-full bg-status-emerald opacity-50" />
             <span className="relative h-1.5 w-1.5 rounded-full bg-status-emerald" />

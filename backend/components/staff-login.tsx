@@ -1,6 +1,6 @@
 "use client";
 
-import { Shield } from "lucide-react";
+import { ArrowLeft, Shield } from "lucide-react";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
@@ -56,8 +56,18 @@ export function StaffLogin({ role }: { role: DashRole }) {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-slate-100 px-4 py-10">
       <Card className="w-full max-w-md p-8">
-        <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand text-white shadow-glow">
-          <Shield className="h-6 w-6" />
+        <div className="mb-6 flex items-center justify-between">
+          <Link
+            href="/"
+            title="Return to Home Portal"
+            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 active:scale-95"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand text-white shadow-glow">
+            <Shield className="h-6 w-6" />
+          </div>
+          <div className="w-10" />
         </div>
         <p className="text-[11px] font-extrabold uppercase tracking-widest text-brand">Fender</p>
         <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900">{copy.title}</h1>

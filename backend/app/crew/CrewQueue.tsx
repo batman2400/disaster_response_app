@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, LogOut, Truck } from "lucide-react";
+import { ArrowLeft, ChevronRight, LogOut, Map, Truck } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
 
@@ -43,6 +43,14 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
     <PublicShell>
       <div className={cn("flex items-center justify-between border-t-4 px-6 pb-2 pt-8 lg:px-10 lg:pt-10", theme.accent)}>
         <div className="flex items-center gap-3">
+          <Link
+            href="/"
+            title="Return to Home Portal"
+            className="flex h-10 items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-700 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 active:scale-95 sm:px-3"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span className="hidden sm:inline">Home</span>
+          </Link>
           <div className={cn("flex h-11 w-11 items-center justify-center rounded-2xl text-white", theme.iconBg, theme.glow)}>
             <Icon className="h-5 w-5" />
           </div>
@@ -51,11 +59,25 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
             <h1 className="text-lg font-extrabold text-slate-900 lg:text-2xl">Open tasks</h1>
           </div>
         </div>
-        <form action="/api/dashboard/logout" method="post">
-          <button type="submit" className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-100 bg-white text-slate-500">
-            <LogOut className="h-4 w-4" />
-          </button>
-        </form>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/map"
+            title="Open public map"
+            className="flex h-10 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-brand"
+          >
+            <Map className="h-4 w-4" />
+            <span className="hidden sm:inline">Public map</span>
+          </Link>
+          <form action="/api/dashboard/logout" method="post">
+            <button
+              type="submit"
+              title="Log out"
+              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-100 bg-white text-slate-500 hover:text-slate-700"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </form>
+        </div>
       </div>
       <p className="px-6 pb-4 text-xs font-medium text-slate-400 lg:px-10">
         {live ? "Live queue" : "Refreshing…"} · {open.length} open
