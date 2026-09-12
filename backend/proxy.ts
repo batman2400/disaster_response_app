@@ -14,8 +14,14 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const role = parseSession(request.cookies.get(COOKIE_NAME)?.value);
 
-  if (pathname === "/dashboard/login" || pathname === "/crew/login") {
-    if (role) return redirectTo(request, homeFor(role));
+  if (pathname === "/dashboard/login") {
+    const intended = request.nextUrl.searchParams.get("role") === "relief" ? "relief" : "officer";
+    if (role === intended) return redirectTo(request, homeFor(role));
+    return NextResponse.next();
+  }
+
+  if (pathname === "/crew/login") {
+    if (role === "crew") return redirectTo(request, homeFor(role));
     return NextResponse.next();
   }
 

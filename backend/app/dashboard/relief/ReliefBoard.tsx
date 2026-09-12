@@ -18,6 +18,16 @@ const SUPPLY_TONE: Record<SuppliesStatus, string> = {
 
 const SUPPLY_OPTIONS: SuppliesStatus[] = ["ADEQUATE", "LOW", "CRITICAL"];
 
+function uniqueShelters(rows: ShelterRow[]) {
+  const seen = new Set<string>();
+  return rows.filter((row) => {
+    const key = `${row.ward_id}:${row.name}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export function ReliefBoard({
   initialHazards,
   initialShelters,
@@ -35,12 +45,13 @@ export function ReliefBoard({
     sort: sortHazards,
     fallbackFetch: () => fetch("/api/hazards").then((res) => res.json() as Promise<HazardRow[]>),
   });
-  const { rows: shelters } = useLiveRows<ShelterRow>({
+  const { rows: liveShelters } = useLiveRows<ShelterRow>({
     table: "shelters",
     initial: initialShelters,
     mapRow: mapShelterRow,
     fallbackFetch: () => fetch("/api/shelters").then((res) => res.json() as Promise<ShelterRow[]>),
   });
+  const shelters = useMemo(() => uniqueShelters(liveShelters), [liveShelters]);
 
   const requests = useMemo(
     () => hazards.filter((row) => row.category === "HELP_REQUEST" && row.status !== "RESOLVED"),

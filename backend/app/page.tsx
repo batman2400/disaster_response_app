@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Box, ChevronRight, HardHat, Laptop, Map, Smartphone } from "lucide-react";
 
 import { PublicShell } from "@/components/public-shell";
+import { homeFor, readDashboardRole } from "@/lib/dashboard-auth";
+import { ROLE_THEME } from "@/lib/role-theme";
 
 const roles = [
   {
@@ -30,7 +32,10 @@ const roles = [
   },
 ] as const;
 
-export default function Home() {
+export default async function Home() {
+  const signedIn = await readDashboardRole();
+  const sessionTheme = signedIn ? ROLE_THEME[signedIn] : null;
+
   return (
     <PublicShell>
       <div className="flex-1 overflow-y-auto no-scrollbar px-6 pb-10 pt-10 lg:px-12 lg:py-12">
@@ -58,6 +63,30 @@ export default function Home() {
             </div>
           </div>
         </div>
+
+        {signedIn && sessionTheme ? (
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+            <p className="text-sm font-semibold text-slate-600">
+              Signed in as <span className={sessionTheme.chipText}>{sessionTheme.label}</span>
+            </p>
+            <div className="flex items-center gap-2">
+              <Link
+                href={homeFor(signedIn)}
+                className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white"
+              >
+                Open desk
+              </Link>
+              <form action="/api/dashboard/logout" method="post">
+                <button
+                  type="submit"
+                  className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600"
+                >
+                  Log out
+                </button>
+              </form>
+            </div>
+          </div>
+        ) : null}
 
         <div className="mt-8 mb-4 flex items-end justify-between lg:mt-0">
           <h2 className="text-lg font-bold text-slate-900 lg:text-xl">Select User Role</h2>

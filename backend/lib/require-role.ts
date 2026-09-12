@@ -22,7 +22,7 @@ export async function requireApiRole(expected: DashRole | DashRole[]) {
   return json({ error: "Unauthorized" }, 401);
 }
 
-export async function redirectIfSignedIn() {
+export async function redirectIfSignedIn(intended?: DashRole) {
   const role = await readDashboardRole();
-  if (role) redirect(homeFor(role));
+  if (role && (!intended || role === intended)) redirect(homeFor(role));
 }

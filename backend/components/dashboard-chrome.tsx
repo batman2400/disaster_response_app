@@ -79,6 +79,13 @@ export function DashboardChrome({ role }: { role: Exclude<DashRole, "crew"> }) {
         <span className="hidden h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-600 sm:flex">
           <Bell className="h-4 w-4" />
         </span>
+        <Link
+          href="/"
+          className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 sm:px-3"
+        >
+          <span className="hidden sm:inline">Switch role</span>
+          <span className="sm:hidden">Roles</span>
+        </Link>
         <form action="/api/dashboard/logout" method="post">
           <button
             type="submit"

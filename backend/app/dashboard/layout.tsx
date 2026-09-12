@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Command Control · Fender",
+  title: "Dashboard · Fender",
 };
 
 export default function DashboardLayout({ children }: LayoutProps<"/dashboard">) {

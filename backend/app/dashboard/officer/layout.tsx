@@ -1,7 +1,12 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 import { DashboardChrome } from "@/components/dashboard-chrome";
 import { requireDashboardRole } from "@/lib/require-role";
+
+export const metadata: Metadata = {
+  title: "Command Control · Fender",
+};
 
 export default async function OfficerLayout({ children }: { children: ReactNode }) {
   await requireDashboardRole("officer");

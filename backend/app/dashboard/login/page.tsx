@@ -7,9 +7,9 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ role?: string }>;
 }) {
-  await redirectIfSignedIn();
   const params = await searchParams;
   const role: DashRole = params.role === "relief" ? "relief" : "officer";
+  await redirectIfSignedIn(role);
   return (
     <div className="min-h-dvh bg-slate-50 text-slate-800">
       <StaffLogin role={role} />
