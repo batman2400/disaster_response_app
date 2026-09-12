@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,10 +13,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HazardMap } from "@/components/HazardMap";
 import {
   Badge,
-  Card,
   GhostButton,
-  StatusBadge,
-  UrgencyBadge,
+  HazardBadgeRow,
+  HazardSummaryCard,
 } from "@/components/ui";
 import { fetchHazards, fetchWards, postConfirm } from "@/lib/api";
 import { categoryLabel, timeAgo, wardName } from "@/lib/format";
@@ -223,13 +223,7 @@ export default function PublicMapScreen() {
       {selectedHazard && !isSheetExpanded ? (
         <View style={styles.pinPreviewCard}>
           <View style={styles.pinPreviewHeader}>
-            <View style={styles.badgeRow}>
-              <StatusBadge status={selectedHazard.status} />
-              <UrgencyBadge urgency={selectedHazard.urgency} />
-              {selectedHazard.is_road_blocked ? (
-                <Badge label="ROAD BLOCKED" color={colors.red} />
-              ) : null}
-            </View>
+            <HazardBadgeRow hazard={selectedHazard} />
             <Pressable
               onPress={() => setSelectedHazard(null)}
               hitSlop={12}
@@ -279,7 +273,7 @@ export default function PublicMapScreen() {
           <View style={styles.sheetTitleRow}>
             <View style={styles.sheetTitleLeft}>
               <Text style={styles.sheetTitle}>
-                {hazards.length} Live Pins
+                {hazards.length === 0 ? "Loading…" : `${hazards.length} Live Pins`}
               </Text>
               <View style={styles.liveIndicator}>
                 <View style={[styles.liveDot, { backgroundColor: live ? colors.green : colors.amber }]} />
@@ -340,39 +334,17 @@ export default function PublicMapScreen() {
                 <Text style={styles.emptyText}>No hazards in this category.</Text>
               ) : (
                 filteredHazards.map((hazard) => (
-                  <Pressable
+                  <HazardSummaryCard
                     key={hazard.id}
+                    hazard={hazard}
+                    focused={selectedHazard?.id === hazard.id}
                     onPress={() => {
                       handleSelectHazard(hazard);
                       setIsSheetExpanded(false);
                     }}
                   >
-                    <Card
-                      accent={PIN_COLORS[hazard.status]}
-                      style={[
-                        styles.hazardItem,
-                        selectedHazard?.id === hazard.id && styles.hazardItemFocused,
-                      ]}
-                    >
-                      <View style={styles.badgeRow}>
-                        <StatusBadge status={hazard.status} />
-                        <UrgencyBadge urgency={hazard.urgency} />
-                        {hazard.is_road_blocked ? (
-                          <Badge label="ROAD BLOCKED" color={colors.red} />
-                        ) : null}
-                      </View>
-                      <Text style={styles.itemTitle}>{categoryLabel(hazard.category)}</Text>
-                      <Text style={styles.itemBody} numberOfLines={2}>
-                        {hazard.description}
-                      </Text>
-                      <View style={styles.itemMetaRow}>
-                        <Text style={styles.itemMeta}>
-                          {wardName(hazard.ward_id)} · {timeAgo(hazard.created_at)}
-                        </Text>
-                        <Text style={styles.tapToView}>Tap to locate →</Text>
-                      </View>
-                    </Card>
-                  </Pressable>
+                    <Text style={styles.tapToView}>Tap to locate →</Text>
+                  </HazardSummaryCard>
                 ))
               )}
             </ScrollView>
@@ -386,7 +358,11 @@ export default function PublicMapScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   mapContainer: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     zIndex: 0,
   },
 
@@ -609,18 +585,6 @@ const styles = StyleSheet.create({
   },
   hazardList: { flex: 1 },
   hazardListContent: { padding: 16, paddingBottom: 24 },
-  hazardItem: { marginBottom: 10 },
-  hazardItemFocused: { borderColor: colors.blue, borderWidth: 1.5 },
-  badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, rowGap: 6, marginBottom: 8 },
-  itemTitle: { color: colors.text, fontWeight: "700", fontSize: 15 },
-  itemBody: { color: colors.text, marginTop: 4, fontSize: 13 },
-  itemMetaRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 8,
-  },
-  itemMeta: { color: colors.muted, fontSize: 12 },
-  tapToView: { color: colors.blue, fontSize: 12, fontWeight: "600" },
+  tapToView: { color: colors.blue, fontSize: 12, fontWeight: "600", marginTop: 8, textAlign: "right" },
   emptyText: { textAlign: "center", color: colors.muted, marginVertical: 32, fontSize: 13 },
 });

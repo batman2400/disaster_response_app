@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { PrimaryButton } from "@/components/ui";
+import { Label, PrimaryButton } from "@/components/ui";
 import { useAuth } from "@/lib/auth-context";
 import { displayName, verifyCrewPassword } from "@/lib/session";
 import { colors } from "@/lib/theme";
@@ -51,7 +51,7 @@ function BrandMark() {
 }
 
 function homeFor(role: Role) {
-  return role === "FIELD_CREW" ? "/crew" : "/citizen/report";
+  return ROLES.find((r) => r.id === role)?.route ?? "/citizen/report";
 }
 
 export default function LoginScreen() {
@@ -111,7 +111,7 @@ export default function LoginScreen() {
         </Text>
 
         <View style={styles.card}>
-          <Text style={styles.label}>Role</Text>
+          <Label>Role</Label>
           <View style={styles.roleRow}>
             {ROLES.map((item) => {
               const on = role === item.id;
@@ -136,7 +136,7 @@ export default function LoginScreen() {
             })}
           </View>
 
-          <Text style={styles.label}>Your name</Text>
+          <Label>Your name</Label>
           <TextInput
             value={name}
             onChangeText={setName}
@@ -148,7 +148,7 @@ export default function LoginScreen() {
 
           {role === "FIELD_CREW" ? (
             <>
-              <Text style={styles.label}>Password</Text>
+              <Label>Password</Label>
               <TextInput
                 value={password}
                 onChangeText={setPassword}
@@ -235,15 +235,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 1,
   },
-  label: {
-    color: colors.muted,
-    fontSize: 12,
-    fontWeight: "700",
-    marginBottom: 8,
-    marginTop: 12,
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-  },
+
   roleRow: { gap: 10 },
   roleChip: {
     backgroundColor: colors.bg2,

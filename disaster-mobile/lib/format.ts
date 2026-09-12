@@ -8,9 +8,7 @@ export function categoryLabel(id: HazardCategory) {
   return CATEGORIES.find((item) => item.id === id)?.label ?? id;
 }
 
-export function shortId(id: string) {
-  return id.slice(0, 8);
-}
+
 
 export function scorePct(score: number) {
   return `${Math.round(score * 100)}%`;

@@ -3,21 +3,17 @@ import { useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import {
-  Badge,
-  Card,
   EmptyState,
+  HazardSummaryCard,
   Kicker,
   PrimaryButton,
   Screen,
   Stat,
-  StatusBadge,
   Sub,
   Title,
-  UrgencyBadge,
 } from "@/components/ui";
 import { fetchHazards, postResolve } from "@/lib/api";
 import { useRequireRole } from "@/lib/auth-context";
-import { categoryLabel, timeAgo, wardName } from "@/lib/format";
 import { mapHazardRow, sortHazards, useLiveRows } from "@/lib/live";
 import { colors, urgencyColor } from "@/lib/theme";
 import { type HazardRow } from "@/lib/types";
@@ -93,18 +89,15 @@ export default function CrewScreen() {
         <EmptyState title="No open tickets" body="Resolved hazards drop off this list." />
       ) : (
         sorted.map((ticket) => (
-          <Card key={ticket.id} accent={urgencyColor[ticket.urgency]}>
-            <View style={styles.badges}>
-              <StatusBadge status={ticket.status} />
-              <UrgencyBadge urgency={ticket.urgency} />
-              {ticket.is_road_blocked ? <Badge label="ROAD BLOCKED" color={colors.red} /> : null}
-            </View>
-            <Text style={styles.cardTitle}>{categoryLabel(ticket.category)}</Text>
-            <Text style={styles.body}>{ticket.description}</Text>
-            <Text style={styles.meta}>
-              {wardName(ticket.ward_id)} · {ticket.lat.toFixed(4)}, {ticket.lng.toFixed(4)} · {timeAgo(ticket.created_at)}
-            </Text>
+          <HazardSummaryCard
+            key={ticket.id}
+            hazard={ticket}
+            accent={urgencyColor[ticket.urgency]}
+          >
             <View style={{ marginTop: 14 }}>
+              <Text style={styles.coordsText}>
+                {ticket.lat.toFixed(4)}, {ticket.lng.toFixed(4)}
+              </Text>
               <PrimaryButton
                 label="Close with after-fix photo"
                 color={colors.green}
@@ -113,7 +106,7 @@ export default function CrewScreen() {
                 onPress={() => void closeTicket(ticket.id)}
               />
             </View>
-          </Card>
+          </HazardSummaryCard>
         ))
       )}
     </Screen>
@@ -123,8 +116,5 @@ export default function CrewScreen() {
 const styles = StyleSheet.create({
   stats: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 16, marginBottom: 14 },
   error: { color: colors.red, marginBottom: 12, fontWeight: "600" },
-  badges: { flexDirection: "row", flexWrap: "wrap", gap: 6, rowGap: 6, marginBottom: 8 },
-  cardTitle: { color: colors.text, fontWeight: "700", fontSize: 18 },
-  body: { color: colors.text, marginTop: 6, lineHeight: 20 },
-  meta: { color: colors.muted, marginTop: 6, fontSize: 12 },
+  coordsText: { color: colors.muted, fontSize: 12, marginBottom: 10 },
 });

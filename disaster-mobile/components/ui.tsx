@@ -12,19 +12,23 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { colors, urgencyColor, wardStatusColor } from "@/lib/theme";
-import { PIN_COLORS, type HazardStatus, type Urgency, type WardStatus } from "@/lib/types";
+import { categoryLabel, timeAgo, wardName } from "@/lib/format";
+import { colors, urgencyColor } from "@/lib/theme";
+import { PIN_COLORS, type HazardRow, type HazardStatus, type Urgency } from "@/lib/types";
 
 export function Screen({
   children,
   style,
+  scrollRef,
 }: {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
+  scrollRef?: React.RefObject<ScrollView | null>;
 }) {
   return (
     <SafeAreaView style={styles.safeArea} edges={["bottom"]}>
       <ScrollView
+        ref={scrollRef}
         style={styles.screen}
         contentContainerStyle={[styles.content, style]}
       >
@@ -78,9 +82,7 @@ export function UrgencyBadge({ urgency }: { urgency: Urgency }) {
   return <Badge label={urgency} color={urgencyColor[urgency]} />;
 }
 
-export function WardBadge({ status }: { status: WardStatus }) {
-  return <Badge label={status} color={wardStatusColor[status]} />;
-}
+
 
 export function PrimaryButton({
   label,
@@ -159,22 +161,7 @@ export function Stat({
   );
 }
 
-export function Meter({
-  value,
-  max,
-  color,
-}: {
-  value: number;
-  max: number;
-  color: string;
-}) {
-  const pct = Math.min(100, Math.round((value / Math.max(max, 1)) * 100));
-  return (
-    <View style={styles.meterTrack}>
-      <View style={[styles.meterFill, { width: `${pct}%`, backgroundColor: color }]} />
-    </View>
-  );
-}
+
 
 export function CheckRow({
   label,
@@ -206,6 +193,56 @@ export function CheckRow({
 
 export function SectionHeader({ children }: { children: ReactNode }) {
   return <Text style={styles.sectionHeader}>{children}</Text>;
+}
+
+export function Label({ children }: { children: ReactNode }) {
+  return <Text style={styles.label}>{children}</Text>;
+}
+
+export function HazardBadgeRow({ hazard }: { hazard: Pick<HazardRow, "status" | "urgency" | "is_road_blocked"> }) {
+  return (
+    <View style={styles.badgeRow}>
+      <StatusBadge status={hazard.status} />
+      <UrgencyBadge urgency={hazard.urgency} />
+      {hazard.is_road_blocked ? <Badge label="ROAD BLOCKED" color={colors.red} /> : null}
+    </View>
+  );
+}
+
+export function HazardSummaryCard({
+  hazard,
+  accent,
+  focused,
+  children,
+  onPress,
+}: {
+  hazard: HazardRow;
+  accent?: string;
+  focused?: boolean;
+  children?: ReactNode;
+  onPress?: () => void;
+}) {
+  const content = (
+    <Card
+      accent={accent ?? PIN_COLORS[hazard.status]}
+      style={[focused && styles.cardFocused]}
+    >
+      <HazardBadgeRow hazard={hazard} />
+      <Text style={styles.hazardTitle}>{categoryLabel(hazard.category)}</Text>
+      <Text style={styles.hazardBody} numberOfLines={2}>
+        {hazard.description || "No additional description provided."}
+      </Text>
+      <Text style={styles.hazardMeta}>
+        {wardName(hazard.ward_id)} · {timeAgo(hazard.created_at)}
+      </Text>
+      {children}
+    </Card>
+  );
+
+  if (onPress) {
+    return <Pressable onPress={onPress}>{content}</Pressable>;
+  }
+  return content;
 }
 
 const styles = StyleSheet.create({
@@ -243,6 +280,10 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 1,
   },
+  cardFocused: {
+    borderColor: colors.blue,
+    borderWidth: 1.5,
+  },
   badge: {
     borderWidth: 1,
     borderRadius: 999,
@@ -250,6 +291,13 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   badgeText: { fontSize: 11, fontWeight: "700" },
+  badgeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    rowGap: 6,
+    marginBottom: 8,
+  },
   primary: {
     borderRadius: 12,
     paddingVertical: 14,
@@ -286,14 +334,15 @@ const styles = StyleSheet.create({
   },
   statValue: { fontSize: 22, fontWeight: "700" },
   statLabel: { color: colors.muted, marginTop: 4, fontSize: 12, fontWeight: "600" },
-  meterTrack: {
-    height: 8,
-    borderRadius: 999,
-    backgroundColor: colors.bg2,
-    overflow: "hidden",
-    marginTop: 8,
+  label: {
+    color: colors.muted,
+    fontWeight: "700",
+    marginBottom: 8,
+    marginTop: 12,
+    fontSize: 12,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
   },
-  meterFill: { height: "100%", borderRadius: 999 },
   checkRow: {
     flexDirection: "row",
     gap: 10,
@@ -313,4 +362,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
     marginBottom: 10,
   },
+  hazardTitle: { color: colors.text, fontWeight: "700", fontSize: 16 },
+  hazardBody: { color: colors.text, marginTop: 4, fontSize: 13, lineHeight: 18 },
+  hazardMeta: { color: colors.muted, marginTop: 8, fontSize: 12 },
 });

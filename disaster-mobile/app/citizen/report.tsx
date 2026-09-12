@@ -1,21 +1,22 @@
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
-import { useState } from "react";
-import { Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useRouter } from "expo-router";
+import { useRef, useState } from "react";
+import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import {
   Badge,
   Card,
   CheckRow,
   GhostButton,
+  HazardBadgeRow,
   Kicker,
+  Label,
   PrimaryButton,
   Screen,
   SectionHeader,
-  StatusBadge,
   Sub,
   Title,
-  UrgencyBadge,
 } from "@/components/ui";
 import { postReport } from "@/lib/api";
 import { categoryLabel, scorePct, wardName } from "@/lib/format";
@@ -29,6 +30,8 @@ import {
 } from "@/lib/types";
 
 export default function ReportScreen() {
+  const router = useRouter();
+  const scrollRef = useRef<ScrollView>(null);
   const [category, setCategory] = useState<HazardCategory>("FLOOD");
   const [wardId, setWardId] = useState<WardId>("ward_01");
   const [description, setDescription] = useState("");
@@ -70,6 +73,18 @@ export default function ReportScreen() {
     setError("");
   }
 
+  function resetForm() {
+    setCategory("FLOOD");
+    setWardId("ward_01");
+    setDescription("");
+    setPhoto("");
+    setLat(6.9535);
+    setLng(79.8732);
+    setError("");
+    setVerdict(null);
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  }
+
   async function submit() {
     setBusy(true);
     setError("");
@@ -93,7 +108,7 @@ export default function ReportScreen() {
   }
 
   return (
-    <Screen>
+    <Screen scrollRef={scrollRef}>
       <Kicker>CITIZEN REPORT</Kicker>
       <Title>Tag a hazard</Title>
       <Sub>Take a photo, pin your location, and send the report. You get a status and reason back.</Sub>
@@ -101,7 +116,7 @@ export default function ReportScreen() {
       {/* ── Section: What & Where ── */}
       <SectionHeader>What & where</SectionHeader>
 
-      <Text style={styles.label}>Category</Text>
+      <Label>Category</Label>
       <View style={styles.row}>
         {CATEGORIES.map((item) => (
           <Pressable
@@ -116,7 +131,7 @@ export default function ReportScreen() {
         ))}
       </View>
 
-      <Text style={styles.label}>Ward</Text>
+      <Label>Ward</Label>
       {WARDS.map((item) => (
         <Pressable
           key={item.id}
@@ -183,7 +198,14 @@ export default function ReportScreen() {
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      {verdict ? <VerdictCard verdict={verdict} category={category} /> : null}
+      {verdict ? (
+        <VerdictCard
+          verdict={verdict}
+          category={category}
+          onViewMap={() => router.push("/citizen/map" as never)}
+          onNewReport={resetForm}
+        />
+      ) : null}
 
       <View style={{ height: 24 }} />
     </Screen>
@@ -193,18 +215,19 @@ export default function ReportScreen() {
 function VerdictCard({
   verdict,
   category,
+  onViewMap,
+  onNewReport,
 }: {
   verdict: ReportResponse;
   category: HazardCategory;
+  onViewMap: () => void;
+  onNewReport: () => void;
 }) {
   return (
     <Card accent={urgencyColor[verdict.urgency]} style={{ marginTop: 16 }}>
       <Kicker color={urgencyColor[verdict.urgency]}>PIPELINE VERDICT</Kicker>
-      <View style={styles.badgeRow}>
-        <StatusBadge status={verdict.status} />
-        <UrgencyBadge urgency={verdict.urgency} />
-        <Badge label={scorePct(verdict.confidence_score)} color={colors.blue} />
-      </View>
+      <HazardBadgeRow hazard={verdict} />
+      <Badge label={scorePct(verdict.confidence_score)} color={colors.blue} />
       <Text style={styles.verdictTitle}>{categoryLabel(category)}</Text>
       <Text style={styles.meta}>id {verdict.incident_id}</Text>
       <Text style={styles.reason}>{verdict.reasoning}</Text>
@@ -238,20 +261,15 @@ function VerdictCard({
           detail={verdict.checks.risk_level}
         />
       </View>
+      <View style={styles.postSubmitActions}>
+        <GhostButton label="View on map →" onPress={onViewMap} />
+        <GhostButton label="File another report" onPress={onNewReport} />
+      </View>
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  label: {
-    color: colors.muted,
-    fontWeight: "700",
-    marginBottom: 8,
-    marginTop: 12,
-    fontSize: 12,
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-  },
   row: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
     backgroundColor: colors.card,
@@ -309,7 +327,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg2,
   },
   error: { color: colors.red, marginTop: 12, fontWeight: "600" },
-  badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, rowGap: 8, marginBottom: 10 },
-  verdictTitle: { color: colors.text, fontSize: 20, fontWeight: "700" },
+  verdictTitle: { color: colors.text, fontSize: 20, fontWeight: "700", marginTop: 6 },
   reason: { color: colors.text, marginTop: 10, lineHeight: 21 },
+  postSubmitActions: { marginTop: 16, gap: 8 },
 });
