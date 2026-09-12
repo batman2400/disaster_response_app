@@ -85,7 +85,13 @@ export function deterministicAggregate(
   }
 
   if (checks.image_verified && checks.location_matched) {
-    const isActionable = body.category === "BLOCKED_ROAD" || body.category === "FALLEN_TREE";
+    const isActionable =
+      body.category === "BLOCKED_ROAD" ||
+      body.category === "FALLEN_TREE" ||
+      body.category === "ELECTRICAL_HAZARD" ||
+      body.category === "LANDSLIDE" ||
+      body.category === "DRAINAGE_OVERFLOW" ||
+      body.category === "STRUCTURAL_DAMAGE";
     return {
       status: "COUNCIL_TICKET",
       urgency: "MEDIUM",

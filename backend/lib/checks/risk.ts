@@ -23,6 +23,20 @@ export interface RiskCheckResult {
 function heuristicRisk(category: HazardCategory, description: string): RiskCheckResult {
   const text = description.toLowerCase();
   const severe = /(waist|chest|deep|trapped|collapsed|drowning|sweep|stranded|urgent|dying|injur)/.test(text);
+  if (category === "ELECTRICAL_HAZARD") {
+    return {
+      risk_level: "CRITICAL",
+      reason: "Downed power lines and submerged electrical hazards carry acute electrocution danger.",
+      source: "code",
+    };
+  }
+  if (category === "LANDSLIDE" || category === "STRUCTURAL_DAMAGE") {
+    return {
+      risk_level: "CRITICAL",
+      reason: "Earth slip or structural failure poses immediate life-safety risk.",
+      source: "code",
+    };
+  }
   if (category === "FLOOD" && severe) {
     return {
       risk_level: "CRITICAL",
@@ -30,10 +44,15 @@ function heuristicRisk(category: HazardCategory, description: string): RiskCheck
       source: "code",
     };
   }
-  if (category === "FLOOD" || category === "BLOCKED_ROAD") {
+  if (
+    category === "FLOOD" ||
+    category === "BLOCKED_ROAD" ||
+    category === "DRAINAGE_OVERFLOW" ||
+    category === "FALLEN_TREE"
+  ) {
     return {
       risk_level: "MEDIUM",
-      reason: "Fallback: category implies at least moderate risk.",
+      reason: "Fallback: category implies at least moderate infrastructure risk.",
       source: "code",
     };
   }

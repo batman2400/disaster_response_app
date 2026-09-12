@@ -7,10 +7,14 @@ export const WARDS: { id: WardId; name: string }[] = [
 ];
 
 export const CATEGORIES: { id: HazardCategory; label: string }[] = [
-  { id: "FLOOD", label: "Flood" },
-  { id: "BLOCKED_ROAD", label: "Blocked road" },
-  { id: "FALLEN_TREE", label: "Fallen tree" },
-  { id: "HELP_REQUEST", label: "Help request" },
+  { id: "FLOOD", label: "Flood / High Water" },
+  { id: "ELECTRICAL_HAZARD", label: "Live Wire / Electrical" },
+  { id: "FALLEN_TREE", label: "Fallen Tree" },
+  { id: "BLOCKED_ROAD", label: "Road / Bridge Damage" },
+  { id: "LANDSLIDE", label: "Landslide / Mudflow" },
+  { id: "DRAINAGE_OVERFLOW", label: "Drainage / Canal Block" },
+  { id: "STRUCTURAL_DAMAGE", label: "Building / Wall Collapse" },
+  { id: "HELP_REQUEST", label: "Rescue / Need Help" },
 ];
 
 export function wardName(id: WardId) {

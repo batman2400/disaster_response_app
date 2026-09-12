@@ -2,15 +2,18 @@
 
 import {
   ArrowLeft,
+  Building2,
   Camera,
   CircleHelp,
   Compass,
   Construction,
   Cpu,
+  Droplets,
   LifeBuoy,
   LoaderCircle,
   LocateFixed,
   Map as MapIcon,
+  Mountain,
   PhoneCall,
   RotateCw,
   ShieldAlert,
@@ -38,10 +41,14 @@ const CATEGORY_CARDS: {
   icon: typeof Waves;
   tone: string;
 }[] = [
-  { id: "FLOOD", title: "Flood", hint: "Standing water", icon: Waves, tone: "bg-blue-50 text-blue-500" },
-  { id: "FALLEN_TREE", title: "Fallen Tree", hint: "Blocked pathway", icon: TreeDeciduous, tone: "bg-emerald-50 text-emerald-500" },
-  { id: "BLOCKED_ROAD", title: "Road Damage", hint: "Sinkhole / Collapse", icon: Construction, tone: "bg-amber-50 text-amber-500" },
-  { id: "HELP_REQUEST", title: "Need Help", hint: "Rescue request", icon: CircleHelp, tone: "bg-rose-50 text-rose-500" },
+  { id: "FLOOD", title: "Flood / High Water", hint: "River overflow / Standing water", icon: Waves, tone: "bg-blue-50 text-blue-600" },
+  { id: "ELECTRICAL_HAZARD", title: "Power Line / Electric", hint: "Downed line / Shock hazard", icon: Zap, tone: "bg-amber-50 text-amber-600" },
+  { id: "FALLEN_TREE", title: "Fallen Tree", hint: "Blocked road / Roof damage", icon: TreeDeciduous, tone: "bg-emerald-50 text-emerald-600" },
+  { id: "BLOCKED_ROAD", title: "Road Damage", hint: "Sinkhole / Bridge collapse", icon: Construction, tone: "bg-orange-50 text-orange-600" },
+  { id: "LANDSLIDE", title: "Landslide / Mudflow", hint: "Earth slip / Unstable slope", icon: Mountain, tone: "bg-stone-100 text-stone-700" },
+  { id: "DRAINAGE_OVERFLOW", title: "Drainage / Canal Block", hint: "Culvert burst / Overflow", icon: Droplets, tone: "bg-cyan-50 text-cyan-600" },
+  { id: "STRUCTURAL_DAMAGE", title: "Structural Collapse", hint: "Cracked building / Wall collapse", icon: Building2, tone: "bg-purple-50 text-purple-600" },
+  { id: "HELP_REQUEST", title: "Rescue / Need Help", hint: "Stranded people / Medical crisis", icon: LifeBuoy, tone: "bg-rose-50 text-rose-600" },
 ];
 
 const WARD_OPTIONS: { id: WardId; name: string; lat: number; lng: number }[] = [
@@ -387,7 +394,7 @@ export function ReportForm() {
         <div className="flex flex-col">
           {/* Section 3: Incident Classification */}
           <SectionLabel>3. Incident Classification</SectionLabel>
-          <div className="mb-6 grid grid-cols-2 gap-4">
+          <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-2">
             {CATEGORY_CARDS.map((item) => {
               const Icon = item.icon;
               const selected = category === item.id;
@@ -397,16 +404,16 @@ export function ReportForm() {
                   type="button"
                   onClick={() => setCategory(item.id)}
                   className={cn(
-                    "flex flex-col items-start gap-3 overflow-hidden rounded-3xl border border-slate-100 bg-white p-5 text-left shadow-soft transition-all active:scale-95",
+                    "flex flex-col items-start gap-2.5 overflow-hidden rounded-2xl border border-slate-100 bg-white p-3.5 text-left shadow-soft transition-all active:scale-95",
                     selected && "border-transparent bg-brand-light/30 ring-2 ring-brand",
                   )}
                 >
-                  <div className={cn("flex h-10 w-10 items-center justify-center rounded-full", item.tone, selected && "scale-110")}>
-                    <Icon className="h-5 w-5" />
+                  <div className={cn("flex h-9 w-9 items-center justify-center rounded-xl", item.tone, selected && "scale-110")}>
+                    <Icon className="h-4 w-4" />
                   </div>
                   <div>
-                    <span className="block text-sm font-extrabold text-slate-800">{item.title}</span>
-                    <span className="mt-0.5 block text-[10px] font-medium text-slate-400">{item.hint}</span>
+                    <span className="block text-xs font-extrabold text-slate-800 leading-snug">{item.title}</span>
+                    <span className="mt-0.5 block text-[10px] font-medium text-slate-400 leading-tight">{item.hint}</span>
                   </div>
                 </button>
               );

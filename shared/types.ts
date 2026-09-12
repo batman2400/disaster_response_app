@@ -21,8 +21,12 @@ export const WARDS: { id: WardId; name: string }[] = [
 
 export type HazardCategory =
   | "FLOOD"
-  | "BLOCKED_ROAD"
+  | "ELECTRICAL_HAZARD"
   | "FALLEN_TREE"
+  | "BLOCKED_ROAD"
+  | "LANDSLIDE"
+  | "DRAINAGE_OVERFLOW"
+  | "STRUCTURAL_DAMAGE"
   | "HELP_REQUEST";
 
 export type HazardStatus =
