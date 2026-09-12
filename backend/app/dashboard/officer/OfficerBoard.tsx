@@ -912,7 +912,7 @@ export function OfficerBoard({
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto custom-scrollbar overflow-x-hidden">
+            <div className="flex flex-1 flex-col min-h-0 overflow-hidden">
               <PipelineAudit hazard={selected} siblings={tickets} isDrawer={true} />
             </div>
           </div>
