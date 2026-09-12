@@ -405,18 +405,20 @@ export function ReliefBoard({
               {sheltersWithCoords.length} Shelters · Colombo Basin
             </span>
           </div>
-          <ReliefMap
-            shelters={sheltersWithCoords}
-            selectedShelterId={selectedShelterId}
-            onSelectShelter={(id) => {
-              setSelectedShelterId(id);
-              const found = sheltersWithCoords.find((s) => s.id === id);
-              if (found) setFocusedCoords([found.lat, found.lng]);
-            }}
-            helpRequests={requests}
-            focusCoords={focusedCoords}
-            className="h-80 w-full rounded-3xl border border-slate-200 bg-white shadow-xs"
-          />
+          <div className="relative isolate h-80 w-full overflow-hidden rounded-3xl border border-slate-200 bg-slate-100 shadow-xs">
+            <ReliefMap
+              shelters={sheltersWithCoords}
+              selectedShelterId={selectedShelterId}
+              onSelectShelter={(id) => {
+                setSelectedShelterId(id);
+                const found = sheltersWithCoords.find((s) => s.id === id);
+                if (found) setFocusedCoords([found.lat, found.lng]);
+              }}
+              helpRequests={requests}
+              focusCoords={focusedCoords}
+              className="absolute inset-0 h-full w-full"
+            />
+          </div>
         </div>
 
         {/* Right / Top: Active Queue or Operational Readiness Cockpit */}
@@ -624,7 +626,7 @@ export function ReliefBoard({
 
       {/* Walk-in Intake Modal */}
       {walkinOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs animate-in fade-in">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/70 p-4 backdrop-blur-sm animate-in fade-in">
           <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">

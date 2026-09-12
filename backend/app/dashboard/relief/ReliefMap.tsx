@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { cn } from "@/lib/cn";
 import { wardName } from "@/lib/format";
 import { SAFE_ROUTES, type ShelterWithCoords } from "@/lib/safe-routes";
 import type { HazardRow } from "@/lib/types";
@@ -49,7 +50,6 @@ function loadLeaflet(): Promise<AnyLeaflet> {
     document.body.appendChild(script);
   });
 }
-
 
 function getShelterColor(shelter: ShelterWithCoords): string {
   const free = shelter.total_beds - shelter.occupied_beds;
@@ -210,6 +210,7 @@ export function ReliefMap({
   useEffect(() => {
     let cancelled = false;
     let map: AnyLeaflet | null = null;
+    let resizeObserver: ResizeObserver | null = null;
 
     void loadLeaflet()
       .then((L) => {
@@ -220,7 +221,19 @@ export function ReliefMap({
         L.tileLayer(TILES, { maxZoom: 19 }).addTo(map);
         mapRef.current = map;
         syncAll(L, map);
-        window.setTimeout(() => map?.invalidateSize(), 100);
+
+        // Multiple invalidation passes to guarantee complete tile coverage as layout settles
+        window.setTimeout(() => map?.invalidateSize(), 50);
+        window.setTimeout(() => map?.invalidateSize(), 200);
+        window.setTimeout(() => map?.invalidateSize(), 600);
+
+        if (typeof ResizeObserver !== "undefined" && el) {
+          resizeObserver = new ResizeObserver(() => {
+            map?.invalidateSize();
+          });
+          resizeObserver.observe(el);
+        }
+
         setMode("map");
       })
       .catch(() => {
@@ -229,6 +242,7 @@ export function ReliefMap({
 
     return () => {
       cancelled = true;
+      resizeObserver?.disconnect();
       map?.remove();
       mapRef.current = null;
       shelterMarkersRef.current.clear();
@@ -250,31 +264,35 @@ export function ReliefMap({
     }
   }, [focusCoords]);
 
-  if (mode === "list") {
-    return (
-      <div className={className ?? "relative h-64 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-4"}>
-        <p className="text-xs font-bold text-slate-500 mb-2">Shelter Locations (Map offline):</p>
-        <div className="grid grid-cols-2 gap-2">
-          {shelters.map((s) => (
-            <div key={s.id} className="rounded-xl border border-slate-200 bg-white p-2.5">
-              <strong className="text-xs font-bold text-slate-800">{s.name}</strong>
-              <p className="text-[11px] text-slate-500">{s.total_beds - s.occupied_beds} free beds</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className={className ?? "relative h-72 w-full overflow-hidden rounded-3xl border border-slate-200 shadow-sm"}>
+    <div
+      className={cn(
+        "relative isolate w-full overflow-hidden rounded-3xl border border-slate-200 bg-slate-100 shadow-xs",
+        className,
+      )}
+    >
       {mode === "loading" ? (
-        <div className="absolute inset-0 flex items-center justify-center bg-slate-50 text-xs font-bold text-slate-400">
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-50 text-xs font-bold text-slate-400">
           Loading logistics map…
         </div>
       ) : null}
-      <div ref={hostRef} className="h-full w-full" />
-      <div className="pointer-events-none absolute bottom-3 left-3 z-[400] flex items-center gap-3 rounded-xl border border-slate-200/80 bg-white/90 px-3 py-1.5 backdrop-blur-md text-[11px] font-bold text-slate-700 shadow-sm">
+      {mode === "list" ? (
+        <div className="absolute inset-0 z-10 overflow-y-auto bg-slate-50 p-4">
+          <p className="text-xs font-bold text-slate-500 mb-2">Shelter Locations (Map offline):</p>
+          <div className="grid grid-cols-2 gap-2">
+            {shelters.map((s) => (
+              <div key={s.id} className="rounded-xl border border-slate-200 bg-white p-2.5">
+                <strong className="text-xs font-bold text-slate-800">{s.name}</strong>
+                <p className="text-[11px] text-slate-500">{s.total_beds - s.occupied_beds} free beds</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <div ref={hostRef} className="h-full w-full min-h-[300px]" />
+
+      <div className="pointer-events-none absolute bottom-3 left-3 z-[15] flex items-center gap-2.5 rounded-xl border border-slate-200/80 bg-white/95 px-3 py-1.5 backdrop-blur-md text-[11px] font-bold text-slate-700 shadow-sm">
         <span className="flex items-center gap-1">
           <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> &gt;30% Free
         </span>
@@ -285,7 +303,7 @@ export function ReliefMap({
           <span className="h-2.5 w-2.5 rounded-full bg-rose-500" /> Full / Critical
         </span>
         <span className="hidden sm:flex items-center gap-1 border-l border-slate-200 pl-2 text-slate-500">
-          <span className="h-0.5 w-3 bg-emerald-500" /> Evac Routes
+          <span className="h-0.5 w-3 bg-emerald-500" /> Safe Corridors
         </span>
       </div>
     </div>
