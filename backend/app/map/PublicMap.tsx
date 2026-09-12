@@ -27,6 +27,7 @@ import { useMemo, useState } from "react";
 import { OfficerMap, type StyledRoute } from "@/app/dashboard/officer/OfficerMap";
 import { EmergencyBroadcastBanner } from "@/components/emergency-broadcast-banner";
 import { EmergencySosModal } from "@/components/emergency-sos-modal";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { PublicShell } from "@/components/public-shell";
 import { WaterDepthGauge } from "@/components/water-depth-gauge";
 import { Badge, BottomSheet, Button, Chip, StatusBadge } from "@/components/ui";
@@ -298,6 +299,7 @@ export function PublicMap({
   const [alertDismissed, setAlertDismissed] = useState(false);
   const [confirmBusy, setConfirmBusy] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [mobileLegendOpen, setMobileLegendOpen] = useState(false);
   const [focusCoords, setFocusCoords] = useState<[number, number] | null>(null);
   const [corridorsDrawerOpen, setCorridorsDrawerOpen] = useState(false);
   const [selectedCorridorId, setSelectedCorridorId] = useState<string | null>(null);
@@ -493,165 +495,155 @@ export function PublicMap({
         focusCoords={focusCoords}
       />
 
-      {/* Top Bar with Citizen Switcher & SOS button */}
-      <div className="pointer-events-none absolute top-4 left-4 right-4 z-40 flex items-center gap-2 lg:right-auto lg:w-[min(44rem,calc(100vw-24rem))]">
-        <Link
-          href="/"
-          title="Return to Home"
-          className="pointer-events-auto flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/50 bg-white/90 text-slate-700 shadow-soft backdrop-blur-md active:scale-95"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
+      {/* Unified Floating Top Controls Container (Natural Column Flow - Eliminates Overlaps) */}
+      <div className="pointer-events-none absolute top-3 left-3 right-3 z-40 flex flex-col gap-2 pt-safe lg:top-4 lg:left-4 lg:right-auto lg:w-[min(44rem,calc(100vw-24rem))]">
+        {/* Row 1: Back to Home + Live Map Badge + Language + SOS */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            {/* Back to Home button with guaranteed fallback */}
+            <Link
+              href="/"
+              onClick={() => {
+                setTimeout(() => {
+                  if (window.location.pathname !== "/") {
+                    window.location.href = "/";
+                  }
+                }, 250);
+              }}
+              title="Return to Home"
+              className="pointer-events-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/60 bg-white/95 text-slate-700 shadow-soft backdrop-blur-md transition-transform active:scale-90 touch-manipulation"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
 
-        {/* Citizen Navigation Segment: Live Map / Report Hazard */}
-        <div className="pointer-events-auto flex h-12 items-center rounded-2xl border border-white/50 bg-white/90 p-1 shadow-soft backdrop-blur-md">
-          <div className="flex h-full items-center gap-1.5 rounded-xl bg-brand px-3 text-xs font-extrabold text-white shadow-sm">
-            <MapIcon className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{t("live_map")}</span>
+            {/* Safe Map Pill */}
+            <div className="pointer-events-auto flex h-11 items-center gap-1.5 rounded-2xl border border-white/60 bg-white/95 px-3.5 shadow-soft backdrop-blur-md">
+              <MapIcon className="h-4 w-4 text-brand" />
+              <span className="text-xs font-black text-slate-800">
+                {t("live_map") || "Safe Map"}
+              </span>
+              <span className="hidden sm:inline-flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            </div>
           </div>
-          <Link
-            href="/report"
-            className="flex h-full items-center gap-1.5 rounded-xl px-3 text-xs font-bold text-slate-600 transition-colors hover:text-brand"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            {t("report_hazard")}
-          </Link>
-        </div>
 
-        {/* Status ticker */}
-        <div className="pointer-events-auto hidden flex-1 items-center gap-2 rounded-2xl border border-white/50 bg-white/90 px-3 py-3 shadow-soft backdrop-blur-md sm:flex">
-          <div className="relative flex h-2 w-2 shrink-0 items-center justify-center">
-            <span className="absolute h-full w-full animate-ping rounded-full bg-status-emerald opacity-60" />
-            <span className="relative h-1.5 w-1.5 rounded-full bg-status-emerald" />
-          </div>
-          <p className="truncate text-xs font-extrabold text-slate-800">
-            {live
-              ? (lang === "si" ? "කොළඹ සජීවී දත්ත" : lang === "ta" ? "கொழும்பு நேரலை நிலை" : "Colombo Live Telemetry")
-              : (lang === "si" ? "සම්බන්ධ වෙමින්…" : lang === "ta" ? "இணைக்கிறது…" : "Connecting…")}
-          </p>
-        </div>
+          {/* Right: Language + SOS */}
+          <div className="pointer-events-auto flex items-center gap-1.5">
+            <LanguageSwitcher />
 
-        {/* Language Switcher & SOS Emergency Hotline Button */}
-        <div className="pointer-events-auto flex items-center gap-2">
-          <LanguageSwitcher />
-
-          <button
-            type="button"
-            onClick={() => setSosModalOpen(true)}
-            className="flex h-12 shrink-0 items-center gap-1.5 rounded-2xl border border-rose-200 bg-rose-500 px-3.5 text-xs font-extrabold text-white shadow-lg shadow-rose-500/25 transition-transform active:scale-95"
-          >
-            <ShieldAlert className="h-4 w-4 animate-pulse" />
-            <span>SOS 117</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Emergency Broadcast Announcement Banner */}
-      <div className="absolute top-20 left-4 right-4 z-40 lg:right-auto lg:w-[min(44rem,calc(100vw-24rem))] pointer-events-auto">
-        <EmergencyBroadcastBanner />
-      </div>
-
-      {/* Filter and Layer Action Chips */}
-      <div
-        className={`absolute left-4 z-40 flex items-center gap-2 overflow-x-auto no-scrollbar lg:max-w-[min(44rem,calc(100vw-24rem))] ${
-          showAlert ? "top-64" : "top-32"
-        } right-4 lg:right-auto`}
-      >
-        {/* Dynamic Evacuation Detour Navigator Action Chip */}
-        <button
-          type="button"
-          onClick={() => handleStartDetourNavigation()}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-2xl border border-amber-300 bg-white/95 px-3.5 py-2 text-xs font-black text-amber-800 shadow-soft backdrop-blur-md hover:bg-amber-50 active:scale-95"
-          title="Compute dynamic detour route to safest open shelter, bypassing flood roadblocks"
-        >
-          <Compass className="h-3.5 w-3.5 text-amber-600 animate-pulse" />
-          <span>Detour Navigator</span>
-          {activeDetourRoute && (
-            <span className="rounded-full bg-amber-500 px-1.5 py-0.2 text-[9px] font-black text-white">
-              Active
-            </span>
-          )}
-        </button>
-
-        {/* Find Shelters action chip */}
-        <button
-          type="button"
-          onClick={() => setSheltersListOpen(true)}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-2xl border border-indigo-200 bg-white/90 px-3.5 py-2 text-xs font-extrabold text-indigo-700 shadow-soft backdrop-blur-md hover:bg-indigo-50 active:scale-95"
-        >
-          <Building2 className="h-3.5 w-3.5 text-indigo-600" />
-          <span>{t("shelters_btn")} ({totalFreeBeds} {t("free_beds")})</span>
-        </button>
-
-        {/* Enhanced Safe Corridors Button with Drawer Link */}
-        <div className="inline-flex shrink-0 items-center rounded-2xl border border-emerald-300 bg-white/90 shadow-soft backdrop-blur-md overflow-hidden">
-          <button
-            type="button"
-            onClick={() => {
-              setShowEvacRoutes(!showEvacRoutes);
-              if (selectedCorridorId) setSelectedCorridorId(null);
-            }}
-            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-extrabold transition-all active:scale-95 ${
-              showEvacRoutes
-                ? "bg-emerald-500 text-white"
-                : "text-slate-600 hover:bg-slate-50"
-            }`}
-          >
-            <Route className="h-3.5 w-3.5" />
-            <span>{showEvacRoutes ? t("safe_corridors_btn") : (lang === "si" ? "මාර්ග ක්‍රියාවිරහිතයි" : lang === "ta" ? "பாதைகள் அணைக்கப்பட்டுள்ளது" : "Corridors Off")}</span>
-          </button>
-          {showEvacRoutes ? (
             <button
               type="button"
-              onClick={() => setCorridorsDrawerOpen(true)}
-              className="border-l border-emerald-400 bg-emerald-600 px-2 py-2 text-[10px] font-bold text-white hover:bg-emerald-700"
-              title="View designated evacuation corridors list"
+              onClick={() => setSosModalOpen(true)}
+              className="flex h-11 shrink-0 items-center gap-1.5 rounded-2xl border border-rose-200 bg-rose-500 px-3 text-xs font-extrabold text-white shadow-md shadow-rose-500/25 transition-transform active:scale-95 touch-manipulation"
             >
-              List ({ARTERIAL_SAFE_CORRIDORS.length})
-            </button>
-          ) : null}
-        </div>
-
-        <div className="h-5 w-px shrink-0 bg-slate-200" />
-
-        {FILTERS.map((item) => (
-          <Chip key={item.id} active={filter === item.id} onClick={() => setFilter(item.id)} className="inline-flex shrink-0 items-center shadow-soft">
-            {item.id !== "ALL" ? (
-              <span className="mr-1.5 inline-block h-2 w-2 rounded-full" style={{ background: PIN_COLORS[item.id] }} />
-            ) : null}
-            {filterLabels[item.id] || item.label}
-          </Chip>
-        ))}
-      </div>
-
-      {/* Area Alert Banner */}
-      {showAlert ? (
-        <div className="absolute top-32 left-4 right-4 z-40 rounded-3xl border border-status-crimson/20 bg-white/90 p-4 shadow-glow-red backdrop-blur-xl animate-slide-down-alert lg:right-auto lg:w-[min(44rem,calc(100vw-24rem))]">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-status-crimson-bg text-status-crimson">
-              <TriangleAlert className="h-5 w-5 animate-pulse" />
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-extrabold text-slate-900">Critical Flood Warning</h3>
-                <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[9px] font-extrabold uppercase text-rose-700">Evacuation</span>
-              </div>
-              <p className="mt-0.5 text-[11px] font-semibold leading-tight text-slate-600">
-                {criticalWard
-                  ? `High water in ${wardShort(criticalWard.id)} · ${criticalWard.rainfall_mm} mm rain, river ${criticalWard.river_level_pct}%. Follow green evacuation route to Peliyagoda Community Centre.`
-                  : "An area alert is active. Avoid low-lying river roads."}
-              </p>
-            </div>
-            <button type="button" onClick={() => setAlertDismissed(true)} className="p-1 text-slate-400 hover:text-slate-600">
-              <X className="h-4 w-4" />
+              <ShieldAlert className="h-4 w-4 animate-pulse" />
+              <span className="font-black">SOS 117</span>
             </button>
           </div>
         </div>
-      ) : null}
 
-      {/* Legend */}
+        {/* Row 2: Emergency Broadcast Announcement Banner (Natural flow) */}
+        <div className="pointer-events-auto">
+          <EmergencyBroadcastBanner />
+        </div>
+
+        {/* Row 3: Critical Flood Warning (Natural flow - no collision with banner or chips!) */}
+        {showAlert ? (
+          <div className="pointer-events-auto rounded-2xl border border-status-crimson/20 bg-white/95 p-3.5 shadow-glow-red backdrop-blur-xl animate-slide-down-alert">
+            <div className="flex items-start gap-2.5">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-status-crimson-bg text-status-crimson">
+                <TriangleAlert className="h-4 w-4 animate-pulse" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xs font-black text-slate-900 truncate">Critical Flood Warning</h3>
+                  <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[9px] font-black uppercase text-rose-700">Evacuate</span>
+                </div>
+                <p className="mt-0.5 text-[11px] font-semibold leading-tight text-slate-600 line-clamp-2">
+                  {criticalWard
+                    ? `High water in ${wardShort(criticalWard.id)} · ${criticalWard.rainfall_mm} mm rain, river ${criticalWard.river_level_pct}%. Follow green evacuation route.`
+                    : "An area alert is active. Avoid low-lying river roads."}
+                </p>
+              </div>
+              <button type="button" onClick={() => setAlertDismissed(true)} className="p-1 text-slate-400 hover:text-slate-600 active:scale-90">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {/* Row 4: Filter and Layer Action Chips (Natural flow - horizontal scroll) */}
+        <div className="pointer-events-auto flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+          {/* Dynamic Evacuation Detour Navigator Action Chip */}
+          <button
+            type="button"
+            onClick={() => handleStartDetourNavigation()}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-2xl border border-amber-300 bg-white/95 px-3 py-2 text-xs font-black text-amber-800 shadow-soft backdrop-blur-md hover:bg-amber-50 active:scale-95 touch-manipulation"
+            title="Compute dynamic detour route to safest open shelter, bypassing flood roadblocks"
+          >
+            <Compass className="h-3.5 w-3.5 text-amber-600 animate-pulse" />
+            <span>Detour Navigator</span>
+            {activeDetourRoute && (
+              <span className="rounded-full bg-amber-500 px-1.5 py-0.2 text-[9px] font-black text-white">
+                Active
+              </span>
+            )}
+          </button>
+
+          {/* Find Shelters action chip */}
+          <button
+            type="button"
+            onClick={() => setSheltersListOpen(true)}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-2xl border border-indigo-200 bg-white/95 px-3 py-2 text-xs font-extrabold text-indigo-700 shadow-soft backdrop-blur-md hover:bg-indigo-50 active:scale-95 touch-manipulation"
+          >
+            <Building2 className="h-3.5 w-3.5 text-indigo-600" />
+            <span>{t("shelters_btn")} ({totalFreeBeds} {t("free_beds")})</span>
+          </button>
+
+          {/* Safe Corridors */}
+          <div className="inline-flex shrink-0 items-center rounded-2xl border border-emerald-300 bg-white/95 shadow-soft backdrop-blur-md overflow-hidden">
+            <button
+              type="button"
+              onClick={() => {
+                setShowEvacRoutes(!showEvacRoutes);
+                if (selectedCorridorId) setSelectedCorridorId(null);
+              }}
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-extrabold transition-all active:scale-95 touch-manipulation ${
+                showEvacRoutes
+                  ? "bg-emerald-500 text-white"
+                  : "text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              <Route className="h-3.5 w-3.5" />
+              <span>{showEvacRoutes ? t("safe_corridors_btn") : (lang === "si" ? "මාර්ග ක්‍රියාවිරහිතයි" : lang === "ta" ? "பாதைகள் அணைக்கப்பட்டுள்ளது" : "Corridors Off")}</span>
+            </button>
+            {showEvacRoutes ? (
+              <button
+                type="button"
+                onClick={() => setCorridorsDrawerOpen(true)}
+                className="border-l border-emerald-400 bg-emerald-600 px-2 py-2 text-[10px] font-bold text-white hover:bg-emerald-700 touch-manipulation"
+                title="View designated evacuation corridors list"
+              >
+                List ({ARTERIAL_SAFE_CORRIDORS.length})
+              </button>
+            ) : null}
+          </div>
+
+          <div className="h-5 w-px shrink-0 bg-slate-200/80" />
+
+          {FILTERS.map((item) => (
+            <Chip key={item.id} active={filter === item.id} onClick={() => setFilter(item.id)} className="inline-flex shrink-0 items-center shadow-soft">
+              {item.id !== "ALL" ? (
+                <span className="mr-1.5 inline-block h-2 w-2 rounded-full" style={{ background: PIN_COLORS[item.id] }} />
+              ) : null}
+              {filterLabels[item.id] || item.label}
+            </Chip>
+          ))}
+        </div>
+      </div>
+
+      {/* Desktop Legend (Hidden on Mobile to keep map clean) */}
       <div
-        className={`pointer-events-none absolute z-30 max-w-[17.5rem] rounded-2xl border border-white/60 bg-white/90 p-3 shadow-soft backdrop-blur-md ${
+        className={`pointer-events-none absolute z-30 hidden max-w-[17.5rem] rounded-2xl border border-white/60 bg-white/90 p-3 shadow-soft backdrop-blur-md lg:block ${
           selectedHazard || selectedShelter ? "bottom-8 left-4 lg:bottom-8" : "bottom-8 left-4"
         }`}
       >
@@ -684,11 +676,61 @@ export function PublicMap({
         </ul>
       </div>
 
-      {/* Report FAB */}
+      {/* Mobile Collapsible Legend Pill */}
+      <div className="absolute bottom-20 left-4 z-30 lg:hidden pointer-events-auto">
+        <button
+          type="button"
+          onClick={() => setMobileLegendOpen(!mobileLegendOpen)}
+          className="flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-white/95 px-3 py-1.5 text-xs font-black text-slate-700 shadow-soft backdrop-blur-md active:scale-95 touch-manipulation"
+        >
+          <MapIcon className="h-3.5 w-3.5 text-brand" />
+          <span>Legend</span>
+          <span className="text-[10px] text-slate-400">{mobileLegendOpen ? "▲" : "▼"}</span>
+        </button>
+
+        {mobileLegendOpen ? (
+          <div className="mt-2 max-w-[17rem] rounded-2xl border border-slate-200 bg-white/95 p-3.5 shadow-2xl backdrop-blur-md animate-pop">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Map Legend</p>
+              <button onClick={() => setMobileLegendOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <ul className="flex flex-col gap-1.5">
+              {PIN_LEGEND.filter((item) => item.status !== "COUNCIL_TICKET").map((item) => (
+                <li key={item.status} className="flex items-start gap-2">
+                  <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: PIN_COLORS[item.status] }} />
+                  <p className="text-[11px] font-semibold leading-snug text-slate-600">
+                    <span className="font-extrabold text-slate-800">{item.label}</span>
+                    {" — "}
+                    {item.meaning}
+                  </p>
+                </li>
+              ))}
+              <li className="flex items-start gap-2">
+                <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-indigo-500" />
+                <p className="text-[11px] font-semibold leading-snug text-slate-600">
+                  <span className="font-extrabold text-slate-800">Shelter</span>
+                  {" — Relief center"}
+                </p>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-1.5 h-0.5 w-3 shrink-0 rounded bg-emerald-500" />
+                <p className="text-[11px] font-semibold leading-snug text-slate-600">
+                  <span className="font-extrabold text-slate-800">Safe Route</span>
+                  {" — Evacuation corridor"}
+                </p>
+              </li>
+            </ul>
+          </div>
+        ) : null}
+      </div>
+
+      {/* Report FAB on Desktop */}
       <Link
         href="/report"
         title="Report Hazard"
-        className={`absolute bottom-8 z-30 flex h-16 w-16 items-center justify-center rounded-full bg-brand text-2xl text-white shadow-glow-blue active:scale-90 ${
+        className={`hidden lg:flex absolute bottom-8 z-30 h-16 w-16 items-center justify-center rounded-full bg-brand text-2xl text-white shadow-glow-blue active:scale-90 ${
           selectedHazard || selectedShelter ? "right-6 lg:right-[26rem]" : "right-6"
         }`}
       >
@@ -1252,6 +1294,9 @@ export function PublicMap({
 
       {/* Emergency SOS Hotlines Modal */}
       <EmergencySosModal open={sosModalOpen} onClose={() => setSosModalOpen(false)} />
+
+      {/* Mobile Bottom Navigation Dock */}
+      <MobileBottomNav />
     </PublicShell>
   );
 }
