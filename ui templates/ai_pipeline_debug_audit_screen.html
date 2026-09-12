@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pipeline Audit - Smart NDRRMS</title>
+    
+    <!-- Google Fonts: Plus Jakarta Sans & Fira Code (for JSON) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Custom Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        mono: ['"Fira Code"', 'ui-monospace', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            cyan: '#06b6d4',
+                            purple: '#a855f7',
+                            blue: '#3b82f6',
+                            dark: '#0f172a',
+                            panel: '#1e293b',
+                        },
+                        status: {
+                            emerald: '#10b981',
+                            crimson: '#e11d48',
+                            amber: '#f59e0b',
+                        }
+                    },
+                    boxShadow: {
+                        'glow-cyan': '0 0 20px rgba(6, 182, 212, 0.4)',
+                        'glow-purple': '0 0 20px rgba(168, 85, 247, 0.4)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            -webkit-tap-highlight-color: transparent;
+            background-color: #cbd5e1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        
+        /* Mobile Simulator Shell */
+        #app-container {
+            width: 100%;
+            max-width: 400px;
+            height: 100vh;
+            max-height: 850px;
+            background-color: #0f172a; /* Dark theme for Dev Tool */
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+        }
+
+        @media (min-width: 420px) {
+            #app-container {
+                height: 92vh;
+                border-radius: 44px;
+                border: 8px solid #020617;
+            }
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Colorful Ambient Background Orbs */
+        .ambient-orb-1 {
+            position: absolute;
+            top: -10%;
+            left: -20%;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(6,182,212,0.15) 0%, rgba(6,182,212,0) 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .ambient-orb-2 {
+            position: absolute;
+            bottom: 20%;
+            right: -20%;
+            width: 350px;
+            height: 350px;
+            background: radial-gradient(circle, rgba(168,85,247,0.15) 0%, rgba(168,85,247,0) 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Syntax Highlighting Mock */
+        .str { color: #a5b4fc; } /* Strings */
+        .num { color: #fca5a5; } /* Numbers */
+        .bool { color: #fcd34d; } /* Booleans */
+        .key { color: #67e8f9; } /* Keys */
+
+        /* Animations */
+        @keyframes slideIn {
+            from { transform: translateX(20px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .animate-slide-in { animation: slideIn 0.3s ease-out forwards; }
+    </style>
+</head>
+<body class="antialiased text-slate-200">
+
+    <div id="app-container">
+        
+        <!-- Ambient Colorful Background -->
+        <div class="ambient-orb-1"></div>
+        <div class="ambient-orb-2"></div>
+
+        <!-- Status Bar Mockup (Dark Mode) -->
+        <div class="flex justify-between items-center px-6 pt-4 pb-2 text-xs font-bold text-slate-300 z-30 relative">
+            <span id="clock">12:21</span>
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-signal"></i>
+                <i class="fa-solid fa-wifi"></i>
+                <i class="fa-solid fa-battery-full"></i>
+            </div>
+        </div>
+
+        <!-- Glass Header -->
+        <div class="px-6 py-4 flex items-center justify-between sticky top-0 z-20 bg-brand-dark/80 backdrop-blur-xl border-b border-slate-800">
+            <button class="w-10 h-10 rounded-2xl bg-brand-panel shadow-sm border border-slate-700 flex items-center justify-center text-slate-400 active:scale-90 transition-transform">
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <div class="text-center">
+                <h1 class="text-lg font-extrabold tracking-tight text-white">Pipeline Audit</h1>
+                <p class="text-[10px] font-mono font-bold text-brand-purple uppercase tracking-widest mt-0.5">DEV_ENV • VERCEL</p>
+            </div>
+            <div class="w-10 h-10 rounded-2xl bg-brand-cyan/20 border border-brand-cyan/40 flex items-center justify-center text-brand-cyan">
+                <i class="fa-solid fa-bug"></i>
+            </div>
+        </div>
+
+        <!-- Scrollable Content -->
+        <div class="flex-1 overflow-y-auto no-scrollbar relative z-10 px-6 pt-4 flex flex-col gap-5 pb-24">
+            
+            <!-- Target Selector -->
+            <div class="bg-brand-panel/90 backdrop-blur-md rounded-2xl p-3 border border-slate-700 flex items-center justify-between shadow-lg">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400">
+                        <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                    </div>
+                    <div>
+                        <div class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Trace ID</div>
+                        <div class="font-mono font-bold text-brand-cyan text-sm">req_9982x_HZ8842</div>
+                    </div>
+                </div>
+                <button class="text-slate-400 hover:text-white px-2"><i class="fa-solid fa-chevron-down"></i></button>
+            </div>
+
+            <!-- Custom Tabs -->
+            <div class="bg-slate-800/50 p-1 rounded-xl flex gap-1 relative">
+                <div id="tab-indicator" class="absolute top-1 bottom-1 left-1 w-[calc(33.33%-4px)] bg-brand-panel border border-slate-600 rounded-lg shadow-sm transition-transform duration-300 ease-in-out"></div>
+                
+                <button onclick="switchTab(0)" id="tab-0" class="flex-1 py-2 text-[11px] font-extrabold z-10 transition-colors duration-300 text-white">Trace</button>
+                <button onclick="switchTab(1)" id="tab-1" class="flex-1 py-2 text-[11px] font-extrabold z-10 transition-colors duration-300 text-slate-500">Raw JSON</button>
+                <button onclick="switchTab(2)" id="tab-2" class="flex-1 py-2 text-[11px] font-extrabold z-10 transition-colors duration-300 text-slate-500">Event Bus</button>
+            </div>
+
+            <!-- TAB 0: Visual Trace -->
+            <div id="view-0" class="flex flex-col gap-4 animate-slide-in">
+                
+                <!-- Pipeline Header -->
+                <div class="flex items-center justify-between bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-check-circle text-status-emerald"></i>
+                        <span class="text-xs font-bold text-emerald-400">Pipeline Executed</span>
+                    </div>
+                    <span class="font-mono text-[10px] text-slate-400">Latency: 840ms</span>
+                </div>
+
+                <!-- Trace Nodes -->
+                <div class="relative ml-4 mt-2">
+                    <!-- Connecting line -->
+                    <div class="absolute top-2 bottom-6 left-[-11px] w-[2px] bg-slate-700"></div>
+
+                    <!-- Step 1 -->
+                    <div class="relative flex items-start gap-4 mb-6">
+                        <div class="absolute left-[-15px] top-1 w-2.5 h-2.5 rounded-full bg-brand-cyan shadow-glow-cyan"></div>
+                        <div class="flex-1 bg-brand-panel border border-slate-700 rounded-xl p-3 shadow-lg">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-[10px] font-extrabold text-brand-cyan uppercase tracking-wider">Image AI (Gemini)</span>
+                                <span class="font-mono text-[9px] text-slate-500">420ms</span>
+                            </div>
+                            <p class="text-xs text-slate-300 font-mono"><span class="text-status-emerald">PASS</span> • Conf: 0.92</p>
+                            <p class="text-[10px] text-slate-500 mt-1 leading-tight">Detected standing water matching 'flood' class.</p>
+                        </div>
+                    </div>
+
+                    <!-- Step 2 -->
+                    <div class="relative flex items-start gap-4 mb-6">
+                        <div class="absolute left-[-15px] top-1 w-2.5 h-2.5 rounded-full bg-brand-purple shadow-glow-purple"></div>
+                        <div class="flex-1 bg-brand-panel border border-slate-700 rounded-xl p-3 shadow-lg">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-[10px] font-extrabold text-brand-purple uppercase tracking-wider">Cluster (PostGIS)</span>
+                                <span class="font-mono text-[9px] text-slate-500">45ms</span>
+                            </div>
+                            <p class="text-xs text-slate-300 font-mono"><span class="text-status-emerald">PASS</span> • Count: 4</p>
+                            <p class="text-[10px] text-slate-500 mt-1 leading-tight">Executed ST_DWithin(200m). Found 4 recent reports.</p>
+                        </div>
+                    </div>
+
+                    <!-- Step 3 -->
+                    <div class="relative flex items-start gap-4 mb-6">
+                        <div class="absolute left-[-15px] top-1 w-2.5 h-2.5 rounded-full bg-slate-500"></div>
+                        <div class="flex-1 bg-brand-panel border border-slate-700 rounded-xl p-3 shadow-lg">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Weather API (SYS)</span>
+                                <span class="font-mono text-[9px] text-slate-500">110ms</span>
+                            </div>
+                            <p class="text-xs text-slate-300 font-mono"><span class="text-status-emerald">PASS</span> • Rain > 40mm</p>
+                        </div>
+                    </div>
+
+                    <!-- Aggregator Verdict -->
+                    <div class="relative flex items-start gap-4">
+                        <div class="absolute left-[-19px] top-1 w-4 h-4 rounded-full bg-status-crimson shadow-[0_0_15px_rgba(225,29,72,0.5)] border-2 border-brand-dark flex items-center justify-center">
+                            <div class="w-1.5 h-1.5 bg-white rounded-full"></div>
+                        </div>
+                        <div class="flex-1 bg-gradient-to-br from-slate-800 to-slate-900 border border-status-crimson/30 rounded-xl p-4 shadow-lg">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="text-[10px] font-extrabold text-white uppercase tracking-wider flex items-center gap-1.5"><i class="fa-solid fa-microchip"></i> Aggregator Verdict</span>
+                                <span class="font-mono font-bold text-status-crimson text-sm">0.94</span>
+                            </div>
+                            <h3 class="text-lg font-black text-status-crimson tracking-tight mb-1">PUBLISHED</h3>
+                            <p class="text-[10px] text-slate-400 leading-relaxed font-mono">Signals verified. Escalate to AREA_ALERT.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 1: Raw JSON (Hidden) -->
+            <div id="view-1" class="hidden flex-col h-full animate-slide-in">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">application/json</span>
+                    <i class="fa-regular fa-copy text-slate-500 hover:text-white cursor-pointer"></i>
+                </div>
+                <!-- Code Block Mock -->
+                <div class="bg-[#0d1117] border border-slate-700/50 rounded-xl p-4 overflow-x-auto shadow-inner text-[10px] font-mono leading-relaxed h-[420px] overflow-y-auto custom-scrollbar">
+<pre><code>{
+  <span class="key">"incident_id"</span>: <span class="str">"HZ-8842"</span>,
+  <span class="key">"timestamp"</span>: <span class="str">"2026-09-12T10:15:30Z"</span>,
+  <span class="key">"pipeline_results"</span>: {
+    <span class="key">"image_ai"</span>: {
+      <span class="key">"passed"</span>: <span class="bool">true</span>,
+      <span class="key">"confidence"</span>: <span class="num">0.92</span>,
+      <span class="key">"model_version"</span>: <span class="str">"gemini-1.5-flash"</span>
+    },
+    <span class="key">"cluster_check"</span>: {
+      <span class="key">"passed"</span>: <span class="bool">true</span>,
+      <span class="key">"nearby_count"</span>: <span class="num">4</span>,
+      <span class="key">"radius_m"</span>: <span class="num">200</span>
+    },
+    <span class="key">"weather_check"</span>: {
+      <span class="key">"passed"</span>: <span class="bool">true</span>,
+      <span class="key">"local_rain_mm"</span>: <span class="num">45.0</span>
+    }
+  },
+  <span class="key">"aggregator_output"</span>: {
+    <span class="key">"final_confidence"</span>: <span class="num">0.94</span>,
+    <span class="key">"outcome"</span>: <span class="str">"PUBLISHED"</span>,
+    <span class="key">"reasoning"</span>: <span class="str">"Image confirms standing water. Coordinates match local telemetry and 4 clustered reports."</span>
+  },
+  <span class="key">"processing_time_ms"</span>: <span class="num">840</span>
+}</code></pre>
+                </div>
+            </div>
+
+            <!-- TAB 2: Event Bus / PubSub (Hidden) -->
+            <div id="view-2" class="hidden flex-col gap-3 animate-slide-in">
+                
+                <div class="bg-brand-purple/10 border border-brand-purple/20 p-3 rounded-xl mb-2 flex items-start gap-3">
+                    <i class="fa-solid fa-server text-brand-purple mt-0.5"></i>
+                    <div>
+                        <h4 class="text-xs font-bold text-brand-purple">RabbitMQ Event Broker Active</h4>
+                        <p class="text-[10px] text-slate-400 mt-0.5 leading-tight">Monitoring asynchronous topics connected to Notification & Audit Services.</p>
+                    </div>
+                </div>
+
+                <!-- Event Logs -->
+                <div class="bg-brand-panel border-l-2 border-slate-600 rounded-r-xl p-3 shadow-sm">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[9px] font-bold text-slate-500 font-mono">10:15:30.112</span>
+                        <span class="text-[9px] font-bold bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded">topic: incident.created</span>
+                    </div>
+                    <p class="text-[11px] font-mono text-slate-300">Payload persisted to Primary DB.</p>
+                </div>
+
+                <div class="bg-brand-panel border-l-2 border-brand-cyan rounded-r-xl p-3 shadow-sm">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[9px] font-bold text-slate-500 font-mono">10:15:30.952</span>
+                        <span class="text-[9px] font-bold bg-brand-cyan/20 text-brand-cyan px-1.5 py-0.5 rounded">topic: hazard.published</span>
+                    </div>
+                    <p class="text-[11px] font-mono text-slate-300">Event dispatched to Subscribers.</p>
+                </div>
+
+                <div class="bg-brand-panel border-l-2 border-brand-purple rounded-r-xl p-3 shadow-sm">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[9px] font-bold text-slate-500 font-mono">10:15:31.045</span>
+                        <span class="text-[9px] font-bold bg-brand-purple/20 text-brand-purple px-1.5 py-0.5 rounded">topic: notification.broadcast</span>
+                    </div>
+                    <p class="text-[11px] font-mono text-slate-300">SMS Gateway trigger executed. Poly: Ward 07.</p>
+                </div>
+
+                <div class="bg-brand-panel border-l-2 border-slate-600 rounded-r-xl p-3 shadow-sm">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[9px] font-bold text-slate-500 font-mono">10:15:31.200</span>
+                        <span class="text-[9px] font-bold bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded">topic: analytics.sync</span>
+                    </div>
+                    <p class="text-[11px] font-mono text-slate-300">Read-Replica DB sync complete.</p>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Fixed Bottom Action Bar -->
+        <div class="absolute bottom-0 w-full p-6 z-20 pointer-events-none bg-gradient-to-t from-brand-dark via-brand-dark to-transparent">
+            <button class="w-full bg-slate-800 border border-slate-600 hover:bg-slate-700 hover:border-slate-500 text-white font-extrabold text-sm py-4 rounded-2xl transition-all flex items-center justify-center gap-2 pointer-events-auto shadow-lg active:scale-95">
+                <i class="fa-solid fa-download"></i>
+                <span>Export Trace Logs</span>
+            </button>
+        </div>
+
+    </div>
+
+    <!-- Interactive Script -->
+    <script>
+        // Clock Update
+        function updateClock() {
+            const now = new Date();
+            let hours = now.getHours();
+            let minutes = now.getMinutes();
+            hours = hours < 10 ? '0' + hours : hours;
+            minutes = minutes < 10 ? '0' + minutes : minutes;
+            document.getElementById('clock').textContent = hours + ':' + minutes;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Tab Switching Logic
+        function switchTab(index) {
+            const indicator = document.getElementById('tab-indicator');
+            
+            // Move Indicator
+            indicator.style.transform = `translateX(${index * 100}%)`;
+
+            // Update Tab Text Colors
+            for(let i=0; i<3; i++) {
+                const btn = document.getElementById(`tab-${i}`);
+                if (i === index) {
+                    btn.classList.replace('text-slate-500', 'text-white');
+                } else {
+                    btn.classList.replace('text-white', 'text-slate-500');
+                }
+            }
+
+            // Show/Hide Views
+            for(let i=0; i<3; i++) {
+                const view = document.getElementById(`view-${i}`);
+                if (i === index) {
+                    view.classList.remove('hidden');
+                    view.classList.add('flex');
+                } else {
+                    view.classList.add('hidden');
+                    view.classList.remove('flex');
+                }
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,43 +1,144 @@
 import { aggregate } from "./aggregator";
-import { checkCluster } from "./checks/cluster";
+import { checkCluster, CLUSTER_RADIUS_M, CLUSTER_WINDOW_HOURS } from "./checks/cluster";
 import { checkImage } from "./checks/image";
 import { checkLocation } from "./checks/location";
 import { checkRisk } from "./checks/risk";
 import { checkWeather } from "./checks/weather";
 import { getAiSettings, saveAiSettings, saveHazard, uploadPhoto } from "./db";
-import type { HazardRow, ReportChecks, ReportRequest, ReportResponse } from "./types";
+import { geminiModel } from "./gemini";
+import { riskPassed, timed } from "./trace";
+import type { HazardRow, PipelineTrace, ReportChecks, ReportRequest, ReportResponse, TraceStep } from "./types";
 
 /**
  * Runs the five independent checks concurrently (per the locked pipeline
  * diagram): image + location + risk via Gemini, weather + cluster as plain
  * code. Each AI check already falls back to a deterministic result on its
- * own if Gemini is mocked, slow, or unavailable.
+ * own if Gemini is mocked, slow, or unavailable. Every step is timed and
+ * tagged with its source for the Phase 4 audit screen.
  */
 export async function runChecks(body: ReportRequest): Promise<ReportChecks> {
-  const [image, weather_supported, cluster_count, location, risk] = await Promise.all([
-    checkImage(body.photo_base64, body.category, body.description),
-    checkWeather(body.ward_id),
-    checkCluster(body.lat, body.lng),
-    checkLocation(body.lat, body.lng, body.ward_id, body.description),
-    checkRisk(body.category, body.description, body.photo_base64),
+  const { checks } = await runTracedChecks(body);
+  return checks;
+}
+
+async function runTracedChecks(body: ReportRequest) {
+  const [image, weather, cluster, location, risk] = await Promise.all([
+    timed(() => checkImage(body.photo_base64, body.category, body.description)),
+    timed(() => checkWeather(body.ward_id)),
+    timed(() => checkCluster(body.lat, body.lng)),
+    timed(() => checkLocation(body.lat, body.lng, body.ward_id, body.description)),
+    timed(() => checkRisk(body.category, body.description, body.photo_base64)),
   ]);
 
-  return {
-    image_verified: image.image_verified,
-    weather_supported,
-    cluster_count,
-    location_matched: location.location_matched,
-    risk_level: risk.risk_level,
+  const checks: ReportChecks = {
+    image_verified: image.value.image_verified,
+    weather_supported: weather.value.weather_supported,
+    cluster_count: cluster.value.cluster_count,
+    location_matched: location.value.location_matched,
+    risk_level: risk.value.risk_level,
   };
+
+  const model = geminiModel();
+  const steps: TraceStep[] = [
+    {
+      id: "image",
+      name: "Image AI (Gemini)",
+      passed: image.value.image_verified,
+      detail: image.value.reason,
+      latency_ms: image.latency_ms,
+      source: image.value.source,
+      extra: image.value.source === "gemini" ? { model_version: model } : undefined,
+    },
+    {
+      id: "weather",
+      name: "Weather (SYS)",
+      passed: weather.value.weather_supported,
+      detail: weather.value.detail,
+      latency_ms: weather.latency_ms,
+      source: weather.value.source,
+      extra: {
+        local_rain_mm: weather.value.rainfall_mm,
+        river_level_pct: weather.value.river_level_pct,
+      },
+    },
+    {
+      id: "cluster",
+      name: "Cluster (PostGIS)",
+      passed: cluster.value.cluster_count >= 2,
+      detail: cluster.value.detail,
+      latency_ms: cluster.latency_ms,
+      source: cluster.value.source,
+      extra: {
+        nearby_count: cluster.value.cluster_count,
+        radius_m: CLUSTER_RADIUS_M,
+        window_hours: CLUSTER_WINDOW_HOURS,
+      },
+    },
+    {
+      id: "location",
+      name: "Location AI (Gemini)",
+      passed: location.value.location_matched,
+      detail: location.value.reason,
+      latency_ms: location.latency_ms,
+      source: location.value.source,
+      extra: location.value.source === "gemini" ? { model_version: model } : undefined,
+    },
+    {
+      id: "risk",
+      name: "Risk AI (Gemini)",
+      passed: riskPassed(risk.value.risk_level),
+      detail: `${risk.value.risk_level} — ${risk.value.reason}`,
+      latency_ms: risk.latency_ms,
+      source: risk.value.source,
+      extra: { risk_level: risk.value.risk_level },
+    },
+  ];
+
+  return { checks, steps };
 }
 
 /** Runs checks + aggregator and returns the locked response shape (minus incident_id). */
 export async function buildVerdict(
   body: ReportRequest,
 ): Promise<Omit<ReportResponse, "incident_id">> {
-  const checks = await runChecks(body);
-  const verdict = await aggregate(body, checks);
-  return { ...verdict, checks };
+  const started = Date.now();
+  const started_at = new Date(started).toISOString();
+  const { checks, steps } = await runTracedChecks(body);
+  const { value: verdict, latency_ms } = await timed(async () => {
+    const result = await aggregate(body, checks);
+    return result;
+  });
+
+  const aggregatorStep: TraceStep = {
+    id: "aggregator",
+    name: "Aggregator Verdict",
+    passed:
+      verdict.status === "PUBLISHED" ||
+      verdict.status === "AREA_ALERT" ||
+      verdict.status === "COUNCIL_TICKET",
+    detail: verdict.reasoning,
+    latency_ms,
+    source: verdict.source,
+    confidence: verdict.confidence_score,
+    extra: verdict.source === "gemini" ? { model_version: geminiModel() } : undefined,
+  };
+
+  const finished = Date.now();
+  const { source: _source, ...publicVerdict } = verdict;
+  const trace: PipelineTrace = {
+    started_at,
+    finished_at: new Date(finished).toISOString(),
+    total_ms: finished - started,
+    steps: [...steps, aggregatorStep],
+    checks,
+    verdict: {
+      ...publicVerdict,
+      source: verdict.source,
+      latency_ms,
+    },
+  };
+
+  return { ...publicVerdict, checks, trace };
 }
 
 export async function persistReport(body: ReportRequest, result: ReportResponse) {
@@ -60,6 +161,7 @@ export async function persistReport(body: ReportRequest, result: ReportResponse)
     created_at: new Date().toISOString(),
     resolved_at: null,
     closure_photo_url: null,
+    trace: result.trace ?? null,
   };
   return saveHazard(row);
 }

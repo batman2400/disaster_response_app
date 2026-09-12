@@ -28,6 +28,8 @@ CREATE TABLE IF NOT EXISTS hazards (
 );
 
 ALTER TABLE hazards ADD COLUMN IF NOT EXISTS officer_note TEXT;
+ALTER TABLE hazards ADD COLUMN IF NOT EXISTS trace JSONB;
+ALTER TABLE ai_settings ADD COLUMN IF NOT EXISTS replay JSONB;
 
 CREATE INDEX IF NOT EXISTS idx_hazards_location ON hazards USING GIST(location);
 

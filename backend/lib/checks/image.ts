@@ -1,5 +1,5 @@
 import { callGeminiJsonSafe } from "../gemini";
-import type { HazardCategory } from "../types";
+import type { CheckSource, HazardCategory } from "../types";
 
 const IMAGE_SCHEMA = {
   type: "OBJECT",
@@ -20,6 +20,7 @@ const IMAGE_SCHEMA = {
 export interface ImageCheckResult {
   image_verified: boolean;
   reason: string;
+  source: CheckSource;
 }
 
 /**
@@ -31,7 +32,7 @@ export async function checkImage(
   category: HazardCategory,
   description: string,
 ): Promise<ImageCheckResult> {
-  if (!photoBase64) return { image_verified: false, reason: "No photo attached." };
+  if (!photoBase64) return { image_verified: false, reason: "No photo attached.", source: "code" };
 
   const prompt = `You are a photo verifier for a disaster-response app in Colombo, Sri Lanka.
 Reported hazard category: ${category}
@@ -43,7 +44,7 @@ Look at the attached photo and decide:
 
 Respond only with JSON matching the schema.`;
 
-  const { value } = await callGeminiJsonSafe<{
+  const { value, source } = await callGeminiJsonSafe<{
     is_real_photo: boolean;
     matches_category: boolean;
     reason: string;
@@ -56,5 +57,6 @@ Respond only with JSON matching the schema.`;
   return {
     image_verified: value.is_real_photo && value.matches_category,
     reason: value.reason,
+    source,
   };
 }

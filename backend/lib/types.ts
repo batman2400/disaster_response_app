@@ -38,6 +38,48 @@ export interface ReportChecks {
   risk_level: Urgency;
 }
 
+export type CheckSource = "gemini" | "mock" | "fallback" | "code";
+
+export type TraceStepId = "image" | "weather" | "cluster" | "location" | "risk" | "aggregator";
+
+export interface TraceStep {
+  id: TraceStepId;
+  name: string;
+  passed: boolean;
+  detail: string;
+  latency_ms: number;
+  source: CheckSource;
+  confidence?: number;
+  extra?: Record<string, unknown>;
+}
+
+export interface PipelineTrace {
+  started_at: string;
+  finished_at: string;
+  total_ms: number;
+  inferred?: boolean;
+  steps: TraceStep[];
+  checks: ReportChecks;
+  verdict: {
+    status: HazardStatus;
+    urgency: Urgency;
+    confidence_score: number;
+    is_road_blocked: boolean;
+    reasoning: string;
+    source: CheckSource;
+    latency_ms: number;
+  };
+}
+
+export type TraceEventTone = "slate" | "cyan" | "purple" | "emerald" | "crimson" | "amber";
+
+export interface TraceEvent {
+  at: string;
+  topic: string;
+  message: string;
+  tone: TraceEventTone;
+}
+
 export interface ReportResponse {
   incident_id: string;
   status: HazardStatus;
@@ -46,6 +88,7 @@ export interface ReportResponse {
   is_road_blocked: boolean;
   checks: ReportChecks;
   reasoning: string;
+  trace?: PipelineTrace;
 }
 
 export interface OverrideRequest {
@@ -86,6 +129,7 @@ export interface HazardRow {
   resolved_at: string | null;
   closure_photo_url: string | null;
   officer_note?: string;
+  trace?: PipelineTrace | null;
 }
 
 export interface WardRow {
@@ -108,4 +152,31 @@ export interface ShelterRow {
 export interface AiSettings {
   confirm_threshold: number;
   reject_threshold: number;
+}
+
+export type ReplayPhase = "idle" | "running" | "completed";
+
+export type ReplayEventType = "system" | "warn" | "critical" | "alert" | "success";
+
+export interface ReplayEvent {
+  at: string;
+  clock: string;
+  message: string;
+  type: ReplayEventType;
+  rainfall_mm: number;
+  river_level_pct: number;
+  status: WardStatus;
+}
+
+export interface ReplayState {
+  phase: ReplayPhase;
+  ward_id: WardId;
+  tick: number;
+  total: number;
+  started_at: string | null;
+  finished_at: string | null;
+  last_tick_at: string | null;
+  clock: string;
+  interval_ms: number;
+  events: ReplayEvent[];
 }

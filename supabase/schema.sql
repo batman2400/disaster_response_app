@@ -25,7 +25,8 @@ CREATE TABLE hazards (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     resolved_at TIMESTAMPTZ,
     closure_photo_url TEXT,
-    officer_note TEXT
+    officer_note TEXT,
+    trace JSONB
 );
 
 CREATE INDEX idx_hazards_location ON hazards USING GIST(location);

@@ -58,6 +58,36 @@ export interface ReportChecks {
   risk_level: Urgency;
 }
 
+/** Optional Phase 4 instrumentation. Locked fields above stay required. */
+export type CheckSource = "gemini" | "mock" | "fallback" | "code";
+
+export interface PipelineTrace {
+  started_at: string;
+  finished_at: string;
+  total_ms: number;
+  inferred?: boolean;
+  steps: Array<{
+    id: "image" | "weather" | "cluster" | "location" | "risk" | "aggregator";
+    name: string;
+    passed: boolean;
+    detail: string;
+    latency_ms: number;
+    source: CheckSource;
+    confidence?: number;
+    extra?: Record<string, unknown>;
+  }>;
+  checks: ReportChecks;
+  verdict: {
+    status: HazardStatus;
+    urgency: Urgency;
+    confidence_score: number;
+    is_road_blocked: boolean;
+    reasoning: string;
+    source: CheckSource;
+    latency_ms: number;
+  };
+}
+
 /** Locked response from POST /api/report */
 export interface ReportResponse {
   incident_id: string;
@@ -67,6 +97,7 @@ export interface ReportResponse {
   is_road_blocked: boolean;
   checks: ReportChecks;
   reasoning: string;
+  trace?: PipelineTrace;
 }
 
 /** POST /api/override */
@@ -124,6 +155,8 @@ export interface HazardRow {
   created_at: string;
   resolved_at: string | null;
   closure_photo_url: string | null;
+  officer_note?: string;
+  trace?: PipelineTrace | null;
 }
 
 export interface WardRow {

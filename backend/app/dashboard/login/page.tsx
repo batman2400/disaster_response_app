@@ -1,9 +1,18 @@
-import { LoginForm } from "./LoginForm";
+import { StaffLogin } from "@/components/staff-login";
+import type { DashRole } from "@/lib/dashboard-auth";
+import { redirectIfSignedIn } from "@/lib/require-role";
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ role?: string }>;
+}) {
+  await redirectIfSignedIn();
+  const params = await searchParams;
+  const role: DashRole = params.role === "relief" ? "relief" : "officer";
   return (
-    <div className="dash-login">
-      <LoginForm />
+    <div className="min-h-dvh bg-slate-50 text-slate-800">
+      <StaffLogin role={role} />
     </div>
   );
 }

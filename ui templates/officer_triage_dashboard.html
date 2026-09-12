@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Officer Dashboard - Smart NDRRMS</title>
+    
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Custom Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', '"Liberation Mono"', '"Courier New"', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            blue: '#1d4ed8', /* Cobalt Blue */
+                            indigo: '#4f46e5',
+                            light: '#eff6ff',
+                        },
+                        status: {
+                            emerald: '#10b981',
+                            emeraldBg: '#ecfdf5',
+                            crimson: '#e11d48',
+                            crimsonBg: '#ffe4e6',
+                            amber: '#f59e0b',
+                            amberBg: '#fef3c7',
+                        }
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 20px -2px rgba(0,0,0,0.05)',
+                        'glow': '0 0 15px rgba(29, 78, 216, 0.3)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #f8fafc;
+            margin: 0;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Custom Scrollbar for desktop panels */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+
+        /* Decorative Map Grid Background */
+        .bg-grid-pattern {
+            background-image: linear-gradient(to right, #e2e8f0 1px, transparent 1px),
+                              linear-gradient(to bottom, #e2e8f0 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        /* Animations */
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slide-down { animation: slideDown 0.3s ease-out forwards; }
+    </style>
+</head>
+<body class="antialiased text-slate-800">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-6 z-20 flex-shrink-0 shadow-sm">
+        <div class="flex items-center gap-4">
+            <div class="w-10 h-10 bg-brand-blue rounded-xl flex items-center justify-center shadow-md">
+                <i class="fa-solid fa-shield-halved text-white text-lg"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-extrabold text-slate-900 leading-tight">Command Control</h1>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Ward 07 Officer Desk</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-6">
+            <!-- Global System Status -->
+            <div class="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+                <div class="relative flex items-center justify-center w-2 h-2">
+                    <div class="absolute w-full h-full bg-status-emerald rounded-full opacity-50 animate-ping"></div>
+                    <div class="relative w-1.5 h-1.5 bg-status-emerald rounded-full"></div>
+                </div>
+                <span class="text-xs font-bold text-slate-600">Pipeline Active</span>
+            </div>
+            
+            <button class="w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors">
+                <i class="fa-solid fa-bell"></i>
+            </button>
+            <div class="w-10 h-10 rounded-full bg-brand-light border-2 border-brand-blue overflow-hidden">
+                <img src="https://ui-avatars.com/api/?name=Officer+Silva&background=eff6ff&color=1d4ed8&bold=true" alt="Officer Profile" />
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 flex overflow-hidden">
+        
+        <!-- Left Pane: Ticket Queue -->
+        <aside class="w-96 bg-white border-r border-slate-200 flex flex-col flex-shrink-0 z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+            
+            <!-- Queue Header & Filters -->
+            <div class="p-5 border-b border-slate-100">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-base font-extrabold text-slate-900">Incident Queue</h2>
+                    <span class="bg-brand-blue text-white text-xs font-bold px-2 py-0.5 rounded-md">12 Active</span>
+                </div>
+                
+                <!-- Search & Filter Bar -->
+                <div class="relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                    <input type="text" placeholder="Search ID, Location..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-sm font-medium focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-colors">
+                </div>
+                
+                <div class="flex gap-2 mt-3 overflow-x-auto no-scrollbar">
+                    <button class="whitespace-nowrap px-3 py-1 bg-slate-800 text-white text-xs font-bold rounded-lg">All</button>
+                    <button class="whitespace-nowrap px-3 py-1 bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-bold rounded-lg transition-colors">Pending AI</button>
+                    <button class="whitespace-nowrap px-3 py-1 bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs font-bold rounded-lg transition-colors">Published</button>
+                </div>
+            </div>
+
+            <!-- Ticket List -->
+            <div class="flex-1 overflow-y-auto custom-scrollbar p-3 flex flex-col gap-2 bg-slate-50/50">
+                
+                <!-- Active Ticket Card (Selected) -->
+                <div class="bg-white border-2 border-brand-blue rounded-2xl p-4 cursor-pointer shadow-soft relative overflow-hidden group">
+                    <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-brand-blue"></div>
+                    
+                    <div class="flex justify-between items-start mb-2 pl-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] font-extrabold text-slate-400 font-mono">#HZ-8842</span>
+                            <span class="bg-status-crimsonBg text-status-crimson text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">High Risk</span>
+                        </div>
+                        <span class="text-[10px] font-bold text-slate-400">2m ago</span>
+                    </div>
+                    
+                    <h3 class="font-extrabold text-slate-900 text-sm pl-2">Major Flooding</h3>
+                    <p class="text-xs text-slate-500 font-medium pl-2 mt-0.5 truncate">Main St. Intersection, Ward 07</p>
+                    
+                    <div class="flex items-center justify-between mt-3 pl-2">
+                        <div class="flex items-center gap-1.5">
+                            <div class="w-5 h-5 rounded-full bg-brand-light flex items-center justify-center">
+                                <i class="fa-solid fa-robot text-brand-blue text-[10px]"></i>
+                            </div>
+                            <span class="text-[11px] font-bold text-slate-700">0.94 CONF</span>
+                        </div>
+                        <span class="text-[10px] font-bold text-brand-blue bg-brand-light px-2 py-1 rounded-md">PUBLISHED</span>
+                    </div>
+                </div>
+
+                <!-- Ticket Card 2 (Need Info) -->
+                <div class="bg-white border border-slate-200 hover:border-slate-300 rounded-2xl p-4 cursor-pointer transition-colors group">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] font-extrabold text-slate-400 font-mono">#HZ-8841</span>
+                            <span class="bg-status-amberBg text-status-amber text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">Med Risk</span>
+                        </div>
+                        <span class="text-[10px] font-bold text-slate-400">14m ago</span>
+                    </div>
+                    
+                    <h3 class="font-extrabold text-slate-900 text-sm">Fallen Tree</h3>
+                    <p class="text-xs text-slate-500 font-medium mt-0.5 truncate">Park Road, Ward 07</p>
+                    
+                    <div class="flex items-center justify-between mt-3">
+                        <div class="flex items-center gap-1.5">
+                            <div class="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center">
+                                <i class="fa-solid fa-robot text-slate-400 text-[10px]"></i>
+                            </div>
+                            <span class="text-[11px] font-bold text-slate-500">0.48 CONF</span>
+                        </div>
+                        <span class="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-md">NEED INFO</span>
+                    </div>
+                </div>
+
+                 <!-- Ticket Card 3 (Resolved) -->
+                 <div class="bg-white border border-slate-200 opacity-60 rounded-2xl p-4 cursor-pointer">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] font-extrabold text-slate-400 font-mono">#HZ-8839</span>
+                        </div>
+                        <span class="text-[10px] font-bold text-slate-400">1h ago</span>
+                    </div>
+                    
+                    <h3 class="font-bold text-slate-700 text-sm line-through decoration-slate-300">Blocked Drain</h3>
+                    <p class="text-xs text-slate-500 font-medium mt-0.5 truncate">Lake Drive</p>
+                    
+                    <div class="flex items-center justify-between mt-3">
+                        <span class="text-[10px] font-bold text-status-emerald bg-status-emeraldBg px-2 py-1 rounded-md flex items-center gap-1">
+                            <i class="fa-solid fa-check"></i> RESOLVED
+                        </span>
+                    </div>
+                </div>
+
+            </div>
+        </aside>
+
+        <!-- Right Pane: Detail View -->
+        <section class="flex-1 flex flex-col bg-slate-50/50 relative overflow-hidden">
+            
+            <!-- Detail Header -->
+            <div class="h-20 bg-white border-b border-slate-200 px-8 flex items-center justify-between flex-shrink-0">
+                <div>
+                    <div class="flex items-center gap-3 mb-1">
+                        <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight">Case #HZ-8842</h2>
+                        <span class="bg-brand-light text-brand-blue text-[11px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider">PUBLISHED</span>
+                    </div>
+                    <p class="text-xs font-semibold text-slate-500 flex items-center gap-2">
+                        <i class="fa-solid fa-clock"></i> Reported 12:21 PM • by Citizen_UID_992
+                    </p>
+                </div>
+                
+                <div class="flex gap-3">
+                    <button class="px-4 py-2 bg-white border border-slate-200 text-slate-600 font-bold text-sm rounded-xl hover:bg-slate-50 transition-colors shadow-sm flex items-center gap-2">
+                        <i class="fa-solid fa-route"></i> Suggest Detour
+                    </button>
+                    <button class="px-4 py-2 bg-brand-blue hover:bg-brand-indigo text-white font-bold text-sm rounded-xl shadow-md transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-truck-fast"></i> Dispatch Crew
+                    </button>
+                </div>
+            </div>
+
+            <!-- Scrollable Detail Content -->
+            <div class="flex-1 overflow-y-auto custom-scrollbar p-8">
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+                    
+                    <!-- Left Column: Evidence & Location -->
+                    <div class="lg:col-span-1 flex flex-col gap-6">
+                        
+                        <!-- Evidence Photo -->
+                        <div class="bg-white rounded-3xl p-4 shadow-soft border border-slate-100">
+                            <h3 class="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider mb-3 flex justify-between">
+                                <span>1. Evidence</span>
+                                <i class="fa-solid fa-expand text-slate-300 hover:text-slate-500 cursor-pointer"></i>
+                            </h3>
+                            <div class="w-full aspect-[4/3] rounded-2xl overflow-hidden bg-slate-900 relative">
+                                <img src="https://placehold.co/600x450/1e293b/ffffff?text=Flooded+Street" class="w-full h-full object-cover opacity-90" />
+                                <div class="absolute bottom-2 right-2 bg-black/60 backdrop-blur px-2 py-1 rounded text-[9px] font-mono text-white flex items-center gap-1">
+                                    <i class="fa-solid fa-camera"></i> Original
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Telemetry Card -->
+                        <div class="bg-white rounded-3xl p-5 shadow-soft border border-slate-100 relative overflow-hidden">
+                            <div class="absolute inset-0 bg-grid-pattern opacity-40 pointer-events-none"></div>
+                            
+                            <h3 class="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider mb-3 relative z-10">2. Telemetry</h3>
+                            
+                            <div class="relative z-10">
+                                <div class="flex items-start gap-3 mb-4">
+                                    <div class="w-10 h-10 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center text-slate-600 flex-shrink-0">
+                                        <i class="fa-solid fa-location-dot"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-bold text-slate-900 text-sm">Main St. Intersection</h4>
+                                        <p class="text-xs text-slate-500 font-medium">Ward 07, Colombo</p>
+                                        <div class="text-[10px] font-mono font-bold text-slate-400 mt-1">6.9142, 79.8724</div>
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                                        <div class="text-[10px] font-bold text-slate-400 uppercase mb-1">Local Rain</div>
+                                        <div class="font-mono font-extrabold text-slate-700 text-sm">45mm/hr</div>
+                                    </div>
+                                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                                        <div class="text-[10px] font-bold text-slate-400 uppercase mb-1">River Lvl</div>
+                                        <div class="font-mono font-extrabold text-status-crimson text-sm">82% <i class="fa-solid fa-arrow-up text-[10px]"></i></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: AI Triage & Override -->
+                    <div class="lg:col-span-2 flex flex-col gap-6">
+                        
+                        <!-- AI Aggregator Verdict -->
+                        <div class="bg-slate-900 rounded-3xl p-6 shadow-xl relative overflow-hidden">
+                            <!-- Decorative blur -->
+                            <div class="absolute top-0 right-0 w-64 h-64 bg-brand-blue rounded-full blur-[80px] opacity-20 -translate-y-1/2 translate-x-1/3"></div>
+                            
+                            <div class="relative z-10 flex justify-between items-start mb-6">
+                                <div>
+                                    <h3 class="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-2">
+                                        <i class="fa-solid fa-microchip"></i> System Aggregator Verdict
+                                    </h3>
+                                    <p class="text-white font-medium text-sm leading-relaxed max-w-xl opacity-90">
+                                        Image confirms standing water. Coordinates match local telemetry (45mm/hr rain) and 4 clustered reports within 200m. Arterial road is marked blocked. High downstream risk detected.
+                                    </p>
+                                </div>
+                                <div class="bg-brand-blue/20 border border-brand-blue/30 px-4 py-2 rounded-xl flex flex-col items-center">
+                                    <span class="text-[10px] font-bold text-brand-light uppercase tracking-widest">Score</span>
+                                    <span class="font-mono font-extrabold text-white text-xl">0.94</span>
+                                </div>
+                            </div>
+
+                            <!-- 5-Check Breakdown -->
+                            <div class="grid grid-cols-5 gap-2 relative z-10">
+                                <!-- Check 1 -->
+                                <div class="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                                    <div class="w-6 h-6 mx-auto bg-status-emerald/20 text-status-emerald rounded-full flex items-center justify-center text-[10px] mb-2">
+                                        <i class="fa-solid fa-check"></i>
+                                    </div>
+                                    <div class="text-[10px] font-bold text-slate-300 uppercase mb-0.5">Image AI</div>
+                                    <div class="font-mono text-white text-xs">0.92</div>
+                                </div>
+                                <!-- Check 2 -->
+                                <div class="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                                    <div class="w-6 h-6 mx-auto bg-status-emerald/20 text-status-emerald rounded-full flex items-center justify-center text-[10px] mb-2">
+                                        <i class="fa-solid fa-check"></i>
+                                    </div>
+                                    <div class="text-[10px] font-bold text-slate-300 uppercase mb-0.5">Loc AI</div>
+                                    <div class="font-mono text-white text-xs">1.00</div>
+                                </div>
+                                <!-- Check 3 -->
+                                <div class="bg-white/5 border border-white/10 rounded-xl p-3 text-center border-b-2 border-b-brand-blue/50">
+                                    <div class="w-6 h-6 mx-auto bg-brand-blue/20 text-brand-blue rounded-full flex items-center justify-center text-[10px] mb-2">
+                                        <i class="fa-solid fa-code"></i>
+                                    </div>
+                                    <div class="text-[10px] font-bold text-slate-300 uppercase mb-0.5">Cluster</div>
+                                    <div class="font-mono text-white text-xs">n=4</div>
+                                </div>
+                                <!-- Check 4 -->
+                                <div class="bg-white/5 border border-white/10 rounded-xl p-3 text-center border-b-2 border-b-brand-blue/50">
+                                    <div class="w-6 h-6 mx-auto bg-brand-blue/20 text-brand-blue rounded-full flex items-center justify-center text-[10px] mb-2">
+                                        <i class="fa-solid fa-code"></i>
+                                    </div>
+                                    <div class="text-[10px] font-bold text-slate-300 uppercase mb-0.5">Weather</div>
+                                    <div class="font-mono text-white text-xs">Pass</div>
+                                </div>
+                                <!-- Check 5 -->
+                                <div class="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                                    <div class="w-6 h-6 mx-auto bg-status-emerald/20 text-status-emerald rounded-full flex items-center justify-center text-[10px] mb-2">
+                                        <i class="fa-solid fa-check"></i>
+                                    </div>
+                                    <div class="text-[10px] font-bold text-slate-300 uppercase mb-0.5">Risk AI</div>
+                                    <div class="font-mono text-white text-xs">0.88</div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-4 flex justify-between items-center border-t border-white/10 pt-4">
+                                <span class="text-[10px] font-medium text-slate-400"><i class="fa-solid fa-code text-brand-blue"></i> System checks executed synchronously.</span>
+                                <span class="text-[10px] font-mono text-slate-400">Total Latency: 420ms</span>
+                            </div>
+                        </div>
+
+                        <!-- Manual Override Panel -->
+                        <div class="bg-white rounded-3xl p-6 shadow-soft border border-slate-200">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                                    <i class="fa-solid fa-sliders text-slate-400"></i> Officer Override & Tuning
+                                </h3>
+                                <span class="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded">POST /api/override</span>
+                            </div>
+                            
+                            <p class="text-xs text-slate-500 font-medium mb-5">
+                                If the AI verdict is incorrect, override it below. This action will log a note and automatically nudge the <code class="bg-slate-100 px-1 rounded text-brand-blue">ai_settings</code> thresholds to retrain the pipeline.
+                            </p>
+
+                            <!-- Override Action Buttons -->
+                            <div class="flex gap-3 mb-4" id="override-actions">
+                                <button onclick="toggleOverride('reject')" class="flex-1 py-3 bg-white border-2 border-slate-200 hover:border-status-crimson hover:bg-status-crimsonBg text-slate-600 hover:text-status-crimson font-bold rounded-xl transition-all flex items-center justify-center gap-2 group">
+                                    <i class="fa-solid fa-xmark text-lg group-hover:scale-110 transition-transform"></i> Reject & Unpublish
+                                </button>
+                                <button onclick="toggleOverride('downgrade')" class="flex-1 py-3 bg-white border-2 border-slate-200 hover:border-status-amber hover:bg-status-amberBg text-slate-600 hover:text-status-amber font-bold rounded-xl transition-all flex items-center justify-center gap-2 group">
+                                    <i class="fa-solid fa-users text-lg group-hover:scale-110 transition-transform"></i> Revert to Crowdsource
+                                </button>
+                            </div>
+
+                            <!-- Hidden Note Input Area (Slides down on click) -->
+                            <div id="override-note-area" class="hidden animate-slide-down">
+                                <textarea id="officer-note" placeholder="Required: Why are you overriding this verdict?" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-medium text-slate-700 placeholder-slate-400 focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue resize-none h-24 mb-4"></textarea>
+                                
+                                <!-- Retuning Feedback (Simulated) -->
+                                <div class="bg-brand-light/50 border border-brand-light p-3 rounded-xl mb-4 flex items-start gap-3">
+                                    <i class="fa-solid fa-wrench text-brand-blue mt-0.5"></i>
+                                    <div>
+                                        <h4 class="text-xs font-bold text-brand-blue">Threshold Nudge Pending</h4>
+                                        <p class="text-[10px] text-slate-500 mt-0.5 font-mono">Will adjust <span class="text-brand-blue">confirm_threshold</span> from 0.85 to 0.87 to reduce false positives.</p>
+                                    </div>
+                                </div>
+
+                                <div class="flex justify-end gap-3">
+                                    <button onclick="cancelOverride()" class="px-4 py-2 text-slate-500 font-bold text-sm hover:text-slate-700 transition-colors">Cancel</button>
+                                    <button onclick="submitOverride()" class="px-6 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-sm rounded-xl shadow-md transition-all">Submit Override</button>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Interactive script for Override Simulation -->
+    <script>
+        function toggleOverride(actionType) {
+            const actionsArea = document.getElementById('override-actions');
+            const noteArea = document.getElementById('override-note-area');
+            const noteInput = document.getElementById('officer-note');
+            
+            // Hide buttons, show input
+            actionsArea.style.opacity = '0';
+            setTimeout(() => {
+                actionsArea.classList.add('hidden');
+                noteArea.classList.remove('hidden');
+            }, 200);
+
+            if (actionType === 'reject') {
+                noteInput.placeholder = "Required: Why is this a false alarm? (Rejecting published case)";
+            } else {
+                noteInput.placeholder = "Required: Why needs crowdsourcing? (Downgrading confidence)";
+            }
+        }
+
+        function cancelOverride() {
+            const actionsArea = document.getElementById('override-actions');
+            const noteArea = document.getElementById('override-note-area');
+            
+            noteArea.classList.add('hidden');
+            actionsArea.classList.remove('hidden');
+            setTimeout(() => {
+                actionsArea.style.opacity = '1';
+            }, 50);
+            
+            document.getElementById('officer-note').value = '';
+        }
+
+        function submitOverride() {
+            const note = document.getElementById('officer-note').value;
+            if (note.trim() === '') {
+                // In a real app, show a toast. Here we just color the border.
+                document.getElementById('officer-note').classList.add('border-status-crimson');
+                setTimeout(() => document.getElementById('officer-note').classList.remove('border-status-crimson'), 1000);
+                return;
+            }
+
+            // Simulate API call and state change
+            const btn = event.target;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting...';
+            btn.classList.add('opacity-80', 'cursor-not-allowed');
+
+            setTimeout(() => {
+                alert("Simulated POST /api/override successful.\nTicket status updated, note logged, and ai_settings nudged.");
+                cancelOverride();
+                btn.innerHTML = originalText;
+                btn.classList.remove('opacity-80', 'cursor-not-allowed');
+            }, 800);
+        }
+    </script>
+</body>
+</html>

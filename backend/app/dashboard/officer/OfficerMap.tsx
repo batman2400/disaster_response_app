@@ -11,7 +11,7 @@ const LEAFLET_JS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
 const TILES = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 
 type LeafletMap = {
-  setView: (latLng: [number, number], zoom?: number) => void;
+  setView: (latLng: [number, number], zoom?: number, opts?: Record<string, unknown>) => void;
   invalidateSize: () => void;
   remove: () => void;
 };
@@ -66,10 +66,12 @@ export function OfficerMap({
   hazards,
   selectedId,
   onSelect,
+  className,
 }: {
   hazards: HazardRow[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  className?: string;
 }) {
   const [mode, setMode] = useState<"loading" | "map" | "list">("loading");
   const hostRef = useRef<HTMLDivElement>(null);
@@ -96,9 +98,9 @@ export function OfficerMap({
       let marker = markersRef.current.get(hazard.id);
       if (!marker) {
         marker = L.circleMarker([hazard.lat, hazard.lng], {
-          radius: 8,
-          color: "#07111C",
-          weight: 1,
+          radius: 10,
+          color: "#ffffff",
+          weight: 3,
           fillColor: color,
           fillOpacity: 1,
         }).addTo(map);
@@ -123,7 +125,7 @@ export function OfficerMap({
         const el = hostRef.current;
         if (cancelled || !el) return;
         map = L.map(el, { zoomControl: true, attributionControl: false });
-        map.setView(COLOMBO, 12);
+        map.setView(COLOMBO, 13);
         L.tileLayer(TILES, { maxZoom: 19 }).addTo(map);
         mapRef.current = map;
         syncMarkers(L, map);
@@ -151,37 +153,34 @@ export function OfficerMap({
 
   if (mode === "list") {
     return (
-      <div className="officer-map">
-        <div className="officer-map-fallback">
-          <p className="dash-kicker">MAP PINS</p>
-          {hazards.length === 0 ? (
-            <p className="sub">No pins.</p>
-          ) : (
-            hazards.map((hazard) => (
-              <button
-                key={hazard.id}
-                type="button"
-                className={`pin-row${selectedId === hazard.id ? " on" : ""}`}
-                onClick={() => onSelect(hazard.id)}
-              >
-                <span className="pin-dot" style={{ background: PIN_COLORS[hazard.status] }} />
-                <span>
-                  {categoryLabel(hazard.category)} · {hazard.status}
-                  <br />
-                  <span className="meta">{wardShort(hazard.ward_id)}</span>
-                </span>
-              </button>
-            ))
-          )}
-        </div>
+      <div className={className ?? "absolute inset-0 overflow-y-auto bg-slate-50 p-4"}>
+        {hazards.map((hazard) => (
+          <button
+            key={hazard.id}
+            type="button"
+            className="mb-2 flex w-full items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3 text-left"
+            onClick={() => onSelect(hazard.id)}
+          >
+            <span className="h-3 w-3 rounded-full" style={{ background: PIN_COLORS[hazard.status] }} />
+            <span className="text-sm font-bold text-slate-800">
+              {categoryLabel(hazard.category)} · {hazard.status}
+              <br />
+              <span className="text-xs font-medium text-slate-400">{wardShort(hazard.ward_id)}</span>
+            </span>
+          </button>
+        ))}
       </div>
     );
   }
 
   return (
-    <div className="officer-map">
-      {mode === "loading" ? <p className="officer-map-loading">Loading map…</p> : null}
-      <div ref={hostRef} className="officer-map-canvas" />
+    <div className={className ?? "absolute inset-0"}>
+      {mode === "loading" ? (
+        <p className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 text-xs font-bold text-slate-400">
+          Loading map…
+        </p>
+      ) : null}
+      <div ref={hostRef} className="h-full w-full" />
     </div>
   );
 }

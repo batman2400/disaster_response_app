@@ -1,6 +1,14 @@
 import { getAiSettings } from "./db";
 import { callGeminiJsonSafe } from "./gemini";
-import type { AiSettings, HazardStatus, ReportChecks, ReportRequest, ReportResponse, Urgency } from "./types";
+import type {
+  AiSettings,
+  CheckSource,
+  HazardStatus,
+  ReportChecks,
+  ReportRequest,
+  ReportResponse,
+  Urgency,
+} from "./types";
 
 const STATUS_VALUES: HazardStatus[] = [
   "PENDING",
@@ -28,7 +36,7 @@ const AGGREGATOR_SCHEMA = {
 type AggregatorVerdict = Pick<
   ReportResponse,
   "status" | "urgency" | "confidence_score" | "is_road_blocked" | "reasoning"
->;
+> & { source: CheckSource };
 
 /**
  * Deterministic outcome used whenever Gemini is mocked, disabled, or fails —
@@ -50,6 +58,7 @@ export function deterministicAggregate(
       is_road_blocked: false,
       reasoning:
         "Help request captured. Relief desk can match it to a shelter with free beds.",
+      source: "code",
     };
   }
 
@@ -60,6 +69,7 @@ export function deterministicAggregate(
       confidence_score: 0.89,
       is_road_blocked: true,
       reasoning: `Severe flooding verified by computer vision, reinforced by ward rainfall telemetry and ${checks.cluster_count} local cluster reports.`,
+      source: "code",
     };
   }
 
@@ -70,6 +80,7 @@ export function deterministicAggregate(
       confidence_score: 0.74,
       is_road_blocked: body.category !== "HELP_REQUEST",
       reasoning: "Image and weather checks agree. Pin published on the public map.",
+      source: "code",
     };
   }
 
@@ -82,6 +93,7 @@ export function deterministicAggregate(
       is_road_blocked: isActionable,
       reasoning:
         "Actionable hazard with a verified photo and plausible location. Raised as a council ticket for field dispatch.",
+      source: "code",
     };
   }
 
@@ -95,6 +107,7 @@ export function deterministicAggregate(
     is_road_blocked: false,
     reasoning:
       "Checks are mixed. Holding as NEED_INFO until nearby users confirm.",
+    source: "code",
   };
 }
 
@@ -150,7 +163,7 @@ Write one or two sentences of reasoning a council officer will read on their que
 
 Respond only with JSON matching the schema.`;
 
-  const { value } = await callGeminiJsonSafe<{
+  const { value, source } = await callGeminiJsonSafe<{
     status: HazardStatus;
     urgency: Urgency;
     confidence_score: number;
@@ -158,5 +171,5 @@ Respond only with JSON matching the schema.`;
     reasoning: string;
   }>(prompt, AGGREGATOR_SCHEMA, fallback);
 
-  return value;
+  return { ...value, source };
 }

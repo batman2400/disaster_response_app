@@ -8,7 +8,21 @@ import {
   upsertHazard as memoryUpsert,
   wards as memoryWards,
 } from "./store";
-import type { AiSettings, HazardRow, ShelterRow, WardRow } from "./types";
+import { parseTrace } from "./trace";
+import type { AiSettings, HazardRow, PipelineTrace, ReplayState, ShelterRow, WardId, WardRow, WardStatus } from "./types";
+
+const globalCache = globalThis as typeof globalThis & {
+  __hazardTraces?: Map<string, PipelineTrace>;
+};
+const traceCache = (globalCache.__hazardTraces ??= new Map<string, PipelineTrace>());
+
+function rememberTrace(id: string, trace: PipelineTrace | null | undefined) {
+  if (trace) traceCache.set(id, trace);
+}
+
+function withCachedTrace(row: HazardRow): HazardRow {
+  return { ...row, trace: row.trace ?? traceCache.get(row.id) ?? null };
+}
 
 function asHazard(row: Record<string, unknown>): HazardRow {
   return {
@@ -28,6 +42,11 @@ function asHazard(row: Record<string, unknown>): HazardRow {
     resolved_at: (row.resolved_at as string | null) ?? null,
     closure_photo_url: (row.closure_photo_url as string | null) ?? null,
     officer_note: (row.officer_note as string | undefined) ?? undefined,
+    trace:
+      parseTrace(row.trace) ??
+      memoryGetHazard(String(row.id))?.trace ??
+      traceCache.get(String(row.id)) ??
+      null,
   };
 }
 
@@ -41,12 +60,12 @@ export async function listWards(): Promise<WardRow[]> {
 
 export async function listHazards(): Promise<HazardRow[]> {
   const supabase = getSupabase();
-  if (!supabase) return memoryListHazards();
+  if (!supabase) return memoryListHazards().map(withCachedTrace);
   const { data, error } = await supabase
     .from("hazards")
     .select("*")
     .order("created_at", { ascending: false });
-  if (error || !data) return memoryListHazards();
+  if (error || !data) return memoryListHazards().map(withCachedTrace);
   return data.map((row) => asHazard(row as Record<string, unknown>));
 }
 
@@ -60,9 +79,15 @@ export async function listShelters(): Promise<ShelterRow[]> {
 
 export async function findHazard(id: string): Promise<HazardRow | null> {
   const supabase = getSupabase();
-  if (!supabase) return memoryGetHazard(id);
+  if (!supabase) {
+    const row = memoryGetHazard(id);
+    return row ? withCachedTrace(row) : null;
+  }
   const { data, error } = await supabase.from("hazards").select("*").eq("id", id).maybeSingle();
-  if (error || !data) return memoryGetHazard(id);
+  if (error || !data) {
+    const row = memoryGetHazard(id);
+    return row ? withCachedTrace(row) : null;
+  }
   return asHazard(data as Record<string, unknown>);
 }
 
@@ -72,6 +97,7 @@ export async function findHazard(id: string): Promise<HazardRow | null> {
 const OFFICER_NOTE_COLUMN_EXISTS = true;
 
 export async function saveHazard(row: HazardRow) {
+  rememberTrace(row.id, row.trace);
   memoryUpsert(row);
   const supabase = getSupabase();
   if (!supabase) return row;
@@ -95,9 +121,20 @@ export async function saveHazard(row: HazardRow) {
   if (OFFICER_NOTE_COLUMN_EXISTS && row.officer_note !== undefined) {
     payload.officer_note = row.officer_note;
   }
+  if (row.trace !== undefined) {
+    payload.trace = row.trace;
+  }
   const { error } = await supabase.from("hazards").upsert(payload);
   if (error) {
-    console.error("saveHazard", error.message);
+    const missingTrace = /trace/i.test(error.message) && payload.trace !== undefined;
+    if (missingTrace) {
+      delete payload.trace;
+      const retry = await supabase.from("hazards").upsert(payload);
+      if (retry.error) console.error("saveHazard", retry.error.message);
+      else console.warn("saveHazard: hazards.trace column missing — apply supabase/apply.sql");
+    } else {
+      console.error("saveHazard", error.message);
+    }
   }
   return row;
 }
@@ -199,4 +236,57 @@ export async function uploadPhoto(id: string, photoBase64: string, kind: "report
   }
   const { data: pub } = supabase.storage.from(HAZARD_BUCKET).getPublicUrl(path);
   return pub.publicUrl;
+}
+
+export async function updateWardTelemetry(
+  id: WardId,
+  rainfall_mm: number,
+  river_level_pct: number,
+  status: WardStatus,
+): Promise<WardRow | null> {
+  const memory = memoryWards.find((ward) => ward.id === id);
+  if (memory) {
+    memory.rainfall_mm = rainfall_mm;
+    memory.river_level_pct = river_level_pct;
+    memory.status = status;
+  }
+
+  const supabase = getSupabase();
+  if (supabase) {
+    const { error } = await supabase
+      .from("wards")
+      .update({ rainfall_mm, river_level_pct, status })
+      .eq("id", id);
+    if (error) {
+      console.error("updateWardTelemetry", error.message);
+      return memory ?? null;
+    }
+  }
+
+  return (
+    memory ?? {
+      id,
+      name: id,
+      rainfall_mm,
+      river_level_pct,
+      status,
+    }
+  );
+}
+
+export async function loadReplaySnapshot(): Promise<ReplayState | null> {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+  const { data, error } = await supabase.from("ai_settings").select("replay").eq("id", 1).maybeSingle();
+  if (error || !data || !("replay" in data) || !data.replay) return null;
+  return data.replay as ReplayState;
+}
+
+export async function saveReplaySnapshot(state: ReplayState) {
+  const supabase = getSupabase();
+  if (!supabase) return;
+  const { error } = await supabase.from("ai_settings").update({ replay: state }).eq("id", 1);
+  if (error) {
+    console.warn("saveReplaySnapshot:", error.message);
+  }
 }

@@ -9,6 +9,9 @@
  * anything. This is the "mocked weather/river feed raises area warnings on
  * its own" demo-critical spine item.
  *
+ * The officer web console at `/dashboard/admin/weather` is the same
+ * feature, driven by `POST /api/dashboard/admin/replay/start|reset`.
+ *
  * Usage:
  *   node scripts/replay-rainy-day.mjs                  # default: ~2 min replay, 15s ticks
  *   node scripts/replay-rainy-day.mjs --interval=10     # seconds between ticks

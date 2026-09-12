@@ -1,6 +1,6 @@
 import { listWards } from "../db";
 import { callGeminiJsonSafe } from "../gemini";
-import type { WardId } from "../types";
+import type { CheckSource, WardId } from "../types";
 
 const LOCATION_SCHEMA = {
   type: "OBJECT",
@@ -21,6 +21,7 @@ const LOCATION_SCHEMA = {
 export interface LocationCheckResult {
   location_matched: boolean;
   reason: string;
+  source: CheckSource;
 }
 
 // Greater Colombo bounding box — cheap sanity check before spending an AI call.
@@ -53,7 +54,7 @@ export async function checkLocation(
 ): Promise<LocationCheckResult> {
   const boundsOk = withinColomboBounds(lat, lng);
   if (!boundsOk) {
-    return { location_matched: false, reason: "Coordinates fall outside Greater Colombo." };
+    return { location_matched: false, reason: "Coordinates fall outside Greater Colombo.", source: "code" };
   }
 
   const prompt = `You are a geography plausibility checker for a disaster-response app covering Colombo, Sri Lanka.
@@ -68,7 +69,7 @@ Decide:
 
 Respond only with JSON matching the schema.`;
 
-  const { value } = await callGeminiJsonSafe<{
+  const { value, source } = await callGeminiJsonSafe<{
     within_colombo: boolean;
     matches_ward: boolean;
     reason: string;
@@ -81,5 +82,6 @@ Respond only with JSON matching the schema.`;
   return {
     location_matched: value.within_colombo && value.matches_ward,
     reason: value.reason,
+    source,
   };
 }

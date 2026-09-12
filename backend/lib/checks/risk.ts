@@ -1,5 +1,5 @@
 import { callGeminiJsonSafe } from "../gemini";
-import type { HazardCategory, Urgency } from "../types";
+import type { CheckSource, HazardCategory, Urgency } from "../types";
 
 const RISK_SCHEMA = {
   type: "OBJECT",
@@ -17,18 +17,31 @@ const RISK_SCHEMA = {
 export interface RiskCheckResult {
   risk_level: Urgency;
   reason: string;
+  source: CheckSource;
 }
 
 function heuristicRisk(category: HazardCategory, description: string): RiskCheckResult {
   const text = description.toLowerCase();
   const severe = /(waist|chest|deep|trapped|collapsed|drowning|sweep|stranded|urgent|dying|injur)/.test(text);
   if (category === "FLOOD" && severe) {
-    return { risk_level: "CRITICAL", reason: "Fallback keyword match: severe flood language in description." };
+    return {
+      risk_level: "CRITICAL",
+      reason: "Fallback keyword match: severe flood language in description.",
+      source: "code",
+    };
   }
   if (category === "FLOOD" || category === "BLOCKED_ROAD") {
-    return { risk_level: "MEDIUM", reason: "Fallback: category implies at least moderate risk." };
+    return {
+      risk_level: "MEDIUM",
+      reason: "Fallback: category implies at least moderate risk.",
+      source: "code",
+    };
   }
-  return { risk_level: "LOW", reason: "Fallback: no severity signal found, AI verification unavailable." };
+  return {
+    risk_level: "LOW",
+    reason: "Fallback: no severity signal found, AI verification unavailable.",
+    source: "code",
+  };
 }
 
 /**
@@ -54,12 +67,12 @@ Grade the immediate risk to people and property as LOW, MEDIUM, or CRITICAL:
 
 Respond only with JSON matching the schema.`;
 
-  const { value } = await callGeminiJsonSafe<{ risk_level: Urgency; reason: string }>(
+  const { value, source } = await callGeminiJsonSafe<{ risk_level: Urgency; reason: string }>(
     prompt,
     RISK_SCHEMA,
     () => heuristicRisk(category, description),
     { photoBase64 },
   );
 
-  return value;
+  return { risk_level: value.risk_level, reason: value.reason, source };
 }

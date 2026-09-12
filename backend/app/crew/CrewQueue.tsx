@@ -1,0 +1,77 @@
+"use client";
+
+import { ChevronRight, LogOut, Shield } from "lucide-react";
+import Link from "next/link";
+
+import { PublicShell } from "@/components/public-shell";
+import { StatusBadge, UrgencyBadge } from "@/components/ui";
+import { categoryLabel, timeAgo, wardShort } from "@/lib/format";
+import type { HazardRow } from "@/lib/types";
+import { mapHazardRow, sortHazards, useLiveRows } from "@/lib/use-live";
+
+export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
+  const { rows: hazards, live } = useLiveRows<HazardRow>({
+    table: "hazards",
+    initial: initialHazards,
+    mapRow: mapHazardRow,
+    sort: sortHazards,
+    fallbackFetch: () => fetch("/api/hazards").then((res) => res.json() as Promise<HazardRow[]>),
+  });
+
+  const open = hazards.filter((row) => row.status !== "RESOLVED");
+
+  return (
+    <PublicShell>
+      <div className="flex items-center justify-between px-6 pb-2 pt-8 lg:px-10 lg:pt-10">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand text-white shadow-glow">
+            <Shield className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-[10px] font-extrabold uppercase tracking-widest text-brand">Field Crew</p>
+            <h1 className="text-lg font-extrabold text-slate-900 lg:text-2xl">Open tasks</h1>
+          </div>
+        </div>
+        <form action="/api/dashboard/logout" method="post">
+          <button type="submit" className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-100 bg-white text-slate-500">
+            <LogOut className="h-4 w-4" />
+          </button>
+        </form>
+      </div>
+      <p className="px-6 pb-4 text-xs font-medium text-slate-400 lg:px-10">
+        {live ? "Live queue" : "Refreshing…"} · {open.length} open
+      </p>
+      <div className="flex-1 overflow-y-auto no-scrollbar px-6 pb-10 lg:px-10">
+        <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2">
+          {open.map((ticket) => (
+            <Link
+              key={ticket.id}
+              href={`/crew/${ticket.id}`}
+              className="flex items-center gap-4 rounded-3xl border border-slate-100 bg-white p-5 shadow-soft active:scale-[0.99] lg:hover:border-brand"
+            >
+              <div className="flex-1">
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-[10px] font-extrabold text-slate-400">
+                    #{ticket.id.slice(0, 8).toUpperCase()}
+                  </span>
+                  <StatusBadge status={ticket.status} />
+                  <UrgencyBadge urgency={ticket.urgency} />
+                </div>
+                <h3 className="font-extrabold text-slate-900">{categoryLabel(ticket.category)}</h3>
+                <p className="mt-1 text-xs font-medium text-slate-500">
+                  {wardShort(ticket.ward_id)} · {timeAgo(ticket.created_at)}
+                </p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-slate-300" />
+            </Link>
+          ))}
+          {open.length === 0 ? (
+            <div className="rounded-3xl border border-slate-100 bg-white p-8 text-center text-sm font-semibold text-slate-400 lg:col-span-2">
+              No open tickets right now.
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </PublicShell>
+  );
+}

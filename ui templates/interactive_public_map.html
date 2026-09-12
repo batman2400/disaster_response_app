@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Interactive Hazard Map - Smart NDRRMS</title>
+    
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Leaflet CSS for Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Custom Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            blue: '#2563eb', 
+                            indigo: '#4f46e5',
+                            light: '#eff6ff',
+                        },
+                        status: {
+                            emerald: '#10b981',
+                            emeraldBg: '#ecfdf5',
+                            crimson: '#e11d48',
+                            crimsonBg: '#ffe4e6',
+                            amber: '#f59e0b',
+                            amberBg: '#fffbeb',
+                        }
+                    },
+                    boxShadow: {
+                        'soft': '0 10px 40px -10px rgba(0,0,0,0.08)',
+                        'glow-blue': '0 0 20px rgba(37, 99, 235, 0.4)',
+                        'glow-red': '0 0 20px rgba(225, 29, 72, 0.4)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            -webkit-tap-highlight-color: transparent;
+            background-color: #cbd5e1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden; /* Prevent scrolling outside app shell */
+        }
+        
+        #app-container {
+            width: 100%;
+            max-width: 400px;
+            height: 100vh;
+            max-height: 850px;
+            background-color: #f8fafc;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        @media (min-width: 420px) {
+            #app-container {
+                height: 92vh;
+                border-radius: 44px;
+                border: 8px solid #0f172a;
+            }
+        }
+
+        /* Map styling overrides */
+        #map {
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            background-color: #f8fafc;
+        }
+        .leaflet-control-attribution { display: none; } /* Hide attribution for cleaner UI mockup */
+        .leaflet-control-zoom { border: none !important; box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important; border-radius: 12px !important; overflow: hidden; margin-top: 100px !important;}
+        .leaflet-control-zoom a { color: #475569 !important; font-weight: bold !important; }
+
+        /* Custom Marker CSS */
+        .custom-marker {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 50%;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .custom-marker:hover {
+            transform: scale(1.15);
+        }
+        .marker-pulse {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+            z-index: -1;
+        }
+        .marker-crimson { background: #e11d48; color: white; border: 3px solid white; }
+        .marker-amber { background: #f59e0b; color: white; border: 3px solid white; }
+        .marker-emerald { background: #10b981; color: white; border: 3px solid white; }
+        
+        .pulse-crimson { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.7); }
+        .pulse-amber { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(currentColor, 0.7); }
+            70% { transform: scale(1.8); box-shadow: 0 0 0 15px rgba(currentColor, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(currentColor, 0); }
+        }
+
+        /* UI Animations */
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .animate-slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        
+        @keyframes slideDownAlert {
+            from { transform: translateY(-150%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .animate-slide-down-alert { animation: slideDownAlert 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="antialiased text-slate-800">
+
+    <div id="app-container" class="flex flex-col relative">
+        
+        <!-- Status Bar Mockup -->
+        <div class="absolute top-0 w-full flex justify-between items-center px-6 pt-4 pb-2 text-xs font-bold text-slate-900 z-50 pointer-events-none">
+            <span id="clock">12:21</span>
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-signal"></i>
+                <i class="fa-solid fa-wifi"></i>
+                <i class="fa-solid fa-battery-full"></i>
+            </div>
+        </div>
+
+        <!-- Floating Glass Header -->
+        <div class="absolute top-10 left-4 right-4 z-40 flex items-center gap-3">
+            <button class="w-12 h-12 rounded-2xl bg-white/90 backdrop-blur-md shadow-soft border border-white/50 flex items-center justify-center text-slate-700 active:scale-95 transition-transform shrink-0">
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <div class="flex-1 h-12 bg-white/90 backdrop-blur-md shadow-soft border border-white/50 rounded-2xl flex items-center px-4 gap-3">
+                <div class="relative flex items-center justify-center w-2 h-2 shrink-0">
+                    <div class="absolute w-full h-full bg-status-emerald rounded-full opacity-60 animate-ping"></div>
+                    <div class="relative w-1.5 h-1.5 bg-status-emerald rounded-full"></div>
+                </div>
+                <input type="text" placeholder="Live Status: Colombo" readonly class="bg-transparent border-none text-sm font-extrabold text-slate-800 focus:outline-none w-full pointer-events-none truncate" />
+                <div class="w-8 h-8 rounded-full bg-brand-light flex items-center justify-center text-brand-blue shrink-0">
+                    <i class="fa-regular fa-bell text-sm"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dynamic Area Alert Banner (Hidden initially, slides down via JS) -->
+        <div id="area-alert" class="absolute top-28 left-4 right-4 z-40 bg-white/80 backdrop-blur-xl border border-status-crimson/20 rounded-3xl p-4 shadow-glow-red hidden transform -translate-y-[150%]">
+            <div class="flex items-start gap-3">
+                <div class="w-10 h-10 rounded-full bg-status-crimsonBg flex items-center justify-center text-status-crimson shrink-0">
+                    <i class="fa-solid fa-triangle-exclamation text-lg animate-pulse"></i>
+                </div>
+                <div>
+                    <h3 class="font-extrabold text-slate-900 text-sm">Critical Flood Warning</h3>
+                    <p class="text-[11px] font-semibold text-slate-500 mt-0.5 leading-tight">High water levels detected on Ward 07 Arterial. Route marked impassable.</p>
+                </div>
+                <button onclick="dismissAlert()" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- The Map -->
+        <div id="map" class="flex-1 relative z-0"></div>
+
+        <!-- Floating Action Button (Report Hazard) -->
+        <button class="absolute bottom-8 right-6 z-30 w-16 h-16 bg-brand-blue text-white rounded-full shadow-glow-blue flex items-center justify-center text-2xl active:scale-90 transition-transform">
+            <i class="fa-solid fa-plus"></i>
+        </button>
+
+        <!-- Hazard Detail Bottom Sheet (Hidden by default) -->
+        <div id="hazard-sheet" class="absolute bottom-0 left-0 right-0 z-40 bg-white rounded-t-[32px] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] transform translate-y-full transition-transform duration-500 cubic-bezier(0.16, 1, 0.3, 1) flex flex-col max-h-[80vh]">
+            
+            <!-- Handle -->
+            <div class="flex justify-center pt-4 pb-2 shrink-0 cursor-pointer" onclick="closeSheet()">
+                <div class="w-12 h-1.5 bg-slate-200 rounded-full"></div>
+            </div>
+
+            <div class="px-6 pb-6 overflow-y-auto no-scrollbar">
+                
+                <!-- Header Status -->
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span id="sheet-id" class="text-[10px] font-extrabold text-slate-400 font-mono tracking-wider">#HZ-0000</span>
+                            <span id="sheet-status-badge" class="text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-widest bg-slate-100 text-slate-500">STATUS</span>
+                        </div>
+                        <h2 id="sheet-title" class="text-xl font-extrabold text-slate-900 tracking-tight">Hazard Type</h2>
+                        <p id="sheet-location" class="text-xs font-semibold text-slate-500 mt-0.5"><i class="fa-solid fa-location-dot mr-1"></i> Location Name</p>
+                    </div>
+                    
+                    <!-- AI Confidence Bug -->
+                    <div class="bg-brand-light/50 border border-brand-light px-3 py-1.5 rounded-xl flex flex-col items-center">
+                        <i class="fa-solid fa-robot text-brand-blue text-[10px] mb-0.5"></i>
+                        <span id="sheet-score" class="font-mono font-extrabold text-brand-blue text-sm">0.00</span>
+                    </div>
+                </div>
+
+                <!-- Evidence Photo -->
+                <div class="w-full h-40 bg-slate-100 rounded-2xl overflow-hidden relative mb-5 border border-slate-100">
+                    <img id="sheet-img" src="" class="w-full h-full object-cover" alt="Evidence" />
+                    <div class="absolute top-2 right-2 bg-slate-900/60 backdrop-blur px-2 py-1 rounded text-[9px] font-bold text-white uppercase flex items-center gap-1">
+                        <i class="fa-solid fa-camera"></i> Citizen Upload
+                    </div>
+                </div>
+
+                <!-- Crowdsourcing / Action Area -->
+                <div id="crowdsource-action" class="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                    <div class="flex items-start gap-3">
+                        <div class="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-500 shrink-0 mt-0.5">
+                            <i class="fa-solid fa-users"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-extrabold text-slate-800 text-sm">Needs Verification</h3>
+                            <p class="text-[11px] font-medium text-slate-500 mt-1 mb-3 leading-relaxed">AI confidence is low due to poor image clarity. Are you near this location? Please confirm if the hazard is active.</p>
+                            
+                            <div class="flex gap-2">
+                                <button onclick="simulateConfirmation(this)" class="flex-1 bg-white border-2 border-slate-200 hover:border-brand-blue text-slate-700 hover:text-brand-blue font-bold text-xs py-2.5 rounded-xl transition-colors active:scale-95">
+                                    <i class="fa-solid fa-check text-status-emerald mr-1"></i> Confirm Active
+                                </button>
+                                <button class="flex-1 bg-white border-2 border-slate-200 text-slate-700 font-bold text-xs py-2.5 rounded-xl transition-colors active:scale-95">
+                                    <i class="fa-solid fa-xmark text-status-crimson mr-1"></i> False Alarm
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Spacer for scrolling -->
+                <div class="h-6"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // Clock Update
+        function updateClock() {
+            const now = new Date();
+            let hours = now.getHours();
+            let minutes = now.getMinutes();
+            hours = hours < 10 ? '0' + hours : hours;
+            minutes = minutes < 10 ? '0' + minutes : minutes;
+            document.getElementById('clock').textContent = hours + ':' + minutes;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Initialize Map
+        // Centered on Colombo, Sri Lanka
+        const map = L.map('map', {
+            zoomControl: false, // Will add it manually to style it
+            attributionControl: false
+        }).setView([6.9142, 79.8724], 14);
+
+        L.control.zoom({ position: 'topright' }).addTo(map);
+
+        // Tech-centric Light Theme Map Tiles (CartoDB Positron)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            maxZoom: 19
+        }).addTo(map);
+
+        // Hazard Data Mock (Simulating DB Response)
+        const hazards = [
+            {
+                id: 'HZ-8842',
+                type: 'Major Flooding',
+                locName: 'Main St. Intersection, Ward 07',
+                lat: 6.9142,
+                lng: 79.8724,
+                status: 'PUBLISHED',
+                score: '0.94',
+                colorClass: 'marker-crimson',
+                pulseClass: 'pulse-crimson',
+                icon: 'fa-water',
+                img: 'https://placehold.co/600x450/1e293b/ffffff?text=Severe+Flood',
+                needsInfo: false
+            },
+            {
+                id: 'HZ-8841',
+                type: 'Fallen Tree',
+                locName: 'Park Road, Ward 07',
+                lat: 6.9080,
+                lng: 79.8650,
+                status: 'NEED_INFO',
+                score: '0.48',
+                colorClass: 'marker-amber',
+                pulseClass: 'pulse-amber',
+                icon: 'fa-tree',
+                img: 'https://placehold.co/600x450/f59e0b/ffffff?text=Fallen+Tree',
+                needsInfo: true
+            },
+            {
+                id: 'HZ-8839',
+                type: 'Road Damage',
+                locName: 'Lake Drive',
+                lat: 6.9200,
+                lng: 79.8800,
+                status: 'RESOLVED',
+                score: '0.98',
+                colorClass: 'marker-emerald',
+                pulseClass: '',
+                icon: 'fa-check',
+                img: 'https://placehold.co/600x450/10b981/ffffff?text=Fixed+Road',
+                needsInfo: false
+            }
+        ];
+
+        // Function to create custom HTML markers
+        function createIcon(hazard) {
+            const html = `
+                <div class="custom-marker ${hazard.colorClass} w-10 h-10 text-lg">
+                    <i class="fa-solid ${hazard.icon}"></i>
+                    ${hazard.pulseClass ? `<div class="marker-pulse ${hazard.pulseClass}"></div>` : ''}
+                </div>
+            `;
+            return L.divIcon({
+                html: html,
+                className: '', // Clear default leaflet classes
+                iconSize: [40, 40],
+                iconAnchor: [20, 20]
+            });
+        }
+
+        // Add markers to map
+        const markers = {};
+        hazards.forEach(h => {
+            const marker = L.marker([h.lat, h.lng], { icon: createIcon(h) }).addTo(map);
+            markers[h.id] = marker;
+            
+            // Add click event to open bottom sheet
+            marker.on('click', () => openHazardSheet(h));
+        });
+
+        // Bottom Sheet Logic
+        const sheet = document.getElementById('hazard-sheet');
+        
+        function openHazardSheet(data) {
+            // Pan map slightly up to accommodate bottom sheet
+            map.setView([data.lat - 0.005, data.lng], 15, { animate: true, duration: 0.5 });
+            
+            // Populate data
+            document.getElementById('sheet-id').textContent = '#' + data.id;
+            document.getElementById('sheet-title').textContent = data.type;
+            document.getElementById('sheet-location').innerHTML = `<i class="fa-solid fa-location-dot mr-1"></i> ${data.locName}`;
+            document.getElementById('sheet-score').textContent = data.score;
+            document.getElementById('sheet-img').src = data.img;
+            
+            // Status Badge Styling
+            const badge = document.getElementById('sheet-status-badge');
+            badge.textContent = data.status.replace('_', ' ');
+            badge.className = 'text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-widest ';
+            if(data.status === 'PUBLISHED') badge.className += 'bg-status-crimsonBg text-status-crimson';
+            else if(data.status === 'NEED_INFO') badge.className += 'bg-status-amberBg text-status-amber';
+            else if(data.status === 'RESOLVED') badge.className += 'bg-status-emeraldBg text-status-emerald';
+
+            // Handle Crowdsource Action visibility
+            const actionArea = document.getElementById('crowdsource-action');
+            if(data.needsInfo) {
+                actionArea.style.display = 'block';
+                // Reset button if previously clicked
+                const btn = actionArea.querySelector('button');
+                btn.innerHTML = '<i class="fa-solid fa-check text-status-emerald mr-1"></i> Confirm Active';
+                btn.classList.remove('bg-brand-blue', 'text-white', 'border-brand-blue');
+                btn.disabled = false;
+            } else {
+                actionArea.style.display = 'none';
+            }
+
+            // Slide up
+            sheet.classList.remove('translate-y-full');
+        }
+
+        function closeSheet() {
+            sheet.classList.add('translate-y-full');
+        }
+
+        function simulateConfirmation(btn) {
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Sending...';
+            btn.classList.add('opacity-80', 'cursor-not-allowed');
+            btn.disabled = true;
+
+            setTimeout(() => {
+                btn.innerHTML = '<i class="fa-solid fa-check-double mr-1"></i> Verified (+1)';
+                btn.classList.remove('opacity-80', 'bg-white', 'text-slate-700', 'border-slate-200');
+                btn.classList.add('bg-brand-blue', 'text-white', 'border-brand-blue');
+                
+                // In a real app, this would trigger realtime update to PUBLISHED
+            }, 800);
+        }
+
+        // Simulate Supabase Realtime "Area Alert" Push
+        function dismissAlert() {
+            const alertBox = document.getElementById('area-alert');
+            alertBox.classList.remove('animate-slide-down-alert');
+            alertBox.classList.add('transform', '-translate-y-[150%]');
+            setTimeout(() => alertBox.classList.add('hidden'), 500);
+        }
+
+        // Trigger simulation after 3 seconds
+        setTimeout(() => {
+            const alertBox = document.getElementById('area-alert');
+            alertBox.classList.remove('hidden', '-translate-y-[150%]');
+            alertBox.classList.add('animate-slide-down-alert');
+            
+            // Drop a new dynamic pin
+            const newHazard = {
+                id: 'HZ-8845',
+                type: 'River Overflow',
+                locName: 'Canal Bank, Ward 08',
+                lat: 6.9250,
+                lng: 79.8700,
+                status: 'PUBLISHED',
+                score: '0.99',
+                colorClass: 'marker-crimson',
+                pulseClass: 'pulse-crimson',
+                icon: 'fa-wave-square',
+                img: 'https://placehold.co/600x450/1e293b/ffffff?text=River+Overflow',
+                needsInfo: false
+            };
+            
+            const marker = L.marker([newHazard.lat, newHazard.lng], { icon: createIcon(newHazard) }).addTo(map);
+            marker.on('click', () => openHazardSheet(newHazard));
+            
+            // Pan to the new alert
+            map.setView([newHazard.lat, newHazard.lng], 14, { animate: true, duration: 1 });
+            
+        }, 3000);
+
+    </script>
+</body>
+</html>

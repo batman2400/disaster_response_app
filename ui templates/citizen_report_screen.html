@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Citizen Report - Smart NDRRMS</title>
+    
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Custom Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            blue: '#1d4ed8', /* Cobalt Blue */
+                            light: '#eff6ff',
+                        },
+                        status: {
+                            emerald: '#10b981',
+                            emeraldBg: '#ecfdf5',
+                            crimson: '#e11d48',
+                            crimsonBg: '#ffe4e6',
+                            amber: '#f59e0b',
+                            amberBg: '#fef3c7',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Smooth scrolling and tap highlight removal for app feel */
+        body {
+            -webkit-tap-highlight-color: transparent;
+            background-color: #e2e8f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        
+        /* Mobile Simulator Shell */
+        #app-container {
+            width: 100%;
+            max-width: 400px;
+            height: 100vh;
+            max-height: 850px;
+            background-color: #f8fafc;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        @media (min-width: 420px) {
+            #app-container {
+                height: 90vh;
+                border-radius: 40px;
+                border: 8px solid #0f172a;
+            }
+        }
+
+        /* Hide scrollbar for clean app look */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* Checkmark Animation */
+        @keyframes pop {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop {
+            animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+    </style>
+</head>
+<body class="antialiased text-slate-900">
+
+    <!-- Mobile App Container -->
+    <div id="app-container" class="flex flex-col relative">
+        
+        <!-- Status Bar Mockup -->
+        <div class="flex justify-between items-center px-6 pt-4 pb-2 text-xs font-bold text-slate-900 z-10 bg-[#f8fafc]">
+            <span id="clock">12:21</span>
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-signal"></i>
+                <i class="fa-solid fa-wifi"></i>
+                <i class="fa-solid fa-battery-full"></i>
+            </div>
+        </div>
+
+        <!-- Top Navigation -->
+        <div class="px-6 py-3 flex items-center justify-between bg-[#f8fafc] z-10">
+            <button onclick="console.log('Back pressed')" class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 active:bg-slate-200 transition">
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <h1 class="text-lg font-extrabold tracking-tight text-slate-900">Report Hazard</h1>
+            <div class="w-10"></div> <!-- Spacer for centering -->
+        </div>
+
+        <!-- Scrollable Content Area -->
+        <div class="flex-1 overflow-y-auto no-scrollbar pb-32">
+            
+            <div class="px-6 pt-4">
+                
+                <!-- 1. Photo Capture -->
+                <h2 class="text-sm font-bold text-slate-900 mb-3 uppercase tracking-wide">1. Evidence (Required)</h2>
+                <div id="photo-container" onclick="simulatePhotoCapture()" class="w-full h-48 bg-white border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center gap-3 cursor-pointer active:bg-slate-50 transition-colors mb-8 relative overflow-hidden shadow-sm">
+                    <div id="photo-placeholder" class="flex flex-col items-center justify-center">
+                        <div class="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-brand-blue mb-2">
+                            <i class="fa-solid fa-camera text-xl"></i>
+                        </div>
+                        <p class="font-bold text-slate-700 text-sm">Tap to capture photo</p>
+                        <p class="text-xs text-slate-400 mt-1">Live capture preferred for AI verification</p>
+                    </div>
+                    <!-- Hidden Image View (Revealed after capture) -->
+                    <img id="captured-image" src="https://placehold.co/400x300/1e293b/ffffff?text=Flooded+Street" alt="Captured Hazard" class="absolute inset-0 w-full h-full object-cover hidden" />
+                    <div id="retake-badge" class="absolute bottom-3 right-3 bg-white/90 backdrop-blur px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700 shadow-sm hidden flex items-center gap-2">
+                        <i class="fa-solid fa-rotate"></i> Retake
+                    </div>
+                </div>
+
+                <!-- 2. Location (Auto-filled) -->
+                <div class="flex justify-between items-end mb-3">
+                    <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wide">2. Location</h2>
+                    <span class="text-[10px] font-bold text-brand-blue bg-brand-light px-2 py-1 rounded-md"><i class="fa-solid fa-location-crosshairs mr-1"></i> Auto-detected</span>
+                </div>
+                <div class="w-full bg-white border border-slate-200 rounded-2xl p-4 shadow-sm mb-8 flex items-start gap-4">
+                    <div class="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-status-crimson flex-shrink-0 mt-0.5">
+                        <i class="fa-solid fa-map-pin text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-slate-900">Ward 07, Colombo</h3>
+                        <p class="text-xs font-medium text-slate-500 mt-0.5">Main Street Intersection</p>
+                        <p class="text-[10px] text-slate-400 mt-2 font-mono">LAT: 6.9142 • LNG: 79.8724</p>
+                    </div>
+                </div>
+
+                <!-- 3. Category -->
+                <h2 class="text-sm font-bold text-slate-900 mb-3 uppercase tracking-wide">3. Hazard Type</h2>
+                <div class="grid grid-cols-2 gap-3 mb-6">
+                    <button onclick="selectCategory('flood', this)" class="category-btn bg-white border border-slate-200 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 shadow-sm transition-all text-slate-600 active:scale-95">
+                        <i class="fa-solid fa-water text-2xl"></i>
+                        <span class="font-bold text-sm">Flood</span>
+                    </button>
+                    <button onclick="selectCategory('tree', this)" class="category-btn bg-white border border-slate-200 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 shadow-sm transition-all text-slate-600 active:scale-95">
+                        <i class="fa-solid fa-tree text-2xl"></i>
+                        <span class="font-bold text-sm">Fallen Tree</span>
+                    </button>
+                    <button onclick="selectCategory('road', this)" class="category-btn bg-white border border-slate-200 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 shadow-sm transition-all text-slate-600 active:scale-95">
+                        <i class="fa-solid fa-road-barrier text-2xl"></i>
+                        <span class="font-bold text-sm">Blocked Road</span>
+                    </button>
+                    <button onclick="selectCategory('help', this)" class="category-btn bg-white border border-slate-200 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 shadow-sm transition-all text-slate-600 active:scale-95">
+                        <i class="fa-solid fa-hand-holding-medical text-2xl"></i>
+                        <span class="font-bold text-sm">Request Help</span>
+                    </button>
+                </div>
+                
+                <div class="mb-4">
+                     <textarea placeholder="Additional details (optional)..." class="w-full bg-white border border-slate-200 rounded-2xl p-4 shadow-sm text-sm font-medium focus:outline-none focus:border-brand-blue resize-none h-24"></textarea>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Fixed Bottom Submit Bar -->
+        <div class="absolute bottom-0 w-full bg-white/80 backdrop-blur-md border-t border-slate-200 p-6 pb-8 z-20">
+            <button id="submit-btn" onclick="triggerPipeline()" class="w-full bg-slate-300 text-slate-500 font-extrabold py-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-not-allowed pointer-events-none">
+                <i class="fa-solid fa-shield-halved"></i>
+                Submit to AI Triage
+            </button>
+        </div>
+
+        <!-- Full-Screen Triage Modal (Hidden by default) -->
+        <div id="triage-modal" class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex-col justify-end">
+            <!-- Modal Content (Slides up) -->
+            <div class="bg-white w-full h-[85%] rounded-t-3xl shadow-2xl flex flex-col transform translate-y-full transition-transform duration-300" id="triage-sheet">
+                
+                <div class="flex justify-center pt-3 pb-2">
+                    <div class="w-12 h-1.5 bg-slate-200 rounded-full"></div>
+                </div>
+
+                <div class="px-6 pt-2 pb-4 flex-1 overflow-y-auto no-scrollbar">
+                    <h2 class="text-xl font-extrabold text-slate-900 mb-1">AI Triage Pipeline</h2>
+                    <p class="text-sm font-medium text-slate-500 mb-6">Running 5-stage verification checks...</p>
+
+                    <!-- Pipeline Steps -->
+                    <div class="flex flex-col gap-4 relative">
+                        <!-- Connecting Line -->
+                        <div class="absolute left-[19px] top-4 bottom-4 w-0.5 bg-slate-100 z-0"></div>
+
+                        <!-- 1. Image AI -->
+                        <div class="flex items-center gap-4 z-10">
+                            <div id="check-icon-1" class="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 bg-white">
+                                <i class="fa-solid fa-spinner fa-spin"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-bold text-slate-900 text-sm">Image AI</h3>
+                                <p id="check-desc-1" class="text-xs font-medium text-slate-400">Analyzing photo evidence...</p>
+                            </div>
+                        </div>
+
+                        <!-- 2. Location AI -->
+                        <div class="flex items-center gap-4 z-10 opacity-40" id="step-2">
+                            <div id="check-icon-2" class="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 bg-white">
+                                <i class="fa-solid fa-location-dot"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-bold text-slate-900 text-sm">Location AI</h3>
+                                <p id="check-desc-2" class="text-xs font-medium text-slate-400">Waiting...</p>
+                            </div>
+                        </div>
+
+                        <!-- 3. Cluster Check -->
+                        <div class="flex items-center gap-4 z-10 opacity-40" id="step-3">
+                            <div id="check-icon-3" class="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 bg-white">
+                                <i class="fa-solid fa-layer-group"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-bold text-slate-900 text-sm">Cluster Check (SYS)</h3>
+                                <p id="check-desc-3" class="text-xs font-medium text-slate-400">Waiting...</p>
+                            </div>
+                        </div>
+
+                        <!-- 4. Weather Check -->
+                        <div class="flex items-center gap-4 z-10 opacity-40" id="step-4">
+                            <div id="check-icon-4" class="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 bg-white">
+                                <i class="fa-solid fa-cloud-rain"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-bold text-slate-900 text-sm">Weather Check (SYS)</h3>
+                                <p id="check-desc-4" class="text-xs font-medium text-slate-400">Waiting...</p>
+                            </div>
+                        </div>
+
+                        <!-- 5. Risk AI -->
+                        <div class="flex items-center gap-4 z-10 opacity-40" id="step-5">
+                            <div id="check-icon-5" class="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 bg-white">
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-bold text-slate-900 text-sm">Risk AI</h3>
+                                <p id="check-desc-5" class="text-xs font-medium text-slate-400">Waiting...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Aggregator Result Card (Hidden initially) -->
+                    <div id="aggregator-result" class="mt-8 bg-status-emeraldBg border border-emerald-200 rounded-2xl p-5 hidden animate-pop">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-100 px-2 py-1 rounded-md">Aggregator AI Verdict</span>
+                            <span class="font-extrabold text-emerald-600">0.94 Conf</span>
+                        </div>
+                        <h3 class="text-xl font-extrabold text-emerald-900 mb-1">PUBLISHED</h3>
+                        <p class="text-xs font-medium text-emerald-800/80 leading-relaxed">
+                            Image confirms standing water. Matches heavy rainfall telemetry (45mm/hr) and 4 clustered reports nearby. Road marked blocked.
+                        </p>
+                    </div>
+
+                </div>
+
+                <!-- Done Button -->
+                <div class="p-6 border-t border-slate-100 hidden" id="done-btn-container">
+                    <button onclick="closeModal()" class="w-full bg-brand-blue text-white font-extrabold py-4 rounded-2xl shadow-lg shadow-blue-500/30 active:scale-[0.98] transition-transform">
+                        Return to Map
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Clock
+        function updateClock() {
+            const now = new Date();
+            let hours = now.getHours();
+            let minutes = now.getMinutes();
+            hours = hours < 10 ? '0' + hours : hours;
+            minutes = minutes < 10 ? '0' + minutes : minutes;
+            document.getElementById('clock').textContent = hours + ':' + minutes;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // State Variables
+        let hasPhoto = false;
+        let selectedCategory = null;
+
+        // UI Interactions
+        function simulatePhotoCapture() {
+            document.getElementById('photo-placeholder').classList.add('hidden');
+            document.getElementById('captured-image').classList.remove('hidden');
+            document.getElementById('retake-badge').classList.remove('hidden');
+            document.getElementById('photo-container').classList.remove('border-dashed');
+            document.getElementById('photo-container').classList.add('border-brand-blue');
+            hasPhoto = true;
+            checkSubmitState();
+        }
+
+        function selectCategory(cat, btnElement) {
+            selectedCategory = cat;
+            
+            // Reset all buttons
+            const btns = document.querySelectorAll('.category-btn');
+            btns.forEach(btn => {
+                btn.classList.remove('border-brand-blue', 'text-brand-blue', 'bg-brand-light');
+                btn.classList.add('border-slate-200', 'text-slate-600', 'bg-white');
+            });
+
+            // Activate clicked
+            btnElement.classList.remove('border-slate-200', 'text-slate-600', 'bg-white');
+            btnElement.classList.add('border-brand-blue', 'text-brand-blue', 'bg-brand-light');
+            
+            checkSubmitState();
+        }
+
+        function checkSubmitState() {
+            const submitBtn = document.getElementById('submit-btn');
+            if (hasPhoto && selectedCategory) {
+                submitBtn.classList.remove('bg-slate-300', 'text-slate-500', 'cursor-not-allowed', 'pointer-events-none');
+                submitBtn.classList.add('bg-brand-blue', 'text-white', 'shadow-blue-500/30', 'cursor-pointer');
+            }
+        }
+
+        // AI Pipeline Simulation
+        function triggerPipeline() {
+            // Show modal and slide up
+            const modal = document.getElementById('triage-modal');
+            const sheet = document.getElementById('triage-sheet');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            // Small delay to allow display:flex to apply before translating
+            setTimeout(() => {
+                sheet.classList.remove('translate-y-full');
+            }, 10);
+
+            // Start async simulation chain
+            simulateCheck(1, 'Image AI', 'Verified: Flood Detected', 800, () => {
+                simulateCheck(2, 'Location AI', 'Verified: EXIF matches GPS', 600, () => {
+                    simulateCheck(3, 'Cluster Check (SYS)', 'Verified: 4 reports < 200m', 400, () => {
+                        simulateCheck(4, 'Weather Check (SYS)', 'Verified: 45mm/hr rain active', 500, () => {
+                            simulateCheck(5, 'Risk AI', 'High Risk: Major Arterial Road', 900, () => {
+                                showAggregatorResult();
+                            });
+                        });
+                    });
+                });
+            });
+        }
+
+        function simulateCheck(stepNumber, title, successText, delay, nextCallback) {
+            // Activate current step UI
+            const stepEl = document.getElementById(`step-${stepNumber}`);
+            if(stepEl) stepEl.classList.remove('opacity-40');
+            
+            const icon = document.getElementById(`check-icon-${stepNumber}`);
+            const desc = document.getElementById(`check-desc-${stepNumber}`);
+            
+            // Set to loading
+            icon.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-brand-blue"></i>';
+            icon.classList.remove('bg-white');
+            icon.classList.add('bg-brand-light', 'border-brand-blue');
+            desc.textContent = 'Processing...';
+
+            // Complete after delay
+            setTimeout(() => {
+                icon.innerHTML = '<i class="fa-solid fa-check text-status-emerald"></i>';
+                icon.classList.remove('bg-brand-light', 'border-brand-blue');
+                icon.classList.add('bg-status-emeraldBg', 'border-status-emerald');
+                desc.textContent = successText;
+                desc.classList.remove('text-slate-400');
+                desc.classList.add('text-status-emerald', 'font-bold');
+                
+                if(nextCallback) nextCallback();
+            }, delay);
+        }
+
+        function showAggregatorResult() {
+            setTimeout(() => {
+                document.getElementById('aggregator-result').classList.remove('hidden');
+                document.getElementById('done-btn-container').classList.remove('hidden');
+                
+                // Scroll to bottom of sheet
+                const sheetContent = document.getElementById('triage-sheet').querySelector('.overflow-y-auto');
+                sheetContent.scrollTo({ top: sheetContent.scrollHeight, behavior: 'smooth' });
+            }, 400);
+        }
+
+        function closeModal() {
+            const sheet = document.getElementById('triage-sheet');
+            sheet.classList.add('translate-y-full');
+            
+            setTimeout(() => {
+                const modal = document.getElementById('triage-modal');
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                
+                // Reset form (simulating returning to map)
+                alert("Redirecting to Public Map (Screen 03)...");
+            }, 300);
+        }
+    </script>
+</body>
+</html>

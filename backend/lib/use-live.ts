@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { getBrowserSupabase } from "./supabase-browser";
+import { parseTrace } from "./trace";
 import type { HazardRow, ShelterRow, WardRow } from "./types";
 
 type Identified = { id: string };
@@ -40,6 +41,7 @@ export function mapHazardRow(row: Record<string, unknown>): HazardRow {
     resolved_at: (row.resolved_at as string | null) ?? null,
     closure_photo_url: (row.closure_photo_url as string | null) ?? null,
     officer_note: (row.officer_note as string | undefined) ?? undefined,
+    trace: parseTrace(row.trace),
   };
 }
 

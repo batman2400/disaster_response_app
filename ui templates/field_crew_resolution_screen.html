@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resolve Task - Smart NDRRMS</title>
+    
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Custom Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            blue: '#2563eb', 
+                            indigo: '#4f46e5',
+                            light: '#eff6ff',
+                        },
+                        status: {
+                            emerald: '#10b981',
+                            emeraldBg: '#ecfdf5',
+                            crimson: '#e11d48',
+                            crimsonBg: '#ffe4e6',
+                            amber: '#f59e0b',
+                            amberBg: '#fffbeb',
+                        }
+                    },
+                    boxShadow: {
+                        'soft': '0 10px 40px -10px rgba(0,0,0,0.08)',
+                        'glow-emerald': '0 0 25px rgba(16, 185, 129, 0.4)',
+                        'glow-blue': '0 0 25px rgba(37, 99, 235, 0.4)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            -webkit-tap-highlight-color: transparent;
+            background-color: #cbd5e1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        
+        #app-container {
+            width: 100%;
+            max-width: 400px;
+            height: 100vh;
+            max-height: 850px;
+            background-color: #f8fafc;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            display: flex;
+            flex-direction: column;
+        }
+
+        @media (min-width: 420px) {
+            #app-container {
+                height: 92vh;
+                border-radius: 44px;
+                border: 8px solid #0f172a;
+            }
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Colorful Ambient Background Orbs */
+        .ambient-orb-1 {
+            position: absolute;
+            top: -50px;
+            right: -50px;
+            width: 250px;
+            height: 250px;
+            background: radial-gradient(circle, rgba(37,99,235,0.15) 0%, rgba(37,99,235,0) 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .ambient-orb-2 {
+            position: absolute;
+            bottom: 100px;
+            left: -100px;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(16,185,129,0.12) 0%, rgba(16,185,129,0) 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Success Animation */
+        @keyframes scaleUp {
+            0% { transform: scale(0.8); opacity: 0; }
+            50% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-scale-up { animation: scaleUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    </style>
+</head>
+<body class="antialiased text-slate-800">
+
+    <div id="app-container">
+        
+        <!-- Ambient Colorful Background -->
+        <div class="ambient-orb-1"></div>
+        <div class="ambient-orb-2"></div>
+
+        <!-- Status Bar Mockup -->
+        <div class="flex justify-between items-center px-6 pt-4 pb-2 text-xs font-bold text-slate-900 bg-transparent z-30 relative">
+            <span id="clock">12:21</span>
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-signal"></i>
+                <i class="fa-solid fa-wifi"></i>
+                <i class="fa-solid fa-battery-full"></i>
+            </div>
+        </div>
+
+        <!-- Glass Header -->
+        <div class="px-6 py-4 flex items-center justify-between sticky top-0 z-20">
+            <button class="w-10 h-10 rounded-2xl bg-white shadow-sm border border-slate-100 flex items-center justify-center text-slate-600 active:scale-90 transition-transform">
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <div class="text-center">
+                <h1 class="text-lg font-extrabold tracking-tight text-slate-900">Resolve Task</h1>
+                <p class="text-[10px] font-mono font-bold text-brand-blue uppercase tracking-widest mt-0.5">#HZ-8842</p>
+            </div>
+            <div class="w-10"></div> <!-- Balancer -->
+        </div>
+
+        <!-- Scrollable Content -->
+        <div class="flex-1 overflow-y-auto no-scrollbar pb-32 relative z-10 px-6 pt-2 flex flex-col gap-6">
+            
+            <!-- Context Card -->
+            <div class="bg-white/80 backdrop-blur-md rounded-3xl p-5 shadow-soft border border-slate-100/50 relative overflow-hidden">
+                <div class="flex items-start gap-4">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-blue to-brand-indigo text-white flex items-center justify-center text-xl shadow-glow-blue flex-shrink-0">
+                        <i class="fa-solid fa-water"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-extrabold text-slate-900 text-base">Major Flooding & Blockage</h2>
+                        <p class="text-xs font-medium text-slate-500 mt-0.5"><i class="fa-solid fa-location-dot mr-1 text-slate-400"></i> Main St. Intersection, Ward 07</p>
+                    </div>
+                </div>
+                
+                <div class="mt-4 bg-slate-50 rounded-2xl p-3 border border-slate-100 flex items-center gap-3">
+                    <i class="fa-solid fa-clipboard-list text-slate-400"></i>
+                    <p class="text-[11px] font-semibold text-slate-600">Task: Deploy pumps and clear adjacent drains to reopen the arterial road.</p>
+                </div>
+            </div>
+
+            <!-- Mandatory Photo Capture -->
+            <div>
+                <div class="flex justify-between items-end mb-3">
+                    <h2 class="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">1. After-Fix Photo Verification</h2>
+                    <span class="text-[10px] font-bold text-brand-blue bg-brand-light px-2 py-1 rounded-md">Required</span>
+                </div>
+                
+                <div id="photo-capture-area" onclick="simulatePhotoCapture()" class="w-full h-64 bg-white border-2 border-dashed border-slate-300 rounded-[32px] flex flex-col items-center justify-center gap-3 cursor-pointer active:scale-[0.98] transition-all duration-300 relative overflow-hidden group shadow-soft">
+                    
+                    <!-- Pre-Capture State -->
+                    <div id="photo-placeholder" class="flex flex-col items-center justify-center transition-opacity duration-300">
+                        <div class="w-16 h-16 bg-brand-light rounded-[20px] flex items-center justify-center text-brand-blue mb-4 group-hover:scale-110 group-hover:bg-brand-blue group-hover:text-white transition-all duration-300 shadow-sm">
+                            <i class="fa-solid fa-camera text-2xl"></i>
+                        </div>
+                        <p class="font-extrabold text-slate-700 text-sm">Tap to capture clear scene</p>
+                        <p class="text-[11px] text-slate-400 mt-1 font-medium text-center px-8">Ensure the cleared road and fixed hazard are visible for AI verification.</p>
+                    </div>
+                    
+                    <!-- Captured Image State (Hidden initially) -->
+                    <img id="captured-image" src="https://placehold.co/600x800/1e293b/ffffff?text=Clear+Road" alt="Cleared Scene" class="absolute inset-0 w-full h-full object-cover hidden transition-opacity duration-500 opacity-0" />
+                    
+                    <!-- AI Scan Overlay (Hidden initially) -->
+                    <div id="ai-scan-overlay" class="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] hidden flex-col items-center justify-center">
+                        <i class="fa-solid fa-spinner fa-spin text-white text-3xl mb-2"></i>
+                        <span class="text-white font-bold text-xs tracking-widest uppercase">Verifying Clearance...</span>
+                    </div>
+
+                    <!-- Success Badge (Hidden initially) -->
+                    <div id="success-badge" class="absolute top-4 right-4 bg-status-emerald text-white px-3 py-1.5 rounded-xl text-[10px] font-bold shadow-lg hidden flex items-center gap-1.5 animate-scale-up">
+                        <i class="fa-solid fa-check-circle"></i> AI Confirmed
+                    </div>
+                    
+                    <!-- Retake Button (Hidden initially) -->
+                    <div id="retake-badge" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-slate-900/70 backdrop-blur-md px-4 py-2 rounded-2xl text-xs font-bold text-white shadow-lg hidden flex items-center gap-2 active:scale-95 transition-transform z-10 hover:bg-slate-900">
+                        <i class="fa-solid fa-rotate-right"></i> Retake Photo
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resolution Notes -->
+            <div>
+                <h2 class="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider mb-3">2. Resolution Notes</h2>
+                <textarea id="resolution-notes" placeholder="e.g. Pumped 5000L, drains cleared of debris. Road is now fully passable." class="w-full bg-white border border-slate-200 rounded-[24px] p-5 shadow-soft text-sm font-semibold text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue/20 focus:border-brand-blue resize-none h-28 transition-all"></textarea>
+            </div>
+
+            <div class="h-10"></div> <!-- Spacer -->
+        </div>
+
+        <!-- Fixed Bottom Action Bar -->
+        <div class="absolute bottom-0 w-full p-6 z-20 pointer-events-none">
+            <!-- Gradient fading behind button -->
+            <div class="absolute inset-0 bg-gradient-to-t from-slate-100 via-slate-100/90 to-transparent -z-10"></div>
+            
+            <button id="resolve-btn" onclick="submitResolution()" class="w-full bg-slate-200 text-slate-400 font-extrabold text-base py-5 rounded-[24px] transition-all duration-300 flex items-center justify-center gap-3 cursor-not-allowed pointer-events-auto">
+                <i class="fa-solid fa-check-double text-lg"></i>
+                <span>Close Task & Update Map</span>
+            </button>
+        </div>
+
+        <!-- Full Screen Success Overlay -->
+        <div id="success-overlay" class="absolute inset-0 bg-status-emerald z-50 hidden flex-col items-center justify-center opacity-0 transition-opacity duration-500">
+            <div class="w-24 h-24 bg-white rounded-full flex items-center justify-center text-status-emerald text-5xl mb-6 shadow-glow-emerald animate-scale-up">
+                <i class="fa-solid fa-check"></i>
+            </div>
+            <h2 class="text-3xl font-extrabold text-white tracking-tight mb-2">Task Resolved</h2>
+            <p class="text-emerald-50 font-medium text-sm text-center px-8">Public map updated. Road #HZ-8842 marked as clear and passable.</p>
+        </div>
+
+    </div>
+
+    <!-- Interactive Script -->
+    <script>
+        // Clock Update
+        function updateClock() {
+            const now = new Date();
+            let hours = now.getHours();
+            let minutes = now.getMinutes();
+            hours = hours < 10 ? '0' + hours : hours;
+            minutes = minutes < 10 ? '0' + minutes : minutes;
+            document.getElementById('clock').textContent = hours + ':' + minutes;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        let photoCaptured = false;
+
+        function simulatePhotoCapture() {
+            if (photoCaptured) return; // Prevent re-trigger if already captured
+
+            const area = document.getElementById('photo-capture-area');
+            const placeholder = document.getElementById('photo-placeholder');
+            const img = document.getElementById('captured-image');
+            const scanOverlay = document.getElementById('ai-scan-overlay');
+            const successBadge = document.getElementById('success-badge');
+            const retakeBadge = document.getElementById('retake-badge');
+            const resolveBtn = document.getElementById('resolve-btn');
+
+            // 1. Show Image & Scanner
+            area.classList.remove('border-dashed', 'border-slate-300', 'cursor-pointer');
+            area.classList.add('border-solid', 'border-brand-blue');
+            
+            placeholder.classList.add('hidden');
+            img.classList.remove('hidden');
+            scanOverlay.classList.remove('hidden');
+            scanOverlay.classList.add('flex');
+            
+            setTimeout(() => img.classList.remove('opacity-0'), 50);
+
+            // 2. Simulate AI processing time, then show success
+            setTimeout(() => {
+                scanOverlay.classList.add('hidden');
+                scanOverlay.classList.remove('flex');
+                
+                // Change border to vibrant emerald
+                area.classList.remove('border-brand-blue');
+                area.classList.add('border-status-emerald', 'ring-4', 'ring-emerald-500/20');
+                
+                successBadge.classList.remove('hidden');
+                retakeBadge.classList.remove('hidden');
+                
+                // Enable Submit Button (Vibrant Gradient)
+                resolveBtn.classList.remove('bg-slate-200', 'text-slate-400', 'cursor-not-allowed');
+                resolveBtn.classList.add('bg-gradient-to-r', 'from-emerald-500', 'to-emerald-400', 'text-white', 'shadow-glow-emerald', 'cursor-pointer', 'active:scale-[0.98]');
+                
+                photoCaptured = true;
+            }, 1500);
+        }
+
+        function submitResolution() {
+            if (!photoCaptured) return;
+
+            const btn = document.getElementById('resolve-btn');
+            const overlay = document.getElementById('success-overlay');
+
+            // Loading state
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-lg"></i> <span>Updating System...</span>';
+            btn.classList.add('opacity-90', 'pointer-events-none');
+
+            // Simulate API POST /api/resolve latency
+            setTimeout(() => {
+                // Show vibrant full-screen success
+                overlay.classList.remove('hidden');
+                overlay.classList.add('flex');
+                
+                setTimeout(() => {
+                    overlay.classList.remove('opacity-0');
+                }, 10);
+
+                // Simulate redirect back to queue after 2.5 seconds
+                setTimeout(() => {
+                    alert("Routing back to Task Queue...");
+                    // router.push('/crew')
+                }, 2500);
+
+            }, 1000);
+        }
+    </script>
+</body>
+</html>

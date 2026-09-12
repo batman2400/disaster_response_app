@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Citizen Report - Smart NDRRMS</title>
+    
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Custom Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            blue: '#2563eb', /* Royal Blue */
+                            indigo: '#4f46e5', /* Deep Indigo */
+                            light: '#eff6ff',
+                        },
+                        status: {
+                            emerald: '#10b981',
+                            emeraldBg: '#ecfdf5',
+                            crimson: '#e11d48',
+                            amber: '#f59e0b',
+                        }
+                    },
+                    boxShadow: {
+                        'soft': '0 10px 40px -10px rgba(0,0,0,0.08)',
+                        'glow': '0 0 20px rgba(37, 99, 235, 0.4)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Smooth scrolling and tap highlight removal */
+        body {
+            -webkit-tap-highlight-color: transparent;
+            background-color: #cbd5e1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        
+        /* Mobile Simulator Shell */
+        #app-container {
+            width: 100%;
+            max-width: 400px;
+            height: 100vh;
+            max-height: 850px;
+            background-color: #f8fafc; /* Very light cool gray */
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        @media (min-width: 420px) {
+            #app-container {
+                height: 92vh;
+                border-radius: 44px;
+                border: 8px solid #0f172a;
+            }
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Custom Animations */
+        @keyframes pop {
+            0% { transform: scale(0.95); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop { animation: pop 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+        @keyframes scanline {
+            0% { top: 0%; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+        .animate-scan {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #10b981;
+            box-shadow: 0 0 10px #10b981, 0 0 20px #10b981;
+            animation: scanline 2s linear infinite;
+            z-index: 10;
+        }
+
+        /* Decorative Map Grid Background for Location Card */
+        .bg-grid-pattern {
+            background-image: linear-gradient(to right, #e2e8f0 1px, transparent 1px),
+                              linear-gradient(to bottom, #e2e8f0 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+    </style>
+</head>
+<body class="antialiased text-slate-800">
+
+    <div id="app-container" class="flex flex-col relative">
+        
+        <!-- Status Bar Mockup -->
+        <div class="flex justify-between items-center px-6 pt-4 pb-2 text-xs font-bold text-slate-900 z-30 relative">
+            <span id="clock">12:21</span>
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-signal"></i>
+                <i class="fa-solid fa-wifi"></i>
+                <i class="fa-solid fa-battery-full"></i>
+            </div>
+        </div>
+
+        <!-- Glassmorphism Header -->
+        <div class="px-6 py-4 flex items-center justify-between sticky top-0 z-20 bg-white/70 backdrop-blur-lg border-b border-white/20">
+            <button class="w-10 h-10 rounded-2xl bg-white shadow-sm border border-slate-100 flex items-center justify-center text-slate-600 active:scale-90 transition-transform">
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <h1 class="text-lg font-extrabold tracking-tight text-slate-900">Report Hazard</h1>
+            <div class="w-10"></div> 
+        </div>
+
+        <!-- Scrollable Content Area -->
+        <div class="flex-1 overflow-y-auto no-scrollbar pb-32 relative z-10">
+            
+            <div class="px-6 pt-6">
+                
+                <!-- 1. Photo Capture -->
+                <div class="flex justify-between items-end mb-3">
+                    <h2 class="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">1. Evidence</h2>
+                    <span class="text-[10px] font-bold text-slate-400 bg-slate-200/50 px-2 py-1 rounded-md">Required</span>
+                </div>
+                
+                <div id="photo-container" onclick="simulatePhotoCapture()" class="w-full h-56 bg-slate-100 border-2 border-dashed border-slate-300 hover:border-brand-blue rounded-3xl flex flex-col items-center justify-center gap-3 cursor-pointer active:scale-[0.98] transition-all duration-300 mb-8 relative overflow-hidden group shadow-soft">
+                    
+                    <div id="photo-placeholder" class="flex flex-col items-center justify-center transition-opacity duration-300">
+                        <div class="w-14 h-14 bg-white rounded-2xl shadow-sm flex items-center justify-center text-brand-blue mb-3 group-hover:scale-110 group-hover:bg-brand-blue group-hover:text-white transition-all duration-300">
+                            <i class="fa-solid fa-camera text-2xl"></i>
+                        </div>
+                        <p class="font-extrabold text-slate-700 text-sm">Tap to scan area</p>
+                        <p class="text-xs text-slate-400 mt-1 font-medium">Capture hazard for AI analysis</p>
+                    </div>
+                    
+                    <!-- Hidden Image View -->
+                    <img id="captured-image" src="https://placehold.co/600x400/1e293b/ffffff?text=Flooded+Street" alt="Captured Hazard" class="absolute inset-0 w-full h-full object-cover hidden transition-opacity duration-500 opacity-0" />
+                    
+                    <!-- Retake Overlay (Hidden) -->
+                    <div id="retake-badge" class="absolute top-4 right-4 bg-slate-900/60 backdrop-blur-md px-3 py-2 rounded-xl text-xs font-bold text-white shadow-lg hidden flex items-center gap-2 active:scale-95 transition-transform">
+                        <i class="fa-solid fa-rotate-right"></i> Retake
+                    </div>
+                </div>
+
+                <!-- 2. Location (Auto-filled with tech aesthetic) -->
+                <div class="flex justify-between items-end mb-3">
+                    <h2 class="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">2. GPS Telemetry</h2>
+                    <div class="flex items-center gap-1.5 bg-brand-light/50 border border-brand-light px-2 py-1 rounded-md">
+                        <div class="w-1.5 h-1.5 bg-brand-blue rounded-full animate-pulse"></div>
+                        <span class="text-[10px] font-bold text-brand-blue">Live Lock</span>
+                    </div>
+                </div>
+                
+                <div class="w-full bg-white rounded-3xl p-5 shadow-soft border border-slate-100 mb-8 relative overflow-hidden flex items-center gap-4">
+                    <!-- Subtle Map Grid BG -->
+                    <div class="absolute inset-0 bg-grid-pattern opacity-40 z-0 pointer-events-none"></div>
+                    
+                    <div class="w-12 h-12 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center text-brand-blue flex-shrink-0 z-10 relative">
+                        <i class="fa-solid fa-location-crosshairs text-xl"></i>
+                        <!-- Radar pulse effect -->
+                        <div class="absolute inset-0 border-2 border-brand-blue rounded-2xl animate-ping opacity-20"></div>
+                    </div>
+                    
+                    <div class="z-10 relative flex-1">
+                        <h3 class="font-extrabold text-slate-900 text-base">Ward 07, Colombo</h3>
+                        <p class="text-xs font-semibold text-slate-500 mt-0.5">Main Street Intersection</p>
+                        <div class="flex gap-3 mt-2">
+                            <span class="text-[10px] font-mono font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">LAT: 6.9142</span>
+                            <span class="text-[10px] font-mono font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded">LNG: 79.8724</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Category Selector -->
+                <h2 class="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider mb-3">3. Incident Classification</h2>
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    
+                    <button onclick="selectCategory('flood', this)" class="category-btn relative bg-white border border-slate-100 rounded-3xl p-5 flex flex-col items-start gap-3 shadow-soft transition-all duration-300 overflow-hidden outline-none">
+                        <div class="icon-bg w-10 h-10 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center transition-colors">
+                            <i class="fa-solid fa-water text-lg"></i>
+                        </div>
+                        <div class="text-left">
+                            <span class="block font-extrabold text-sm text-slate-800">Flood</span>
+                            <span class="block text-[10px] text-slate-400 font-medium mt-0.5">Standing water</span>
+                        </div>
+                    </button>
+
+                    <button onclick="selectCategory('tree', this)" class="category-btn relative bg-white border border-slate-100 rounded-3xl p-5 flex flex-col items-start gap-3 shadow-soft transition-all duration-300 overflow-hidden outline-none">
+                        <div class="icon-bg w-10 h-10 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center transition-colors">
+                            <i class="fa-solid fa-tree text-lg"></i>
+                        </div>
+                        <div class="text-left">
+                            <span class="block font-extrabold text-sm text-slate-800">Fallen Tree</span>
+                            <span class="block text-[10px] text-slate-400 font-medium mt-0.5">Blocked pathway</span>
+                        </div>
+                    </button>
+
+                    <button onclick="selectCategory('road', this)" class="category-btn relative bg-white border border-slate-100 rounded-3xl p-5 flex flex-col items-start gap-3 shadow-soft transition-all duration-300 overflow-hidden outline-none">
+                        <div class="icon-bg w-10 h-10 rounded-full bg-amber-50 text-amber-500 flex items-center justify-center transition-colors">
+                            <i class="fa-solid fa-road-barrier text-lg"></i>
+                        </div>
+                        <div class="text-left">
+                            <span class="block font-extrabold text-sm text-slate-800">Road Damage</span>
+                            <span class="block text-[10px] text-slate-400 font-medium mt-0.5">Sinkhole / Collapse</span>
+                        </div>
+                    </button>
+
+                    <button onclick="selectCategory('help', this)" class="category-btn relative bg-white border border-slate-100 rounded-3xl p-5 flex flex-col items-start gap-3 shadow-soft transition-all duration-300 overflow-hidden outline-none">
+                        <div class="icon-bg w-10 h-10 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center transition-colors">
+                            <i class="fa-solid fa-hand-holding-medical text-lg"></i>
+                        </div>
+                        <div class="text-left">
+                            <span class="block font-extrabold text-sm text-slate-800">Need Help</span>
+                            <span class="block text-[10px] text-slate-400 font-medium mt-0.5">Rescue request</span>
+                        </div>
+                    </button>
+                </div>
+                
+                <!-- Additional Notes -->
+                <div class="mb-8">
+                     <textarea placeholder="Additional context (Optional)..." class="w-full bg-white border border-slate-100 rounded-3xl p-5 shadow-soft text-sm font-semibold text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-light focus:border-brand-blue resize-none h-24 transition-all"></textarea>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Fixed Bottom Submit Bar (Floating CTA) -->
+        <div class="absolute bottom-0 w-full p-6 z-20 pointer-events-none">
+            <!-- Gradient fading behind button -->
+            <div class="absolute inset-0 bg-gradient-to-t from-slate-100 via-slate-100/90 to-transparent -z-10"></div>
+            
+            <button id="submit-btn" onclick="triggerPipeline()" class="w-full bg-slate-200 text-slate-400 font-extrabold py-4 rounded-[20px] transition-all duration-300 flex items-center justify-center gap-3 cursor-not-allowed pointer-events-auto">
+                <i class="fa-solid fa-microchip text-lg"></i>
+                <span>Run AI Triage</span>
+            </button>
+        </div>
+
+        <!-- Sleek AI Triage Modal (Dark/Glass Mode) -->
+        <div id="triage-modal" class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex-col justify-end transition-opacity duration-300 opacity-0">
+            
+            <!-- Modal Content Sheet -->
+            <div class="bg-white w-full h-[88%] rounded-t-[40px] shadow-2xl flex flex-col transform translate-y-full transition-transform duration-500 cubic-bezier(0.16, 1, 0.3, 1)" id="triage-sheet">
+                
+                <div class="flex justify-center pt-4 pb-2">
+                    <div class="w-12 h-1.5 bg-slate-200 rounded-full"></div>
+                </div>
+
+                <div class="px-6 pt-4 pb-6 flex-1 overflow-y-auto no-scrollbar relative">
+                    
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight">System Triage</h2>
+                            <p class="text-xs font-bold text-brand-blue uppercase tracking-widest mt-1">AI Pipeline Running</p>
+                        </div>
+                        <div class="w-10 h-10 rounded-full bg-brand-light flex items-center justify-center text-brand-blue animate-spin">
+                            <i class="fa-solid fa-circle-notch"></i>
+                        </div>
+                    </div>
+
+                    <!-- Mini Evidence Viewer with Scanline -->
+                    <div class="w-full h-32 rounded-2xl overflow-hidden relative mb-8 border border-slate-200">
+                        <img src="https://placehold.co/600x400/1e293b/ffffff?text=Flooded+Street" class="w-full h-full object-cover" />
+                        <div id="ai-scanline" class="animate-scan"></div>
+                        <div class="absolute bottom-2 left-2 bg-black/60 backdrop-blur px-2 py-1 rounded text-[9px] font-mono text-emerald-400">ANALYZING MATRIX</div>
+                    </div>
+
+                    <!-- Tech-styled Pipeline Steps -->
+                    <div class="flex flex-col gap-0 relative ml-2">
+                        <!-- Connecting Line Track -->
+                        <div class="absolute left-4 top-5 bottom-8 w-[2px] bg-slate-100 z-0"></div>
+                        <!-- Active Progress Line (Animates via JS) -->
+                        <div id="progress-line" class="absolute left-4 top-5 w-[2px] bg-brand-blue z-0 transition-all duration-500 h-0"></div>
+
+                        <!-- Step 1 -->
+                        <div class="flex items-start gap-5 z-10 relative py-3 group">
+                            <div id="check-node-1" class="w-8 h-8 rounded-full bg-white border-2 border-slate-200 flex items-center justify-center mt-0.5 transition-colors duration-300">
+                                <div class="w-2 h-2 rounded-full bg-slate-300"></div>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-extrabold text-slate-900 text-sm">Vision AI Model</h3>
+                                <p id="check-desc-1" class="text-[11px] font-semibold text-slate-400 mt-0.5 font-mono">Awaiting image stream...</p>
+                            </div>
+                        </div>
+
+                        <!-- Step 2 -->
+                        <div class="flex items-start gap-5 z-10 relative py-3 group opacity-50" id="step-2">
+                            <div id="check-node-2" class="w-8 h-8 rounded-full bg-white border-2 border-slate-200 flex items-center justify-center mt-0.5 transition-colors duration-300">
+                                <div class="w-2 h-2 rounded-full bg-slate-300"></div>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-extrabold text-slate-900 text-sm">Metadata Locator</h3>
+                                <p id="check-desc-2" class="text-[11px] font-semibold text-slate-400 mt-0.5 font-mono">Pending...</p>
+                            </div>
+                        </div>
+
+                        <!-- Step 3 -->
+                        <div class="flex items-start gap-5 z-10 relative py-3 group opacity-50" id="step-3">
+                            <div id="check-node-3" class="w-8 h-8 rounded-full bg-white border-2 border-slate-200 flex items-center justify-center mt-0.5 transition-colors duration-300">
+                                <div class="w-2 h-2 rounded-full bg-slate-300"></div>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-extrabold text-slate-900 text-sm">PostGIS Cluster Check</h3>
+                                <p id="check-desc-3" class="text-[11px] font-semibold text-slate-400 mt-0.5 font-mono">Pending...</p>
+                            </div>
+                        </div>
+
+                        <!-- Step 4 -->
+                        <div class="flex items-start gap-5 z-10 relative py-3 group opacity-50" id="step-4">
+                            <div id="check-node-4" class="w-8 h-8 rounded-full bg-white border-2 border-slate-200 flex items-center justify-center mt-0.5 transition-colors duration-300">
+                                <div class="w-2 h-2 rounded-full bg-slate-300"></div>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-extrabold text-slate-900 text-sm">Weather Telemetry</h3>
+                                <p id="check-desc-4" class="text-[11px] font-semibold text-slate-400 mt-0.5 font-mono">Pending...</p>
+                            </div>
+                        </div>
+
+                        <!-- Step 5 -->
+                        <div class="flex items-start gap-5 z-10 relative py-3 group opacity-50" id="step-5">
+                            <div id="check-node-5" class="w-8 h-8 rounded-full bg-white border-2 border-slate-200 flex items-center justify-center mt-0.5 transition-colors duration-300">
+                                <div class="w-2 h-2 rounded-full bg-slate-300"></div>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-extrabold text-slate-900 text-sm">Risk Assessment AI</h3>
+                                <p id="check-desc-5" class="text-[11px] font-semibold text-slate-400 mt-0.5 font-mono">Pending...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Final Aggregator Verdict Card -->
+                    <div id="aggregator-result" class="mt-6 relative bg-slate-900 rounded-[24px] p-6 hidden animate-pop shadow-xl overflow-hidden">
+                        <!-- Decorative background glow -->
+                        <div class="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500 rounded-full blur-[40px] opacity-20"></div>
+                        
+                        <div class="flex items-center justify-between mb-4 relative z-10">
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid fa-bolt text-emerald-400 text-lg"></i>
+                                <span class="text-xs font-extrabold uppercase tracking-widest text-slate-400">Aggregator Verdict</span>
+                            </div>
+                            <div class="bg-emerald-500/20 border border-emerald-500/30 px-3 py-1 rounded-lg">
+                                <span class="font-mono font-bold text-emerald-400 text-sm">0.94 CONF</span>
+                            </div>
+                        </div>
+                        <h3 class="text-3xl font-extrabold text-white mb-2 relative z-10 tracking-tight">PUBLISHED</h3>
+                        <p class="text-[13px] font-medium text-slate-300 leading-relaxed relative z-10">
+                            Image confirms standing water. Coordinates match local telemetry (45mm/hr rain) and 4 clustered reports within 200m. Arterial road is marked blocked.
+                        </p>
+                    </div>
+
+                </div>
+
+                <!-- Done Button (Floating over content) -->
+                <div class="p-6 bg-white/90 backdrop-blur border-t border-slate-100 hidden pb-8" id="done-btn-container">
+                    <button onclick="closeModal()" class="w-full bg-brand-blue hover:bg-brand-indigo text-white font-extrabold text-base py-4 rounded-[20px] shadow-glow active:scale-[0.98] transition-all">
+                        Return to Map
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Clock Update
+        function updateClock() {
+            const now = new Date();
+            let hours = now.getHours();
+            let minutes = now.getMinutes();
+            hours = hours < 10 ? '0' + hours : hours;
+            minutes = minutes < 10 ? '0' + minutes : minutes;
+            document.getElementById('clock').textContent = hours + ':' + minutes;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // State Variables
+        let hasPhoto = false;
+        let selectedCategory = null;
+
+        // UI Interactions
+        function simulatePhotoCapture() {
+            const container = document.getElementById('photo-container');
+            const placeholder = document.getElementById('photo-placeholder');
+            const img = document.getElementById('captured-image');
+            const badge = document.getElementById('retake-badge');
+
+            // Stylistic changes
+            container.classList.remove('border-dashed', 'border-slate-300');
+            container.classList.add('border-brand-blue', 'ring-4', 'ring-blue-500/20');
+            
+            placeholder.style.opacity = '0';
+            setTimeout(() => {
+                placeholder.classList.add('hidden');
+                img.classList.remove('hidden');
+                badge.classList.remove('hidden');
+                
+                // Slight delay to allow display:block before fading in
+                setTimeout(() => {
+                    img.classList.remove('opacity-0');
+                    img.classList.add('opacity-100');
+                }, 50);
+            }, 300);
+
+            hasPhoto = true;
+            checkSubmitState();
+        }
+
+        function selectCategory(cat, btnElement) {
+            selectedCategory = cat;
+            
+            // Reset all buttons
+            const btns = document.querySelectorAll('.category-btn');
+            btns.forEach(btn => {
+                btn.classList.remove('ring-2', 'ring-brand-blue', 'bg-brand-light/30');
+                btn.classList.add('border-slate-100', 'bg-white');
+                // Reset icon backgrounds
+                const iconBg = btn.querySelector('.icon-bg');
+                iconBg.style.transform = 'scale(1)';
+            });
+
+            // Activate clicked card (Neumorphic/Glow effect)
+            btnElement.classList.remove('border-slate-100', 'bg-white');
+            btnElement.classList.add('ring-2', 'ring-brand-blue', 'bg-brand-light/30', 'border-transparent');
+            
+            // Pop the icon
+            const activeIcon = btnElement.querySelector('.icon-bg');
+            activeIcon.style.transform = 'scale(1.15)';
+            
+            checkSubmitState();
+        }
+
+        function checkSubmitState() {
+            const submitBtn = document.getElementById('submit-btn');
+            if (hasPhoto && selectedCategory) {
+                // Activate CTA
+                submitBtn.classList.remove('bg-slate-200', 'text-slate-400', 'cursor-not-allowed');
+                submitBtn.classList.add('bg-gradient-to-r', 'from-brand-blue', 'to-brand-indigo', 'text-white', 'shadow-glow', 'cursor-pointer');
+            }
+        }
+
+        // AI Pipeline Simulation
+        function triggerPipeline() {
+            const modal = document.getElementById('triage-modal');
+            const sheet = document.getElementById('triage-sheet');
+            
+            // Fade in backdrop
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => modal.classList.remove('opacity-0'), 10);
+            
+            // Slide up sheet
+            setTimeout(() => {
+                sheet.classList.remove('translate-y-full');
+            }, 50);
+
+            // Start async simulation chain
+            simulateCheck(1, 'Verified: 0.92 Flood Conf.', 800, 20, () => {
+                simulateCheck(2, 'Verified: Matches GPS', 600, 45, () => {
+                    simulateCheck(3, 'Verified: 4 nearby reports', 500, 70, () => {
+                        simulateCheck(4, 'Verified: 45mm/hr active', 600, 95, () => {
+                            simulateCheck(5, 'High: Major Arterial', 800, 100, () => {
+                                showAggregatorResult();
+                            });
+                        });
+                    });
+                });
+            });
+        }
+
+        function simulateCheck(stepNumber, successText, delay, progressPct, nextCallback) {
+            const stepEl = document.getElementById(`step-${stepNumber}`);
+            if(stepEl) stepEl.classList.remove('opacity-50');
+            
+            const node = document.getElementById(`check-node-${stepNumber}`);
+            const desc = document.getElementById(`check-desc-${stepNumber}`);
+            const progressLine = document.getElementById('progress-line');
+            
+            // Set to loading
+            node.classList.remove('border-slate-200');
+            node.classList.add('border-brand-blue');
+            node.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-brand-blue text-[10px]"></i>';
+            
+            desc.textContent = 'Processing data...';
+            desc.classList.remove('text-slate-400');
+            desc.classList.add('text-brand-blue');
+
+            // Update line height
+            progressLine.style.height = `${progressPct}%`;
+
+            // Complete after delay
+            setTimeout(() => {
+                node.classList.remove('border-brand-blue');
+                node.classList.add('border-status-emerald', 'bg-status-emeraldBg');
+                node.innerHTML = '<i class="fa-solid fa-check text-status-emerald text-[12px]"></i>';
+                
+                desc.textContent = successText;
+                desc.classList.remove('text-brand-blue');
+                desc.classList.add('text-status-emerald');
+                
+                if(nextCallback) nextCallback();
+            }, delay);
+        }
+
+        function showAggregatorResult() {
+            setTimeout(() => {
+                // Remove scanline
+                document.getElementById('ai-scanline').style.display = 'none';
+                
+                // Show final card and button
+                document.getElementById('aggregator-result').classList.remove('hidden');
+                document.getElementById('done-btn-container').classList.remove('hidden');
+                
+                // Scroll down smoothly to show verdict
+                const sheetContent = document.getElementById('triage-sheet').querySelector('.overflow-y-auto');
+                sheetContent.scrollTo({ top: sheetContent.scrollHeight, behavior: 'smooth' });
+            }, 500);
+        }
+
+        function closeModal() {
+            const sheet = document.getElementById('triage-sheet');
+            const modal = document.getElementById('triage-modal');
+            
+            sheet.classList.add('translate-y-full');
+            modal.classList.add('opacity-0');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                
+                // Simulating routing in Expo
+                alert("Navigating to Screen 03: Public Interactive Map...");
+            }, 400);
+        }
+    </script>
+</body>
+</html>
