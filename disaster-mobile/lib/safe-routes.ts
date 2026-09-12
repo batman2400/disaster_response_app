@@ -64,15 +64,30 @@ function distanceM(lat1: number, lng1: number, lat2: number, lng2: number): numb
 
 export function computeDynamicRoute(
   wardId: WardId,
-  hazards: Array<{ lat: number; lng: number; is_road_blocked: boolean; status: string }>,
+  hazards: Array<{
+    lat: number;
+    lng: number;
+    is_road_blocked: boolean;
+    status: string;
+    category?: string;
+    urgency?: string;
+    estimated_water_depth_cm?: number | null;
+  }>,
 ): DynamicRouteResult {
   const basePoints = SAFE_ROUTES[wardId] || [];
-  const blocked = hazards.filter((h) => h.is_road_blocked && h.status !== "RESOLVED");
+  const blocked = hazards.filter((h) => {
+    if (h.status === "RESOLVED") return false;
+    const isBlocked = Boolean(h.is_road_blocked);
+    const isDeep = typeof h.estimated_water_depth_cm === "number" && h.estimated_water_depth_cm >= 20;
+    const isCritical = h.urgency === "CRITICAL" || h.status === "AREA_ALERT";
+    const isHazardType = h.category === "BLOCKED_ROAD" || h.category === "ELECTRICAL_HAZARD";
+    return isBlocked || isDeep || isCritical || isHazardType;
+  });
 
   let nearCount = 0;
   for (const pt of basePoints) {
     for (const h of blocked) {
-      if (distanceM(pt.latitude, pt.longitude, h.lat, h.lng) < 250) {
+      if (distanceM(pt.latitude, pt.longitude, h.lat, h.lng) < 300) {
         nearCount++;
       }
     }
@@ -84,7 +99,7 @@ export function computeDynamicRoute(
       status: "COMPROMISED",
       points: DETOUR_ROUTES[wardId] || basePoints,
       active_obstructions: nearCount,
-      reason: `${nearCount} road block(s) detected. High-ground bypass detour active.`,
+      reason: `${nearCount} flood/road obstacle(s) detected. High-ground bypass detour active.`,
     };
   }
 

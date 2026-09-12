@@ -16,6 +16,7 @@ import {
   Plus,
   Route,
   ShieldAlert,
+  ShieldCheck,
   TriangleAlert,
   Users,
   X,
@@ -342,10 +343,23 @@ export function PublicMap({
   const areaAlert = hazards.find((row) => row.status === "AREA_ALERT");
   const showAlert = !alertDismissed && Boolean(criticalWard || areaAlert);
 
-  function handleStartDetourNavigation(customShelter?: ShelterWithCoords) {
-    const origin: [number, number] = selectedHazard
-      ? [selectedHazard.lat, selectedHazard.lng]
-      : [6.9535, 79.8732];
+  const [originPreset, setOriginPreset] = useState<string>("NAGALAGAM");
+  const [gpsLocation, setGpsLocation] = useState<[number, number] | null>(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
+
+  function getEffectiveOrigin(): [number, number] {
+    if (originPreset === "GPS" && gpsLocation) return gpsLocation;
+    if (originPreset === "PETTAH") return [6.9355, 79.85];
+    if (originPreset === "BAUDDHALOKA") return [6.9271, 79.8612];
+    if (selectedHazard) return [selectedHazard.lat, selectedHazard.lng];
+    return [6.9535, 79.8732]; // Nagalagam St default hotspot
+  }
+
+  function handleStartDetourNavigation(
+    customShelter?: ShelterWithCoords,
+    customOrigin?: [number, number],
+  ) {
+    const origin: [number, number] = customOrigin || getEffectiveOrigin();
     const target =
       customShelter ||
       (selectedShelterId ? shelters.find((s) => s.id === selectedShelterId) : null) ||
@@ -362,15 +376,44 @@ export function PublicMap({
     setFocusCoords([(origin[0] + target.lat) / 2, (origin[1] + target.lng) / 2]);
   }
 
-  // Active safe evacuation routes to draw
+  function handleRequestGps() {
+    if (typeof window === "undefined" || !navigator.geolocation) return;
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGpsLoading(false);
+        const loc: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+        setGpsLocation(loc);
+        setOriginPreset("GPS");
+        const target = selectedShelter || findNearestSafeShelter(loc, shelters) || shelters[0];
+        if (target) {
+          handleStartDetourNavigation(target, loc);
+        }
+      },
+      () => {
+        setGpsLoading(false);
+      },
+      { timeout: 8000 }
+    );
+  }
+
+  // Active safe evacuation routes to draw with high-ground glowing corridor styling
   const activeSafeRoutes: Array<[number, number][] | StyledRoute> = useMemo(() => {
     if (activeDetourRoute) {
       return [
+        // Outer glowing safe corridor cushion
         {
           points: activeDetourRoute.points,
-          color: activeDetourRoute.status === "DETOUR_ACTIVE" ? "#f59e0b" : "#10b981",
-          dashArray: activeDetourRoute.status === "DETOUR_ACTIVE" ? "12, 6" : "6, 6",
-          weight: 6,
+          color: activeDetourRoute.status === "DETOUR_ACTIVE" ? "#34d399" : "#10b981",
+          weight: 10,
+          dashArray: "0",
+        },
+        // Inner focused directional route line
+        {
+          points: activeDetourRoute.points,
+          color: activeDetourRoute.status === "DETOUR_ACTIVE" ? "#047857" : "#059669",
+          dashArray: "10, 6",
+          weight: 5,
         },
       ];
     }
@@ -381,6 +424,27 @@ export function PublicMap({
     }
     return ARTERIAL_SAFE_CORRIDORS.map((c) => c.points);
   }, [showEvacRoutes, selectedCorridorId, activeDetourRoute]);
+
+  // Red danger buffer circles around avoided road blockages and deep flood waters
+  const activeDangerZones = useMemo(() => {
+    if (!activeDetourRoute || !activeDetourRoute.bypassedHazards.length) return [];
+    return activeDetourRoute.bypassedHazards.map((h) => ({
+      lat: h.lat,
+      lng: h.lng,
+      radiusM: 220,
+      label: `${h.category}${h.depthCm ? ` (${h.depthCm}cm water)` : ""}`,
+    }));
+  }, [activeDetourRoute]);
+
+  // High ground waypoint marker
+  const activeWaypoint = useMemo(() => {
+    if (!activeDetourRoute || !activeDetourRoute.activeAnchorCoords) return null;
+    return {
+      lat: activeDetourRoute.activeAnchorCoords[0],
+      lng: activeDetourRoute.activeAnchorCoords[1],
+      label: activeDetourRoute.activeAnchorName,
+    };
+  }, [activeDetourRoute]);
 
   async function confirm(id: string) {
     setConfirmBusy(true);
@@ -424,6 +488,8 @@ export function PublicMap({
           setSelectedId(null);
         }}
         safeRoutes={activeSafeRoutes}
+        dangerZones={activeDangerZones}
+        waypoint={activeWaypoint}
         focusCoords={focusCoords}
       />
 
@@ -871,6 +937,7 @@ export function PublicMap({
       <BottomSheet open={detourDrawerOpen && Boolean(activeDetourRoute)} onClose={() => setDetourDrawerOpen(false)}>
         {activeDetourRoute && (
           <div className="overflow-y-auto no-scrollbar px-6 pb-6 space-y-4">
+            {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <div
@@ -884,7 +951,7 @@ export function PublicMap({
                 </div>
                 <div>
                   <h2 className="text-base font-black text-slate-900">Dynamic Evacuation Navigator</h2>
-                  <p className="text-[10px] font-bold text-slate-400">Colombo Real-Time Hazard Detour Guidance</p>
+                  <p className="text-[10px] font-bold text-slate-400">Safest Path Routing · Avoiding All Flood Obstacles</p>
                 </div>
               </div>
               <button
@@ -896,7 +963,100 @@ export function PublicMap({
               </button>
             </div>
 
-            {/* Destination & Status Pill */}
+            {/* Destination & Starting Point Controls */}
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 space-y-3">
+              {/* Destination Shelter Selector */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+                    Destination Shelter
+                  </span>
+                  <span className="text-[10px] font-extrabold text-emerald-600">
+                    {totalFreeBeds} beds available
+                  </span>
+                </div>
+                <select
+                  value={activeDetourRoute.shelterId}
+                  onChange={(e) => {
+                    const chosen = shelters.find((s) => s.id === e.target.value);
+                    if (chosen) handleStartDetourNavigation(chosen);
+                  }}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 shadow-sm focus:border-brand focus:outline-none"
+                >
+                  {shelters.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.available_beds} beds free) — {wardShort(s.ward_id)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Evacuation Starting Point */}
+              <div>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-1.5">
+                  Evacuation Starting Point
+                </span>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOriginPreset("NAGALAGAM");
+                      handleStartDetourNavigation(undefined, [6.9535, 79.8732]);
+                    }}
+                    className={`rounded-xl border px-2.5 py-1.5 text-left text-[11px] font-bold transition-all ${
+                      originPreset === "NAGALAGAM"
+                        ? "border-amber-400 bg-amber-50 text-amber-900 shadow-sm"
+                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    📍 Nagalagam St (W1)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOriginPreset("PETTAH");
+                      handleStartDetourNavigation(undefined, [6.9355, 79.85]);
+                    }}
+                    className={`rounded-xl border px-2.5 py-1.5 text-left text-[11px] font-bold transition-all ${
+                      originPreset === "PETTAH"
+                        ? "border-amber-400 bg-amber-50 text-amber-900 shadow-sm"
+                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    📍 Pettah Market (W3)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOriginPreset("BAUDDHALOKA");
+                      handleStartDetourNavigation(undefined, [6.9271, 79.8612]);
+                    }}
+                    className={`rounded-xl border px-2.5 py-1.5 text-left text-[11px] font-bold transition-all ${
+                      originPreset === "BAUDDHALOKA"
+                        ? "border-amber-400 bg-amber-50 text-amber-900 shadow-sm"
+                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    📍 Bauddhaloka (W2)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRequestGps}
+                    disabled={gpsLoading}
+                    className={`rounded-xl border px-2.5 py-1.5 text-left text-[11px] font-bold transition-all flex items-center justify-between ${
+                      originPreset === "GPS"
+                        ? "border-brand bg-brand/10 text-brand shadow-sm"
+                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    <span>📡 {gpsLoading ? "Acquiring…" : "My GPS Location"}</span>
+                    <LocateFixed className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Safest Route Verification Banner */}
             <div
               className={`rounded-2xl border p-4 ${
                 activeDetourRoute.status === "DETOUR_ACTIVE"
@@ -905,11 +1065,20 @@ export function PublicMap({
               }`}
             >
               <div className="flex items-start justify-between gap-2">
-                <div>
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
-                    Destination Shelter
-                  </span>
-                  <h3 className="text-sm font-black text-slate-900">{activeDetourRoute.shelterName}</h3>
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-5 w-5 text-emerald-600 shrink-0" />
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900">
+                      {activeDetourRoute.status === "DETOUR_ACTIVE"
+                        ? "Safest Path Verified (Detour Active)"
+                        : "Direct Safe Corridor Clear"}
+                    </h3>
+                    <p className="text-[10px] font-bold text-slate-500">
+                      {activeDetourRoute.activeAnchorName
+                        ? `Elevated Bypass: ${activeDetourRoute.activeAnchorName}`
+                        : "Direct municipal access"}
+                    </p>
+                  </div>
                 </div>
                 <span
                   className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase ${
@@ -919,8 +1088,8 @@ export function PublicMap({
                   }`}
                 >
                   {activeDetourRoute.status === "DETOUR_ACTIVE"
-                    ? `Bypassing ${activeDetourRoute.bypassedHazardsCount} Roadblocks`
-                    : "Direct Access Clear"}
+                    ? `Bypassing ${activeDetourRoute.bypassedHazardsCount} Hazards`
+                    : "100% Clear"}
                 </span>
               </div>
               <p className="mt-2 text-xs font-semibold leading-relaxed text-slate-700">
@@ -948,6 +1117,57 @@ export function PublicMap({
                   {activeDetourRoute.safetyScorePct}%
                 </span>
               </div>
+            </div>
+
+            {/* Avoided Affected Roads & Floods Breakdown */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                  Avoided Affected Roads & Hazards ({activeDetourRoute.bypassedHazards.length})
+                </span>
+                <span className="text-[10px] font-extrabold text-emerald-600">
+                  🛡️ 100% Circumnavigated
+                </span>
+              </div>
+
+              {activeDetourRoute.bypassedHazards.length > 0 ? (
+                <div className="space-y-2 max-h-48 overflow-y-auto no-scrollbar">
+                  {activeDetourRoute.bypassedHazards.map((hazard, hIdx) => (
+                    <div
+                      key={hIdx}
+                      className="rounded-xl border border-rose-200 bg-rose-50/60 p-2.5 shadow-sm"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-rose-500 text-[9px] font-black text-white">
+                            ⛔
+                          </span>
+                          <span className="text-xs font-black text-slate-900">{hazard.category}</span>
+                          {hazard.depthCm ? (
+                            <span className="rounded bg-blue-100 px-1.5 py-0.2 text-[9px] font-extrabold text-blue-800">
+                              🌊 {hazard.depthCm}cm water depth
+                            </span>
+                          ) : null}
+                        </div>
+                        <span className="rounded border border-emerald-300 bg-emerald-100 px-1.5 py-0.2 text-[9px] font-black text-emerald-800 shrink-0">
+                          Kept {hazard.distanceFromPathM}m clear
+                        </span>
+                      </div>
+                      {hazard.description && (
+                        <p className="mt-1 text-[11px] font-semibold text-slate-600 line-clamp-1">
+                          {hazard.description}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 text-center">
+                  <p className="text-xs font-bold text-emerald-800">
+                    ✅ Direct corridor is 100% clear. Zero active road closures or flood ponding detected along this route.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Step-by-Step Turn Directions */}
@@ -986,16 +1206,22 @@ export function PublicMap({
               </div>
             </div>
 
+            {/* Actions: Google Maps Turn-by-Turn with Safe Waypoint Bypass */}
             <div className="flex flex-col gap-2 pt-2 border-t border-slate-100">
               <a
-                href={`https://www.google.com/maps/dir/?api=1&destination=${activeDetourRoute.destination[0]},${activeDetourRoute.destination[1]}`}
+                href={activeDetourRoute.googleMapsSafeUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-extrabold text-slate-800 shadow-sm hover:border-slate-300 hover:bg-slate-50 active:scale-98"
+                className="flex flex-col items-center justify-center rounded-2xl border border-emerald-500 bg-emerald-600 px-4 py-3 text-white shadow-lg shadow-emerald-600/25 transition-transform hover:bg-emerald-700 active:scale-98"
               >
-                <Navigation className="h-3.5 w-3.5 text-blue-600" />
-                <span>Launch Google Maps Turn-by-Turn (Voice Navigation)</span>
-                <ExternalLink className="h-3 w-3 text-slate-400" />
+                <div className="flex items-center gap-2 text-xs font-black">
+                  <Navigation className="h-4 w-4" />
+                  <span>Launch Safest Path in Google Maps GPS</span>
+                  <ExternalLink className="h-3 w-3 opacity-75" />
+                </div>
+                <span className="mt-0.5 text-[10px] font-semibold text-emerald-100 text-center">
+                  Forces Google Maps via high-ground waypoint ({activeDetourRoute.activeAnchorName || "Safe Corridor"}) to bypass flooded streets
+                </span>
               </a>
 
               <div className="flex gap-2">

@@ -22,6 +22,13 @@ type LeafletMarker = {
   setLatLng: (latLng: [number, number]) => void;
   setStyle: (opts: Record<string, unknown>) => void;
   on: (event: string, fn: () => void) => void;
+  bindTooltip?: (content: string, opts?: Record<string, unknown>) => void;
+  remove: () => void;
+};
+
+type LeafletCircle = {
+  addTo: (map: LeafletMap) => LeafletCircle;
+  bindTooltip?: (content: string, opts?: Record<string, unknown>) => void;
   remove: () => void;
 };
 
@@ -34,6 +41,7 @@ type LeafletNS = {
   map: (el: HTMLElement, opts: Record<string, unknown>) => LeafletMap;
   tileLayer: (url: string, opts: Record<string, unknown>) => { addTo: (map: LeafletMap) => void };
   circleMarker: (latLng: [number, number], opts: Record<string, unknown>) => LeafletMarker;
+  circle?: (latLng: [number, number], opts: Record<string, unknown>) => LeafletCircle;
   polyline: (latLngs: [number, number][], opts?: Record<string, unknown>) => LeafletPolyline;
 };
 
@@ -84,6 +92,19 @@ export type StyledRoute = {
   weight?: number;
 };
 
+export type DangerZone = {
+  lat: number;
+  lng: number;
+  radiusM?: number;
+  label?: string;
+};
+
+export type WaypointInfo = {
+  lat: number;
+  lng: number;
+  label?: string;
+};
+
 export function OfficerMap({
   hazards,
   selectedId,
@@ -92,6 +113,8 @@ export function OfficerMap({
   onSelectShelter,
   selectedShelterId,
   safeRoutes = [],
+  dangerZones = [],
+  waypoint = null,
   focusCoords,
   className,
 }: {
@@ -102,6 +125,8 @@ export function OfficerMap({
   onSelectShelter?: (shelter: ShelterWithCoords) => void;
   selectedShelterId?: string | null;
   safeRoutes?: Array<[number, number][] | StyledRoute>;
+  dangerZones?: DangerZone[];
+  waypoint?: WaypointInfo | null;
   focusCoords?: [number, number] | null;
   className?: string;
 }) {
@@ -111,6 +136,8 @@ export function OfficerMap({
   const markersRef = useRef(new Map<string, LeafletMarker>());
   const shelterMarkersRef = useRef(new Map<string, LeafletMarker>());
   const polylinesRef = useRef<LeafletPolyline[]>([]);
+  const dangerCirclesRef = useRef<LeafletCircle[]>([]);
+  const waypointMarkerRef = useRef<LeafletMarker | null>(null);
 
   const hazardsRef = useRef(hazards);
   const selectedRef = useRef(selectedId);
@@ -121,6 +148,8 @@ export function OfficerMap({
   const selectShelterRef = useRef(onSelectShelter);
 
   const safeRoutesRef = useRef(safeRoutes);
+  const dangerZonesRef = useRef(dangerZones);
+  const waypointRef = useRef(waypoint);
 
   hazardsRef.current = hazards;
   selectedRef.current = selectedId;
@@ -131,6 +160,8 @@ export function OfficerMap({
   selectShelterRef.current = onSelectShelter;
 
   safeRoutesRef.current = safeRoutes;
+  dangerZonesRef.current = dangerZones;
+  waypointRef.current = waypoint;
 
   function syncMarkers(L: LeafletNS, map: LeafletMap) {
     const rows = hazardsRef.current;
@@ -218,6 +249,53 @@ export function OfficerMap({
       }
     }
 
+    // Sync danger zones (bypassed affected paths and roadblocks)
+    for (const c of dangerCirclesRef.current) {
+      c.remove();
+    }
+    dangerCirclesRef.current = [];
+    if (L.circle && dangerZonesRef.current.length > 0) {
+      for (const zone of dangerZonesRef.current) {
+        const circle = L.circle([zone.lat, zone.lng], {
+          radius: zone.radiusM || 250,
+          color: "#ef4444",
+          weight: 2,
+          dashArray: "6, 6",
+          fillColor: "#ef4444",
+          fillOpacity: 0.16,
+        }).addTo(map);
+        if (zone.label && circle.bindTooltip) {
+          circle.bindTooltip(`⚠️ Avoided Hazard: ${zone.label}`, {
+            direction: "top",
+          });
+        }
+        dangerCirclesRef.current.push(circle);
+      }
+    }
+
+    // Sync High Ground Waypoint marker
+    if (waypointMarkerRef.current) {
+      waypointMarkerRef.current.remove();
+      waypointMarkerRef.current = null;
+    }
+    if (waypointRef.current) {
+      const wp = waypointRef.current;
+      const marker = L.circleMarker([wp.lat, wp.lng], {
+        radius: 12,
+        color: "#ffffff",
+        weight: 3,
+        fillColor: "#059669",
+        fillOpacity: 1,
+      }).addTo(map);
+      if (wp.label && marker.bindTooltip) {
+        marker.bindTooltip(`🛡️ Elevated Safe Waypoint: ${wp.label}`, {
+          permanent: true,
+          direction: "top",
+        });
+      }
+      waypointMarkerRef.current = marker;
+    }
+
     const chosen = rows.find((hazard) => hazard.id === selectedRef.current);
     if (chosen) map.setView([chosen.lat, chosen.lng], 14);
   }
@@ -249,6 +327,12 @@ export function OfficerMap({
       markersRef.current.clear();
       shelterMarkersRef.current.clear();
       polylinesRef.current = [];
+      for (const c of dangerCirclesRef.current) {
+        c.remove();
+      }
+      dangerCirclesRef.current = [];
+      waypointMarkerRef.current?.remove();
+      waypointMarkerRef.current = null;
     };
   }, []);
 
@@ -257,7 +341,7 @@ export function OfficerMap({
     const map = mapRef.current;
     if (!L || !map) return;
     syncMarkers(L, map);
-  }, [hazards, selectedId, shelters, selectedShelterId, safeRoutes]);
+  }, [hazards, selectedId, shelters, selectedShelterId, safeRoutes, dangerZones, waypoint]);
 
   useEffect(() => {
     if (focusCoords && mapRef.current) {
