@@ -247,8 +247,8 @@ export function ReportForm() {
       {/* Top Header with Citizen Navigation Switcher and SOS Button */}
       <div className="sticky top-0 z-20 flex items-center justify-between border-b border-white/20 bg-white/80 px-6 py-3.5 backdrop-blur-lg lg:px-10">
         <Link
-          href="/map"
-          title="Back to Live Map"
+          href="/"
+          title="Return to Home"
           className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-100 bg-white text-slate-600 shadow-sm active:scale-90"
         >
           <ArrowLeft className="h-4 w-4" />
