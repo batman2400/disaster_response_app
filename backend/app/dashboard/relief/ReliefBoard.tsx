@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Clock,
   Compass,
+  FileSpreadsheet,
   LifeBuoy,
   MapPin,
   Package,
@@ -19,6 +20,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import { SitRepExportModal } from "@/components/sitrep-export-modal";
 import { ReliefMap } from "./ReliefMap";
 import { Badge, Button, Card, Chip, StatCard, StatusBadge, UrgencyBadge } from "@/components/ui";
 import { cn } from "@/lib/cn";
@@ -147,8 +149,9 @@ export function ReliefBoard({
 
   // Walk-in modal state
   const [walkinOpen, setWalkinOpen] = useState(false);
-  const [walkinShelterId, setWalkinShelterId] = useState<string>("");
-  const [walkinCount, setWalkinCount] = useState(2);
+  const [walkinShelterId, setWalkinShelterId] = useState("");
+  const [walkinCount, setWalkinCount] = useState(1);
+  const [showSitRepModal, setShowSitRepModal] = useState(false);
 
   const { rows: hazards, live, updatedAt } = useLiveRows<HazardRow>({
     table: "hazards",
@@ -340,6 +343,14 @@ export function ReliefBoard({
         </div>
 
         <div className="flex items-center gap-2 sm:self-start">
+          <button
+            type="button"
+            onClick={() => setShowSitRepModal(true)}
+            className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-extrabold text-slate-700 shadow-xs hover:border-emerald-500 hover:bg-emerald-50/50 hover:text-emerald-700 transition-colors"
+          >
+            <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+            <span>SitRep Export</span>
+          </button>
           <button
             type="button"
             onClick={() => setWalkinOpen(true)}
@@ -757,6 +768,15 @@ export function ReliefBoard({
           </div>
         </div>
       ) : null}
+
+      <SitRepExportModal
+        open={showSitRepModal}
+        onClose={() => setShowSitRepModal(false)}
+        hazards={hazards}
+        wards={wards}
+        shelters={liveShelters}
+        dutyRole="Relief Logistics Desk"
+      />
     </main>
   );
 }

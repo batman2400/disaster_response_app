@@ -33,12 +33,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { EmergencyBroadcastBanner } from "@/components/emergency-broadcast-banner";
 import { EmergencySosModal } from "@/components/emergency-sos-modal";
 import { PublicShell } from "@/components/public-shell";
 import { Button, Modal, PipelineStepper, SectionLabel, type PipelineStep } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { DEMO_GPS, nearestWard, readFileAsDataUrl } from "@/lib/geo";
 import { wardShort } from "@/lib/format";
+import { LanguageSwitcher } from "@/lib/i18n/language-context";
 import type { HazardCategory, ReportResponse, WardId } from "@/lib/types";
 import { parseTrace } from "@/lib/trace";
 
@@ -488,15 +490,24 @@ export function ReportForm() {
           </div>
         </div>
 
-        {/* SOS Emergency Hotline Button */}
-        <button
-          type="button"
-          onClick={() => setSosModalOpen(true)}
-          className="flex h-10 items-center gap-1.5 rounded-2xl border border-rose-200 bg-rose-500 px-3 text-xs font-extrabold text-white shadow-md shadow-rose-500/20 active:scale-95"
-        >
-          <ShieldAlert className="h-4 w-4 animate-pulse" />
-          <span className="hidden sm:inline">SOS</span> 117
-        </button>
+        <div className="flex items-center gap-2">
+          <LanguageSwitcher />
+
+          {/* SOS Emergency Hotline Button */}
+          <button
+            type="button"
+            onClick={() => setSosModalOpen(true)}
+            className="flex h-10 items-center gap-1.5 rounded-2xl border border-rose-200 bg-rose-500 px-3 text-xs font-extrabold text-white shadow-md shadow-rose-500/20 active:scale-95"
+          >
+            <ShieldAlert className="h-4 w-4 animate-pulse" />
+            <span className="hidden sm:inline">SOS</span> 117
+          </button>
+        </div>
+      </div>
+
+      {/* Emergency Broadcast Marquee */}
+      <div className="px-6 pt-3 lg:px-10">
+        <EmergencyBroadcastBanner />
       </div>
 
       {/* Emergency Helpline Quick-Strip */}

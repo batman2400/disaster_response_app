@@ -22,13 +22,17 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { OfficerMap } from "@/app/dashboard/officer/OfficerMap";
+import { EmergencyBroadcastBanner } from "@/components/emergency-broadcast-banner";
 import { EmergencySosModal } from "@/components/emergency-sos-modal";
 import { PublicShell } from "@/components/public-shell";
 import { Badge, BottomSheet, Button, Chip, StatusBadge } from "@/components/ui";
 import { categoryLabel, PIN_COLORS, PIN_LEGEND, pinMeaning, wardShort } from "@/lib/format";
+import { LanguageSwitcher } from "@/lib/i18n/language-context";
 import {
   attachShelterCoords,
+  ARTERIAL_SAFE_CORRIDORS,
   SAFE_ROUTES,
+  type SafeCorridor,
   type ShelterWithCoords,
 } from "@/lib/safe-routes";
 import type { ConfirmResponse, HazardRow, HazardStatus, ShelterRow, WardId, WardRow } from "@/lib/types";
@@ -218,6 +222,8 @@ export function PublicMap({
   const [confirmBusy, setConfirmBusy] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [focusCoords, setFocusCoords] = useState<[number, number] | null>(null);
+  const [corridorsDrawerOpen, setCorridorsDrawerOpen] = useState(false);
+  const [selectedCorridorId, setSelectedCorridorId] = useState<string | null>(null);
 
   const { rows: hazards, live } = useLiveRows<HazardRow>({
     table: "hazards",
@@ -261,15 +267,12 @@ export function PublicMap({
   // Active safe evacuation routes to draw
   const activeSafeRoutes = useMemo(() => {
     if (!showEvacRoutes) return [];
-    const routes: [number, number][][] = [];
-    if (criticalWard && SAFE_ROUTES[criticalWard.id]) {
-      routes.push(SAFE_ROUTES[criticalWard.id]);
-    } else {
-      // Include all routes if general safe routes enabled
-      routes.push(SAFE_ROUTES.ward_01, SAFE_ROUTES.ward_02, SAFE_ROUTES.ward_03);
+    if (selectedCorridorId) {
+      const match = ARTERIAL_SAFE_CORRIDORS.find((c) => c.id === selectedCorridorId);
+      if (match) return [match.points];
     }
-    return routes;
-  }, [showEvacRoutes, criticalWard]);
+    return ARTERIAL_SAFE_CORRIDORS.map((c) => c.points);
+  }, [showEvacRoutes, selectedCorridorId]);
 
   async function confirm(id: string) {
     setConfirmBusy(true);
@@ -352,21 +355,30 @@ export function PublicMap({
           </p>
         </div>
 
-        {/* SOS Emergency Hotline Button */}
-        <button
-          type="button"
-          onClick={() => setSosModalOpen(true)}
-          className="pointer-events-auto flex h-12 shrink-0 items-center gap-1.5 rounded-2xl border border-rose-200 bg-rose-500 px-3.5 text-xs font-extrabold text-white shadow-lg shadow-rose-500/25 transition-transform active:scale-95"
-        >
-          <ShieldAlert className="h-4 w-4 animate-pulse" />
-          <span>SOS 117</span>
-        </button>
+        {/* Language Switcher & SOS Emergency Hotline Button */}
+        <div className="pointer-events-auto flex items-center gap-2">
+          <LanguageSwitcher />
+
+          <button
+            type="button"
+            onClick={() => setSosModalOpen(true)}
+            className="flex h-12 shrink-0 items-center gap-1.5 rounded-2xl border border-rose-200 bg-rose-500 px-3.5 text-xs font-extrabold text-white shadow-lg shadow-rose-500/25 transition-transform active:scale-95"
+          >
+            <ShieldAlert className="h-4 w-4 animate-pulse" />
+            <span>SOS 117</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Emergency Broadcast Announcement Banner */}
+      <div className="absolute top-20 left-4 right-4 z-40 lg:right-auto lg:w-[min(44rem,calc(100vw-24rem))] pointer-events-auto">
+        <EmergencyBroadcastBanner />
       </div>
 
       {/* Filter and Layer Action Chips */}
       <div
         className={`absolute left-4 z-40 flex items-center gap-2 overflow-x-auto no-scrollbar lg:max-w-[min(44rem,calc(100vw-24rem))] ${
-          showAlert ? "top-52" : "top-20"
+          showAlert ? "top-64" : "top-32"
         } right-4 lg:right-auto`}
       >
         {/* Find Shelters action chip */}
@@ -379,19 +391,34 @@ export function PublicMap({
           <span>Shelters ({totalFreeBeds} beds free)</span>
         </button>
 
-        {/* Safe Routes Toggle */}
-        <button
-          type="button"
-          onClick={() => setShowEvacRoutes(!showEvacRoutes)}
-          className={`inline-flex shrink-0 items-center gap-1.5 rounded-2xl border px-3.5 py-2 text-xs font-extrabold shadow-soft backdrop-blur-md transition-all active:scale-95 ${
-            showEvacRoutes
-              ? "border-emerald-300 bg-emerald-500 text-white"
-              : "border-white/60 bg-white/90 text-slate-600 hover:bg-slate-50"
-          }`}
-        >
-          <Route className="h-3.5 w-3.5" />
-          <span>Safe Corridors</span>
-        </button>
+        {/* Enhanced Safe Corridors Button with Drawer Link */}
+        <div className="inline-flex shrink-0 items-center rounded-2xl border border-emerald-300 bg-white/90 shadow-soft backdrop-blur-md overflow-hidden">
+          <button
+            type="button"
+            onClick={() => {
+              setShowEvacRoutes(!showEvacRoutes);
+              if (selectedCorridorId) setSelectedCorridorId(null);
+            }}
+            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-extrabold transition-all active:scale-95 ${
+              showEvacRoutes
+                ? "bg-emerald-500 text-white"
+                : "text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            <Route className="h-3.5 w-3.5" />
+            <span>{showEvacRoutes ? "Safe Corridors" : "Corridors Off"}</span>
+          </button>
+          {showEvacRoutes ? (
+            <button
+              type="button"
+              onClick={() => setCorridorsDrawerOpen(true)}
+              className="border-l border-emerald-400 bg-emerald-600 px-2 py-2 text-[10px] font-bold text-white hover:bg-emerald-700"
+              title="View designated evacuation corridors list"
+            >
+              List ({ARTERIAL_SAFE_CORRIDORS.length})
+            </button>
+          ) : null}
+        </div>
 
         <div className="h-5 w-px shrink-0 bg-slate-200" />
 
@@ -586,6 +613,98 @@ export function PublicMap({
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      </BottomSheet>
+
+      {/* Evacuation Corridors Bottom Sheet */}
+      <BottomSheet open={corridorsDrawerOpen} onClose={() => setCorridorsDrawerOpen(false)}>
+        <div className="overflow-y-auto no-scrollbar px-6 pb-6 pt-2">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-extrabold tracking-tight text-slate-900">
+                  Safe Evacuation Corridors
+                </h2>
+                <span className="rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-extrabold uppercase text-emerald-800">
+                  High Ground
+                </span>
+              </div>
+              <p className="text-xs font-semibold text-slate-500">
+                Designated municipal arterial spines cleared of low-lying flood hazards
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCorridorsDrawerOpen(false)}
+              className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-500"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="mb-3 flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-600">
+              {selectedCorridorId ? "1 Corridor Isolated" : "All 4 Corridors Active"}
+            </span>
+            {selectedCorridorId ? (
+              <button
+                type="button"
+                onClick={() => setSelectedCorridorId(null)}
+                className="text-xs font-bold text-brand hover:underline"
+              >
+                Show All Corridors
+              </button>
+            ) : null}
+          </div>
+
+          <div className="space-y-3">
+            {ARTERIAL_SAFE_CORRIDORS.map((corridor) => {
+              const isSelected = selectedCorridorId === corridor.id;
+              return (
+                <div
+                  key={corridor.id}
+                  className={`rounded-2xl border p-4 shadow-soft transition-all ${
+                    isSelected
+                      ? "border-emerald-500 bg-emerald-50/50 ring-2 ring-emerald-500/20"
+                      : "border-slate-100 bg-white hover:border-slate-200"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-extrabold text-slate-900">{corridor.name}</h3>
+                        {corridor.elevatedHighGround ? (
+                          <span className="rounded bg-slate-100 px-1.5 py-0.2 text-[9px] font-bold uppercase text-slate-600">
+                            Elevated
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-1 text-xs font-medium text-slate-600">{corridor.description}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
+                    <span className="text-[11px] font-bold text-slate-500">
+                      Destination: <strong className="text-emerald-700">{corridor.destinationShelter}</strong>
+                    </span>
+                    <Button
+                      type="button"
+                      variant={isSelected ? "primary" : "ghost"}
+                      className="h-8 px-3 text-xs"
+                      onClick={() => {
+                        setSelectedCorridorId(corridor.id);
+                        setFocusCoords(corridor.points[0]);
+                        setCorridorsDrawerOpen(false);
+                      }}
+                    >
+                      <Compass className="h-3.5 w-3.5" />
+                      {isSelected ? "Active on Map" : "Highlight Corridor"}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </BottomSheet>

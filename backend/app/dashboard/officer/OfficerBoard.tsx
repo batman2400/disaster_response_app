@@ -12,10 +12,12 @@ import {
   Copy,
   ExternalLink,
   Eye,
+  FileSpreadsheet,
   Filter,
   Headphones,
   LocateFixed,
   Maximize2,
+  Megaphone,
   Mic,
   Radio,
   RefreshCw,
@@ -33,6 +35,8 @@ import {
 import { useEffect, useMemo, useState } from "react";
 
 import { AudioPlayer } from "@/components/audio-player";
+import { BroadcastEditorModal } from "@/components/broadcast-editor-modal";
+import { SitRepExportModal } from "@/components/sitrep-export-modal";
 import { VoiceModal } from "@/components/voice-modal";
 import { DEMO_SAMPLE_AUDIO_URL } from "@/lib/demo-audio";
 
@@ -138,6 +142,8 @@ export function OfficerBoard({
   const [showLightbox, setShowLightbox] = useState(false);
   const [showHydrographModal, setShowHydrographModal] = useState(false);
   const [showVoiceModal, setShowVoiceModal] = useState(false);
+  const [showSitRepModal, setShowSitRepModal] = useState(false);
+  const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   const [activeTileDetail, setActiveTileDetail] = useState<{
     id: string;
     label: string;
@@ -252,6 +258,8 @@ export function OfficerBoard({
         setShowLightbox(false);
         setShowHydrographModal(false);
         setShowVoiceModal(false);
+        setShowSitRepModal(false);
+        setShowBroadcastModal(false);
         setActiveTileDetail(null);
       }
 
@@ -522,15 +530,37 @@ export function OfficerBoard({
               </div>
 
               <div className="flex items-center gap-2.5">
+                {/* Emergency Public Broadcast Trigger */}
+                <button
+                  type="button"
+                  onClick={() => setShowBroadcastModal(true)}
+                  title="Publish live emergency alert banner to all citizen screens"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 shadow-xs transition-all hover:bg-rose-100 hover:border-rose-300 active:scale-95"
+                >
+                  <Megaphone className="h-3.5 w-3.5 text-rose-600 animate-pulse" />
+                  <span className="hidden sm:inline">Broadcast</span>
+                </button>
+
+                {/* SitRep Situation Report Export Trigger */}
+                <button
+                  type="button"
+                  onClick={() => setShowSitRepModal(true)}
+                  title="Export official Situation Report (CSV / PDF)"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-xs transition-all hover:border-emerald-500 hover:bg-emerald-50/60 hover:text-emerald-800 active:scale-95"
+                >
+                  <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>SitRep</span>
+                </button>
+
                 {/* In-page Pipeline Audit Drawer Button */}
                 <button
                   type="button"
                   onClick={() => setShowAuditDrawer(true)}
                   title="Inspect AI prompt and PostGIS execution trace in drawer"
-                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-sm transition-all hover:border-brand hover:bg-slate-50 hover:text-brand active:scale-95"
+                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-sm transition-all hover:border-brand hover:bg-slate-50 hover:text-brand active:scale-95"
                 >
                   <Bug className="h-3.5 w-3.5 text-brand" />
-                  <span>Pipeline audit</span>
+                  <span className="hidden md:inline">Pipeline audit</span>
                 </button>
 
                 {/* Suggest Detour Dialog Trigger */}
@@ -1689,6 +1719,21 @@ export function OfficerBoard({
           }}
         />
       ) : null}
+
+      {/* 12. Situation Report (SitRep) Export Modal */}
+      <SitRepExportModal
+        open={showSitRepModal}
+        onClose={() => setShowSitRepModal(false)}
+        hazards={tickets}
+        wards={wards}
+        dutyRole="Council Officer Desk"
+      />
+
+      {/* 13. Emergency Public Broadcast Modal */}
+      <BroadcastEditorModal
+        open={showBroadcastModal}
+        onClose={() => setShowBroadcastModal(false)}
+      />
     </div>
   );
 }

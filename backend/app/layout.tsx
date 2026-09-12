@@ -15,10 +15,14 @@ export const metadata: Metadata = {
   description: "Citizen reporting, public map, and staff dashboard for Colombo flood and hazard response.",
 };
 
+import { LanguageProvider } from "@/lib/i18n/language-context";
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${plusJakarta.variable} ${plusJakarta.className}`}>
-      <body className={`${plusJakarta.className} antialiased`}>{children}</body>
+      <body className={`${plusJakarta.className} antialiased`}>
+        <LanguageProvider>{children}</LanguageProvider>
+      </body>
     </html>
   );
 }

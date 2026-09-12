@@ -28,6 +28,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/cn";
 import type { DashRole } from "@/lib/dashboard-auth";
+import { LanguageSwitcher } from "@/lib/i18n/language-context";
 import { ROLE_THEME } from "@/lib/role-theme";
 
 const TITLES = {
@@ -212,6 +213,8 @@ export function DashboardChrome({ role }: { role: DashRole }) {
       </div>
 
       <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+        <LanguageSwitcher className="hidden sm:inline-flex" />
+
         <Link
           href="/map"
           target="_blank"

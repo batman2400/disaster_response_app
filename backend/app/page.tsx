@@ -25,18 +25,21 @@ import {
 } from "lucide-react";
 
 import { PublicShell } from "@/components/public-shell";
+import { EmergencyBroadcastBanner } from "@/components/emergency-broadcast-banner";
+import { HomeQuickActions } from "@/components/home-quick-actions";
 import { homeFor, readDashboardRole } from "@/lib/dashboard-auth";
-import { listHazards, listShelters, listWards } from "@/lib/db";
+import { listHazards, listShelters, listWards, loadBroadcastAlert } from "@/lib/db";
 import { ROLE_THEME } from "@/lib/role-theme";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const [signedIn, hazards, wards, shelters] = await Promise.all([
+  const [signedIn, hazards, wards, shelters, broadcastAlert] = await Promise.all([
     readDashboardRole(),
     listHazards(),
     listWards(),
     listShelters(),
+    loadBroadcastAlert(),
   ]);
 
   const sessionTheme = signedIn ? ROLE_THEME[signedIn] : null;
@@ -51,6 +54,9 @@ export default async function Home() {
   return (
     <PublicShell variant="wide">
       <div className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        {/* Emergency Broadcast Announcement Banner */}
+        <EmergencyBroadcastBanner initialAlert={broadcastAlert} />
+
         {/* Top Command Bar */}
         <header className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm backdrop-blur-md lg:p-5">
           <div className="flex items-center gap-3.5">
@@ -77,8 +83,11 @@ export default async function Home() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
+            {/* Language Selector & Emergency SOS Button */}
+            <HomeQuickActions />
+
             {/* Live Operational Indicator */}
-            <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-status-emerald-bg px-3.5 py-2">
+            <div className="hidden xl:flex items-center gap-2 rounded-xl border border-emerald-200 bg-status-emerald-bg px-3.5 py-2">
               <div className="relative flex h-2.5 w-2.5 items-center justify-center">
                 <span className="absolute h-full w-full animate-ping rounded-full bg-status-emerald opacity-60" />
                 <span className="relative h-2 w-2 rounded-full bg-status-emerald" />

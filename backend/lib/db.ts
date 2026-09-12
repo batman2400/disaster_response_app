@@ -403,3 +403,52 @@ export async function saveReplaySnapshot(state: ReplayState) {
     console.warn("saveReplaySnapshot:", error.message);
   }
 }
+
+export interface BroadcastAlert {
+  active: boolean;
+  message: string;
+  severity: "CRITICAL" | "WARNING" | "INFO";
+  ward_id?: string | null;
+  author?: string;
+  updated_at: string;
+}
+
+let inMemoryBroadcast: BroadcastAlert = {
+  active: true,
+  message: "Kelani River flood watch: Minor flood threshold reached at Nagalagam St. Low Level Road traffic restricted.",
+  severity: "WARNING",
+  ward_id: "ward_01",
+  author: "CMC Disaster Command",
+  updated_at: new Date().toISOString(),
+};
+
+export async function loadBroadcastAlert(): Promise<BroadcastAlert> {
+  const supabase = getSupabase();
+  if (!supabase) return inMemoryBroadcast;
+  try {
+    const { data, error } = await supabase.from("ai_settings").select("broadcast").eq("id", 1).maybeSingle();
+    if (!error && data && "broadcast" in data && data.broadcast) {
+      inMemoryBroadcast = data.broadcast as BroadcastAlert;
+    }
+  } catch {
+    // fallback to inMemoryBroadcast
+  }
+  return inMemoryBroadcast;
+}
+
+export async function saveBroadcastAlert(alert: BroadcastAlert): Promise<BroadcastAlert> {
+  inMemoryBroadcast = { ...alert, updated_at: new Date().toISOString() };
+  const supabase = getSupabase();
+  if (supabase) {
+    try {
+      const { error } = await supabase.from("ai_settings").update({ broadcast: inMemoryBroadcast }).eq("id", 1);
+      if (error) {
+        console.warn("saveBroadcastAlert Supabase update (ignorable if column pending):", error.message);
+      }
+    } catch (err) {
+      console.warn("saveBroadcastAlert err:", err);
+    }
+  }
+  return inMemoryBroadcast;
+}
+
