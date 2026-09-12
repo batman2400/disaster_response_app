@@ -9,6 +9,7 @@ import {
   CloudRain,
   ExternalLink,
   LifeBuoy,
+  Loader2,
   LogOut,
   Map,
   MapPin,
@@ -62,7 +63,7 @@ const INITIAL_ALERTS: AlertItem[] = [
   },
 ];
 
-export function DashboardChrome({ role }: { role: Exclude<DashRole, "crew"> }) {
+export function DashboardChrome({ role }: { role: DashRole }) {
   const copy = TITLES[role];
   const theme = ROLE_THEME[role];
   const Icon = theme.icon;
@@ -72,6 +73,31 @@ export function DashboardChrome({ role }: { role: Exclude<DashRole, "crew"> }) {
   const [showRoles, setShowRoles] = useState(false);
   const [showPipelineHealth, setShowPipelineHealth] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(false);
+  const [switchingRole, setSwitchingRole] = useState<DashRole | null>(null);
+
+  const handleSwitchRole = async (targetRole: DashRole, fallbackHref: string) => {
+    if (targetRole === role) {
+      setShowRoles(false);
+      return;
+    }
+    setSwitchingRole(targetRole);
+    setShowRoles(false);
+    try {
+      const res = await fetch("/api/dashboard/switch-role", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: targetRole }),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { next?: string };
+        window.location.href = data.next || fallbackHref;
+        return;
+      }
+    } catch {
+      // Continue to fallback
+    }
+    window.location.href = fallbackHref;
+  };
 
   const notifRef = useRef<HTMLDivElement>(null);
   const rolesRef = useRef<HTMLDivElement>(null);
@@ -331,12 +357,19 @@ export function DashboardChrome({ role }: { role: Exclude<DashRole, "crew"> }) {
         <div className="relative" ref={rolesRef}>
           <button
             type="button"
+            disabled={Boolean(switchingRole)}
             onClick={() => setShowRoles(!showRoles)}
             title="Switch operational role"
-            className="flex h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:text-slate-900 active:scale-95 sm:px-3"
+            className="flex h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:text-slate-900 active:scale-95 disabled:opacity-60 sm:px-3"
           >
-            <Shield className="h-4 w-4 text-brand" />
-            <span className="hidden sm:inline">Switch role</span>
+            {switchingRole ? (
+              <Loader2 className="h-4 w-4 animate-spin text-brand" />
+            ) : (
+              <Shield className="h-4 w-4 text-brand" />
+            )}
+            <span className="hidden sm:inline">
+              {switchingRole ? "Switching..." : "Switch role"}
+            </span>
             <ChevronDown className="h-3 w-3 text-slate-400" />
           </button>
 
@@ -345,38 +378,57 @@ export function DashboardChrome({ role }: { role: Exclude<DashRole, "crew"> }) {
               <p className="px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
                 Operational Desks
               </p>
-              <Link
-                href="/dashboard/officer"
-                onClick={() => setShowRoles(false)}
+              <button
+                type="button"
+                disabled={Boolean(switchingRole)}
+                onClick={() => handleSwitchRole("officer", "/dashboard/officer")}
                 className={cn(
-                  "flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-bold transition-colors",
+                  "flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-bold transition-colors",
                   role === "officer" ? "bg-brand-light text-brand" : "text-slate-700 hover:bg-slate-50",
                 )}
               >
-                <Shield className="h-4 w-4" />
-                <span>Command Control</span>
-                {role === "officer" ? <CheckCircle2 className="ml-auto h-3.5 w-3.5 text-brand" /> : null}
-              </Link>
-              <Link
-                href="/dashboard/relief"
-                onClick={() => setShowRoles(false)}
+                <Shield className="h-4 w-4 shrink-0" />
+                <span className="flex-1">Command Control</span>
+                {switchingRole === "officer" ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-brand" />
+                ) : role === "officer" ? (
+                  <CheckCircle2 className="h-3.5 w-3.5 text-brand" />
+                ) : null}
+              </button>
+              <button
+                type="button"
+                disabled={Boolean(switchingRole)}
+                onClick={() => handleSwitchRole("relief", "/dashboard/relief")}
                 className={cn(
-                  "flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-bold transition-colors",
+                  "flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-bold transition-colors",
                   role === "relief" ? "bg-amber-50 text-amber-600" : "text-slate-700 hover:bg-slate-50",
                 )}
               >
-                <LifeBuoy className="h-4 w-4" />
-                <span>Relief Logistics</span>
-                {role === "relief" ? <CheckCircle2 className="ml-auto h-3.5 w-3.5 text-amber-600" /> : null}
-              </Link>
-              <Link
-                href="/crew"
-                onClick={() => setShowRoles(false)}
-                className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50"
+                <LifeBuoy className="h-4 w-4 shrink-0" />
+                <span className="flex-1">Relief Logistics</span>
+                {switchingRole === "relief" ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-600" />
+                ) : role === "relief" ? (
+                  <CheckCircle2 className="h-3.5 w-3.5 text-amber-600" />
+                ) : null}
+              </button>
+              <button
+                type="button"
+                disabled={Boolean(switchingRole)}
+                onClick={() => handleSwitchRole("crew", "/crew")}
+                className={cn(
+                  "flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-bold transition-colors",
+                  role === "crew" ? "bg-indigo-50 text-indigo-600" : "text-slate-700 hover:bg-slate-50",
+                )}
               >
-                <Truck className="h-4 w-4 text-indigo-500" />
-                <span>Field Crew Queue</span>
-              </Link>
+                <Truck className="h-4 w-4 shrink-0 text-indigo-500" />
+                <span className="flex-1">Field Crew Queue</span>
+                {switchingRole === "crew" ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-600" />
+                ) : role === "crew" ? (
+                  <CheckCircle2 className="h-3.5 w-3.5 text-indigo-600" />
+                ) : null}
+              </button>
               <div className="my-1 border-t border-slate-100" />
               <p className="px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
                 Citizen Services

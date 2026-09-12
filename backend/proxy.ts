@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-import { COOKIE_NAME, homeFor, parseSession } from "./lib/dashboard-auth";
+import {
+  COOKIE_NAME,
+  cookieOptions,
+  homeFor,
+  parseSession,
+  signSession,
+} from "./lib/dashboard-auth";
 
 function redirectTo(request: NextRequest, pathname: string, search = "") {
   const dest = request.nextUrl.clone();
@@ -16,12 +22,14 @@ export function proxy(request: NextRequest) {
 
   if (pathname === "/dashboard/login") {
     const intended = request.nextUrl.searchParams.get("role") === "relief" ? "relief" : "officer";
-    if (role === intended) return redirectTo(request, homeFor(role));
+    const isSwitch = request.nextUrl.searchParams.get("switch") === "1";
+    if (role === intended && !isSwitch) return redirectTo(request, homeFor(role));
     return NextResponse.next();
   }
 
   if (pathname === "/crew/login") {
-    if (role === "crew") return redirectTo(request, homeFor(role));
+    const isSwitch = request.nextUrl.searchParams.get("switch") === "1";
+    if (role === "crew" && !isSwitch) return redirectTo(request, homeFor(role));
     return NextResponse.next();
   }
 
@@ -29,32 +37,60 @@ export function proxy(request: NextRequest) {
     return redirectTo(request, role ? homeFor(role) : "/dashboard/login", role ? "" : "?role=officer");
   }
 
-  if (pathname.startsWith("/dashboard/officer") && role !== "officer") {
-    return redirectTo(
-      request,
-      role ? homeFor(role) : "/dashboard/login",
-      role ? "" : "?role=officer",
-    );
+  // Protected operational route: Officer Command Control
+  if (pathname.startsWith("/dashboard/officer")) {
+    if (!role) {
+      return redirectTo(request, "/dashboard/login", "?role=officer");
+    }
+    if (role !== "officer") {
+      const dest = request.nextUrl.clone();
+      const response = NextResponse.redirect(dest);
+      response.cookies.set(COOKIE_NAME, signSession("officer"), cookieOptions());
+      return response;
+    }
+    return NextResponse.next();
   }
 
-  if (pathname.startsWith("/dashboard/relief") && role !== "relief") {
-    return redirectTo(
-      request,
-      role ? homeFor(role) : "/dashboard/login",
-      role ? "" : "?role=relief",
-    );
+  // Protected operational route: Relief Logistics Desk
+  if (pathname.startsWith("/dashboard/relief")) {
+    if (!role) {
+      return redirectTo(request, "/dashboard/login", "?role=relief");
+    }
+    if (role !== "relief") {
+      const dest = request.nextUrl.clone();
+      const response = NextResponse.redirect(dest);
+      response.cookies.set(COOKIE_NAME, signSession("relief"), cookieOptions());
+      return response;
+    }
+    return NextResponse.next();
   }
 
-  if (pathname.startsWith("/dashboard/admin") && role !== "officer") {
-    return redirectTo(
-      request,
-      role ? homeFor(role) : "/dashboard/login",
-      role ? "" : "?role=officer",
-    );
+  // Protected operational route: Admin telemetry & pipeline diagnostics
+  if (pathname.startsWith("/dashboard/admin")) {
+    if (!role) {
+      return redirectTo(request, "/dashboard/login", "?role=officer");
+    }
+    if (role !== "officer") {
+      const dest = request.nextUrl.clone();
+      const response = NextResponse.redirect(dest);
+      response.cookies.set(COOKIE_NAME, signSession("officer"), cookieOptions());
+      return response;
+    }
+    return NextResponse.next();
   }
 
-  if ((pathname === "/crew" || pathname.startsWith("/crew/")) && role !== "crew") {
-    return redirectTo(request, role ? homeFor(role) : "/crew/login");
+  // Protected operational route: Field Crew Queue
+  if (pathname === "/crew" || pathname.startsWith("/crew/")) {
+    if (!role) {
+      return redirectTo(request, "/crew/login");
+    }
+    if (role !== "crew") {
+      const dest = request.nextUrl.clone();
+      const response = NextResponse.redirect(dest);
+      response.cookies.set(COOKIE_NAME, signSession("crew"), cookieOptions());
+      return response;
+    }
+    return NextResponse.next();
   }
 
   return NextResponse.next();

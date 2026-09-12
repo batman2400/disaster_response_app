@@ -12,14 +12,15 @@ export function SignOutLink() {
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel="Switch role"
       onPress={() => {
         signOut();
         router.replace("/");
       }}
       style={styles.pill}
     >
-      <Ionicons name="log-out-outline" size={16} color={colors.muted} />
-      <Text style={styles.label}>Log out</Text>
+      <Ionicons name="swap-horizontal-outline" size={15} color={colors.muted} />
+      <Text style={styles.label}>Switch role</Text>
     </Pressable>
   );
 }

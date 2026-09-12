@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
   CheckCircle2,
+  ChevronDown,
   ChevronRight,
   Flame,
+  LifeBuoy,
   List,
   LogOut,
   Map as MapIcon,
@@ -14,6 +16,7 @@ import {
   Navigation,
   Radio,
   Search,
+  Shield,
   Truck,
   X,
 } from "lucide-react";
@@ -84,6 +87,43 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [locationStatus, setLocationStatus] = useState<"pending" | "ready" | "denied">("pending");
   const [focusedId, setFocusedId] = useState<string | null>(null);
+  const [showRoles, setShowRoles] = useState(false);
+  const [switchingRole, setSwitchingRole] = useState<string | null>(null);
+  const rolesRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (rolesRef.current && !rolesRef.current.contains(event.target as Node)) {
+        setShowRoles(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSwitchRole = async (targetRole: "officer" | "relief" | "crew", fallbackHref: string) => {
+    if (targetRole === "crew") {
+      setShowRoles(false);
+      return;
+    }
+    setSwitchingRole(targetRole);
+    setShowRoles(false);
+    try {
+      const res = await fetch("/api/dashboard/switch-role", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: targetRole }),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { next?: string };
+        window.location.href = data.next || fallbackHref;
+        return;
+      }
+    } catch {
+      // Proceed to fallback
+    }
+    window.location.href = fallbackHref;
+  };
 
   // Request field crew geolocation for distance and routing
   useEffect(() => {
@@ -222,6 +262,78 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
                 <MapIcon className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Map</span>
               </button>
+            </div>
+
+            {/* Interactive Role Switcher Dropdown */}
+            <div className="relative" ref={rolesRef}>
+              <button
+                type="button"
+                disabled={Boolean(switchingRole)}
+                onClick={() => setShowRoles(!showRoles)}
+                title="Switch operational role"
+                className="flex h-10 items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:text-slate-900 active:scale-95 disabled:opacity-60"
+              >
+                <Shield className="h-4 w-4 text-brand" />
+                <span className="hidden sm:inline">
+                  {switchingRole ? "Switching..." : "Switch role"}
+                </span>
+                <ChevronDown className="h-3 w-3 text-slate-400" />
+              </button>
+
+              {showRoles ? (
+                <div className="absolute right-0 top-12 z-50 w-56 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl animate-fade-in">
+                  <p className="px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                    Operational Desks
+                  </p>
+                  <button
+                    type="button"
+                    disabled={Boolean(switchingRole)}
+                    onClick={() => handleSwitchRole("officer", "/dashboard/officer")}
+                    className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50"
+                  >
+                    <Shield className="h-4 w-4 shrink-0 text-brand" />
+                    <span className="flex-1">Command Control</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={Boolean(switchingRole)}
+                    onClick={() => handleSwitchRole("relief", "/dashboard/relief")}
+                    className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50"
+                  >
+                    <LifeBuoy className="h-4 w-4 shrink-0 text-amber-600" />
+                    <span className="flex-1">Relief Logistics</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={true}
+                    className="flex w-full items-center gap-2.5 rounded-xl bg-indigo-50 px-3 py-2 text-left text-xs font-bold text-indigo-600"
+                  >
+                    <Truck className="h-4 w-4 shrink-0 text-indigo-600" />
+                    <span className="flex-1">Field Crew Queue</span>
+                    <CheckCircle2 className="h-3.5 w-3.5 text-indigo-600" />
+                  </button>
+                  <div className="my-1 border-t border-slate-100" />
+                  <p className="px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                    Citizen Services
+                  </p>
+                  <Link
+                    href="/map"
+                    onClick={() => setShowRoles(false)}
+                    className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50"
+                  >
+                    <MapIcon className="h-4 w-4 text-emerald-500" />
+                    <span>Public Hazard Map</span>
+                  </Link>
+                  <Link
+                    href="/report"
+                    onClick={() => setShowRoles(false)}
+                    className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50"
+                  >
+                    <MapPin className="h-4 w-4 text-rose-500" />
+                    <span>Report Incident</span>
+                  </Link>
+                </div>
+              ) : null}
             </div>
 
             <form action="/api/dashboard/logout" method="post">

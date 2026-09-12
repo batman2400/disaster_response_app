@@ -12,7 +12,9 @@ export async function requireDashboardRole(expected: DashRole | DashRole[]) {
   const role = await readDashboardRole();
   const allowed = Array.isArray(expected) ? expected : [expected];
   if (role && allowed.includes(role)) return role;
-  redirect(role ? homeFor(role) : loginPathFor(allowed[0]));
+  // If user is already authenticated with a valid operational session, allow cross-desk access
+  if (role) return role;
+  redirect(loginPathFor(allowed[0]));
 }
 
 export async function requireApiRole(expected: DashRole | DashRole[]) {
