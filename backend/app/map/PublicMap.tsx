@@ -27,7 +27,7 @@ import { EmergencySosModal } from "@/components/emergency-sos-modal";
 import { PublicShell } from "@/components/public-shell";
 import { Badge, BottomSheet, Button, Chip, StatusBadge } from "@/components/ui";
 import { categoryLabel, PIN_COLORS, PIN_LEGEND, pinMeaning, wardShort } from "@/lib/format";
-import { LanguageSwitcher } from "@/lib/i18n/language-context";
+import { LanguageSwitcher, useI18n } from "@/lib/i18n/language-context";
 import {
   attachShelterCoords,
   ARTERIAL_SAFE_CORRIDORS,
@@ -64,6 +64,8 @@ function HazardDetail({
   confirmBusy: boolean;
   onConfirm: (id: string) => void;
 }) {
+  const { lang, t } = useI18n();
+
   return (
     <div className="overflow-y-auto no-scrollbar px-6 pb-6">
       <div className="mb-4 flex items-start justify-between">
@@ -78,7 +80,7 @@ function HazardDetail({
             <p className="mt-1 text-[11px] font-semibold text-slate-500">{pinMeaning(selected.status)}</p>
           ) : null}
           <h2 className="text-xl font-extrabold tracking-tight text-slate-900">
-            {categoryLabel(selected.category)}
+            {categoryLabel(selected.category, lang)}
           </h2>
           <p className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-slate-500">
             <LocateFixed className="h-3 w-3" />
@@ -111,10 +113,18 @@ function HazardDetail({
               <Users className="h-4 w-4" />
             </div>
             <div className="flex-1">
-              <h3 className="text-sm font-extrabold text-slate-800">Needs Verification</h3>
+              <h3 className="text-sm font-extrabold text-slate-800">
+                {lang === "si" ? "තහවුරු කිරීම අවශ්‍යයි" : lang === "ta" ? "சரிபார்ப்பு தேவை" : "Needs Verification"}
+              </h3>
               <p className="mb-3 mt-1 text-[11px] font-medium leading-relaxed text-slate-500">
-                AI confidence is low. If you are near this location, confirm the hazard is still active.
-                {selected.confirmations_count ? ` ${selected.confirmations_count} confirmations so far.` : ""}
+                {lang === "si"
+                  ? "AI තහවුරු කිරීමේ මට්ටම අඩුය. ඔබ මෙම ස්ථානය අසල සිටී නම්, අනතුර සත්‍ය බව තහවුරු කරන්න."
+                  : lang === "ta"
+                  ? "AI துல்லியம் குறைவாக உள்ளது. நீங்கள் அருகில் இருந்தால், ஆபத்தை உறுதிப்படுத்தவும்."
+                  : "AI confidence is low. If you are near this location, confirm the hazard is still active."}
+                {selected.confirmations_count
+                  ? ` ${selected.confirmations_count} ${lang === "si" ? "දෙනෙකු තහවුරු කර ඇත." : lang === "ta" ? "பேர் உறுதிசெய்துள்ளனர்." : "confirmations so far."}`
+                  : ""}
               </p>
               <Button
                 type="button"
@@ -124,14 +134,30 @@ function HazardDetail({
                 onClick={() => onConfirm(selected.id)}
               >
                 <Check className="h-3.5 w-3.5" />
-                {confirmed ? "Verified (+1)" : confirmBusy ? "Sending…" : "Confirm Active"}
+                {confirmed
+                  ? lang === "si"
+                    ? "තහවුරු කරන ලදී (+1)"
+                    : lang === "ta"
+                    ? "உறுதிசெய்யப்பட்டது (+1)"
+                    : "Verified (+1)"
+                  : confirmBusy
+                  ? lang === "si"
+                    ? "යවමින්…"
+                    : lang === "ta"
+                    ? "அனுப்பப்படுகிறது…"
+                    : "Sending…"
+                  : lang === "si"
+                  ? "තහවුරු කරන්න"
+                  : lang === "ta"
+                  ? "உறுதிப்படுத்து"
+                  : "Confirm Active"}
               </Button>
             </div>
           </div>
         </div>
       ) : (
         <p className="text-xs font-medium text-slate-500">
-          {selected.description || "No extra notes from the reporter."}
+          {selected.description || (lang === "si" ? "අමතර සටහන් නොමැත." : lang === "ta" ? "கூடுதல் குறிப்புகள் இல்லை." : "No extra notes from the reporter.")}
         </p>
       )}
     </div>
@@ -212,11 +238,22 @@ export function PublicMap({
   initialWards: WardRow[];
   initialShelters?: ShelterRow[];
 }) {
+  const { lang, t } = useI18n();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["id"]>("ALL");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedShelterId, setSelectedShelterId] = useState<string | null>(null);
   const [sheltersListOpen, setSheltersListOpen] = useState(false);
   const [showEvacRoutes, setShowEvacRoutes] = useState(true);
+
+  const filterLabels: Record<"ALL" | HazardStatus, string> = {
+    ALL: lang === "si" ? "සියල්ල" : lang === "ta" ? "அனைத்தும்" : "All",
+    AREA_ALERT: t("status_area_alert"),
+    NEED_INFO: t("status_need_info"),
+    PUBLISHED: t("status_published"),
+    RESOLVED: t("status_resolved"),
+    PENDING: t("status_pending"),
+    COUNCIL_TICKET: t("status_council_ticket"),
+  };
   const [sosModalOpen, setSosModalOpen] = useState(false);
   const [alertDismissed, setAlertDismissed] = useState(false);
   const [confirmBusy, setConfirmBusy] = useState(false);
@@ -333,14 +370,14 @@ export function PublicMap({
         <div className="pointer-events-auto flex h-12 items-center rounded-2xl border border-white/50 bg-white/90 p-1 shadow-soft backdrop-blur-md">
           <div className="flex h-full items-center gap-1.5 rounded-xl bg-brand px-3 text-xs font-extrabold text-white shadow-sm">
             <MapIcon className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Live</span> Map
+            <span className="hidden sm:inline">{t("live_map")}</span>
           </div>
           <Link
             href="/report"
             className="flex h-full items-center gap-1.5 rounded-xl px-3 text-xs font-bold text-slate-600 transition-colors hover:text-brand"
           >
             <Plus className="h-3.5 w-3.5" />
-            Report
+            {t("report_hazard")}
           </Link>
         </div>
 
@@ -351,7 +388,9 @@ export function PublicMap({
             <span className="relative h-1.5 w-1.5 rounded-full bg-status-emerald" />
           </div>
           <p className="truncate text-xs font-extrabold text-slate-800">
-            {live ? "Colombo Live Telemetry" : "Connecting…"}
+            {live
+              ? (lang === "si" ? "කොළඹ සජීවී දත්ත" : lang === "ta" ? "கொழும்பு நேரலை நிலை" : "Colombo Live Telemetry")
+              : (lang === "si" ? "සම්බන්ධ වෙමින්…" : lang === "ta" ? "இணைக்கிறது…" : "Connecting…")}
           </p>
         </div>
 
@@ -388,7 +427,7 @@ export function PublicMap({
           className="inline-flex shrink-0 items-center gap-1.5 rounded-2xl border border-indigo-200 bg-white/90 px-3.5 py-2 text-xs font-extrabold text-indigo-700 shadow-soft backdrop-blur-md hover:bg-indigo-50 active:scale-95"
         >
           <Building2 className="h-3.5 w-3.5 text-indigo-600" />
-          <span>Shelters ({totalFreeBeds} beds free)</span>
+          <span>{t("shelters_btn")} ({totalFreeBeds} {t("free_beds")})</span>
         </button>
 
         {/* Enhanced Safe Corridors Button with Drawer Link */}
@@ -406,7 +445,7 @@ export function PublicMap({
             }`}
           >
             <Route className="h-3.5 w-3.5" />
-            <span>{showEvacRoutes ? "Safe Corridors" : "Corridors Off"}</span>
+            <span>{showEvacRoutes ? t("safe_corridors_btn") : (lang === "si" ? "මාර්ග ක්‍රියාවිරහිතයි" : lang === "ta" ? "பாதைகள் அணைக்கப்பட்டுள்ளது" : "Corridors Off")}</span>
           </button>
           {showEvacRoutes ? (
             <button
@@ -427,7 +466,7 @@ export function PublicMap({
             {item.id !== "ALL" ? (
               <span className="mr-1.5 inline-block h-2 w-2 rounded-full" style={{ background: PIN_COLORS[item.id] }} />
             ) : null}
-            {item.label}
+            {filterLabels[item.id] || item.label}
           </Chip>
         ))}
       </div>

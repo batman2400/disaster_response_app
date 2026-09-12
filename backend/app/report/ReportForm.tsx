@@ -39,8 +39,8 @@ import { PublicShell } from "@/components/public-shell";
 import { Button, Modal, PipelineStepper, SectionLabel, type PipelineStep } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { DEMO_GPS, nearestWard, readFileAsDataUrl } from "@/lib/geo";
-import { wardShort } from "@/lib/format";
-import { LanguageSwitcher } from "@/lib/i18n/language-context";
+import { categoryLabel, wardShort } from "@/lib/format";
+import { LanguageSwitcher, useI18n } from "@/lib/i18n/language-context";
 import type { HazardCategory, ReportResponse, WardId } from "@/lib/types";
 import { parseTrace } from "@/lib/trace";
 
@@ -148,6 +148,7 @@ function detailsFromVerdict(verdict: ReportResponse): string[] {
 export function ReportForm() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const { lang, t } = useI18n();
   const [photo, setPhoto] = useState("");
   const [category, setCategory] = useState<HazardCategory | null>(null);
   const [description, setDescription] = useState("");
@@ -168,7 +169,11 @@ export function ReportForm() {
   const [audioUrl, setAudioUrl] = useState<string>("");
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
-  const [selectedLanguage, setSelectedLanguage] = useState<"en" | "si" | "ta">("en");
+  const [selectedLanguage, setSelectedLanguage] = useState<"en" | "si" | "ta">(lang);
+
+  useEffect(() => {
+    setSelectedLanguage(lang);
+  }, [lang]);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -446,16 +451,42 @@ export function ReportForm() {
           onClick={() => void submit()}
         >
           <Cpu className="h-5 w-5" />
-          {busy ? "Executing AI Triage…" : "Run AI Triage"}
+          {busy
+            ? lang === "si"
+              ? "AI පරීක්ෂාව ක්‍රියාත්මක වේ…"
+              : lang === "ta"
+              ? "AI மதிப்பீடு செய்யப்படுகிறது…"
+              : "Executing AI Triage…"
+            : lang === "si"
+            ? "AI පරීක්ෂාව අරඹන්න"
+            : lang === "ta"
+            ? "AI மதிப்பீட்டை இயக்கவும்"
+            : "Run AI Triage"}
         </Button>
         {!canSubmit && (
           <p className="text-center text-xs font-semibold text-slate-400">
             {!photo
-              ? "• Upload or snap a photo of the hazard"
+              ? lang === "si"
+                ? "• ආපදා ස්ථානයේ ඡායාරූපයක් එක් කරන්න"
+                : lang === "ta"
+                ? "• ஆபத்து பகுதியை புகைப்படம் எடுக்கவும்"
+                : "• Upload or snap a photo of the hazard"
               : !category
-              ? "• Choose an incident classification above"
+              ? lang === "si"
+                ? "• ඉහතින් අනතුරු වර්ගය තෝරන්න"
+                : lang === "ta"
+                ? "• மேலே உள்ள ஆபத்து வகையை தேர்ந்தெடுக்கவும்"
+                : "• Choose an incident classification above"
               : isRescue && !rescuePhone.trim()
-              ? "• Add a contact phone number for rescue response"
+              ? lang === "si"
+                ? "• මුදවා ගැනීමේ කණ්ඩායම සඳහා දුරකථන අංකයක් ඇතුළත් කරන්න"
+                : lang === "ta"
+                ? "• தொடர்பு தொலைபேசி எண்ணைச் சேர்க்கவும்"
+                : "• Add a contact phone number for rescue response"
+              : lang === "si"
+              ? "AI පරීක්ෂාවට සූදානම්"
+              : lang === "ta"
+              ? "AI மதிப்பீட்டிற்கு தயார்"
               : "Ready to run AI triage"}
           </p>
         )}
@@ -482,11 +513,11 @@ export function ReportForm() {
             className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:text-brand"
           >
             <MapIcon className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Live</span> Map
+            <span className="hidden sm:inline">{t("live_map")}</span>
           </Link>
           <div className="flex items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 text-xs font-extrabold text-brand shadow-sm">
             <Cpu className="h-3.5 w-3.5" />
-            Report
+            {t("report_hazard")}
           </div>
         </div>
 
@@ -532,8 +563,8 @@ export function ReportForm() {
       <div className="flex-1 overflow-y-auto no-scrollbar px-6 pb-32 pt-6 lg:grid lg:grid-cols-2 lg:gap-10 lg:px-10 lg:pb-10">
         <div>
           {/* Section 1: Evidence */}
-          <SectionLabel hint={<span className="rounded-md bg-slate-200/50 px-2 py-1 text-[10px] font-bold text-slate-400">Required</span>}>
-            1. Evidence
+          <SectionLabel hint={<span className="rounded-md bg-slate-200/50 px-2 py-1 text-[10px] font-bold text-slate-400">{lang === "si" ? "අනිවාර්යයි" : lang === "ta" ? "கட்டாயம்" : "Required"}</span>}>
+            {lang === "si" ? "1. සාක්ෂි / ඡායාරූපය" : lang === "ta" ? "1. ஆதாரம் / புகைப்படம்" : "1. Evidence"}
           </SectionLabel>
           <button
             type="button"
@@ -547,7 +578,7 @@ export function ReportForm() {
               <>
                 <img src={photo} alt="Captured hazard" className="absolute inset-0 h-full w-full object-cover" />
                 <span className="absolute top-4 right-4 flex items-center gap-2 rounded-xl bg-slate-900/60 px-3 py-2 text-xs font-bold text-white backdrop-blur-md">
-                  <RotateCw className="h-3 w-3" /> Retake
+                  <RotateCw className="h-3 w-3" /> {lang === "si" ? "නැවත ගන්න" : lang === "ta" ? "மீண்டும் எடுக்க" : "Retake"}
                 </span>
               </>
             ) : (
@@ -555,8 +586,12 @@ export function ReportForm() {
                 <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-brand shadow-sm transition-all group-hover:scale-110 group-hover:bg-brand group-hover:text-white">
                   <Camera className="h-6 w-6" />
                 </div>
-                <p className="text-sm font-extrabold text-slate-700">Tap to scan or upload area</p>
-                <p className="mt-1 text-xs font-medium text-slate-400">Capture hazard for AI vision triage</p>
+                <p className="text-sm font-extrabold text-slate-700">
+                  {lang === "si" ? "ඡායාරූපයක් ගැනීමට හෝ තේරීමට ඔබන්න" : lang === "ta" ? "புகைப்படம் எடுக்க அல்லது பதிவேற்ற தட்டவும்" : "Tap to scan or upload area"}
+                </p>
+                <p className="mt-1 text-xs font-medium text-slate-400">
+                  {lang === "si" ? "AI පරීක්ෂාව සඳහා ඡායාරූපය ලබාගන්න" : lang === "ta" ? "AI பகுப்பாய்விற்கு புகைப்படம் எடுக்கவும்" : "Capture hazard for AI vision triage"}
+                </p>
               </div>
             )}
           </button>
@@ -574,11 +609,11 @@ export function ReportForm() {
             hint={
               <div className="flex items-center gap-1.5 rounded-md border border-brand-light bg-brand-light/50 px-2 py-1">
                 <span className={cn("h-1.5 w-1.5 rounded-full", gpsLive ? "animate-pulse bg-brand" : "bg-slate-400")} />
-                <span className="text-[10px] font-bold text-brand">{gpsLive ? "GPS Locked" : "Ward Preset"}</span>
+                <span className="text-[10px] font-bold text-brand">{gpsLive ? (lang === "si" ? "GPS තහවුරුයි" : lang === "ta" ? "GPS இணைக்கப்பட்டது" : "GPS Locked") : (lang === "si" ? "කොට්ඨාශය" : lang === "ta" ? "பிரிவு" : "Ward Preset")}</span>
               </div>
             }
           >
-            2. GPS Telemetry
+            {lang === "si" ? "2. ජී.පී.එස්. පිහිටීම" : lang === "ta" ? "2. GPS இருப்பிடம்" : "2. GPS Telemetry"}
           </SectionLabel>
           <div className="relative mb-6 overflow-hidden rounded-3xl border border-slate-100 bg-white p-5 shadow-soft">
             <div className="pointer-events-none absolute inset-0 z-0 bg-grid-pattern opacity-40" />
@@ -604,7 +639,7 @@ export function ReportForm() {
             {/* Manual Ward Switcher */}
             <div className="relative z-10 mt-4 border-t border-slate-100 pt-3">
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                Reporting Ward (Change if remote)
+                {lang === "si" ? "වාර්තා කරන කොට්ඨාශය (වෙනස් කළ හැක)" : lang === "ta" ? "அறிக்கையிடும் பிரிவு (தேவைப்பட்டால் மாற்றலாம்)" : "Reporting Ward (Change if remote)"}
               </label>
               <select
                 value={wardId}
@@ -623,11 +658,14 @@ export function ReportForm() {
 
         <div className="flex flex-col">
           {/* Section 3: Incident Classification */}
-          <SectionLabel>3. Incident Classification</SectionLabel>
+          <SectionLabel>
+            {lang === "si" ? "3. අනතුරු වර්ගීකරණය" : lang === "ta" ? "3. விபத்து வகைப்பாடு" : "3. Incident Classification"}
+          </SectionLabel>
           <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-2">
             {CATEGORY_CARDS.map((item) => {
               const Icon = item.icon;
               const selected = category === item.id;
+              const title = categoryLabel(item.id, lang);
               return (
                 <button
                   key={item.id}
@@ -642,7 +680,7 @@ export function ReportForm() {
                     <Icon className="h-4 w-4" />
                   </div>
                   <div>
-                    <span className="block text-xs font-extrabold text-slate-800 leading-snug">{item.title}</span>
+                    <span className="block text-xs font-extrabold text-slate-800 leading-snug">{title}</span>
                     <span className="mt-0.5 block text-[10px] font-medium text-slate-400 leading-tight">{item.hint}</span>
                   </div>
                 </button>
@@ -709,29 +747,29 @@ export function ReportForm() {
               </div>
             }
           >
-            4. Voice Memo & Context (AI Multimodal)
+            {lang === "si" ? "4. අමතර විස්තර සහ හඬ පටය" : lang === "ta" ? "4. கூடுதல் விவரங்கள் & குரல் பதிவு" : "4. Voice Memo & Context (AI Multimodal)"}
           </SectionLabel>
 
           <div className="mb-6 rounded-3xl border border-slate-100 bg-white p-5 shadow-soft">
             {/* Language Quick Selector */}
             <div className="mb-3 flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                Input Language
+                {lang === "si" ? "භාෂාව" : lang === "ta" ? "உள்ளீட்டு மொழி" : "Input Language"}
               </span>
               <div className="flex items-center gap-1.5">
-                {(["en", "si", "ta"] as const).map((lang) => (
+                {(["en", "si", "ta"] as const).map((l) => (
                   <button
-                    key={lang}
+                    key={l}
                     type="button"
-                    onClick={() => setSelectedLanguage(lang)}
+                    onClick={() => setSelectedLanguage(l)}
                     className={cn(
                       "rounded-xl px-2.5 py-1 text-xs font-bold transition-all",
-                      selectedLanguage === lang
+                      selectedLanguage === l
                         ? "bg-brand text-white shadow-sm"
                         : "bg-slate-100 text-slate-600 hover:bg-slate-200",
                     )}
                   >
-                    {LANGUAGE_CONFIG[lang].label}
+                    {LANGUAGE_CONFIG[l].label}
                   </button>
                 ))}
               </div>

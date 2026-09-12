@@ -25,8 +25,41 @@ export function wardShort(id: WardId) {
   return wardName(id).split(" / ")[0]?.split(" (")[0] ?? id;
 }
 
-export function categoryLabel(id: HazardCategory) {
-  return CATEGORIES.find((item) => item.id === id)?.label ?? id;
+const CATEGORY_TRANSLATIONS: Record<string, Record<HazardCategory, string>> = {
+  en: {
+    FLOOD: "Flood / High Water",
+    ELECTRICAL_HAZARD: "Live Wire / Electrical",
+    FALLEN_TREE: "Fallen Tree",
+    BLOCKED_ROAD: "Road / Bridge Damage",
+    LANDSLIDE: "Landslide / Mudflow",
+    DRAINAGE_OVERFLOW: "Drainage / Canal Block",
+    STRUCTURAL_DAMAGE: "Building / Wall Collapse",
+    HELP_REQUEST: "Rescue / Need Help",
+  },
+  si: {
+    FLOOD: "ගංවතුර සහ ජල ගැලීම්",
+    ELECTRICAL_HAZARD: "විදුලි රැහැන් අනතුරු",
+    FALLEN_TREE: "කඩා වැටුණු ගස්",
+    BLOCKED_ROAD: "අවහිර වූ මාර්ග",
+    LANDSLIDE: "නායයෑම් අවදානම",
+    DRAINAGE_OVERFLOW: "කානු උතුරා යාම",
+    STRUCTURAL_DAMAGE: "ගොඩනැගිලි හානි",
+    HELP_REQUEST: "හදිසි ආධාර / මුදවා ගැනීම්",
+  },
+  ta: {
+    FLOOD: "வெள்ளம் மற்றும் நீர் தேக்கம்",
+    ELECTRICAL_HAZARD: "மின்சார கம்பி ஆபத்து",
+    FALLEN_TREE: "விழுந்த மரம்",
+    BLOCKED_ROAD: "அடைக்கப்பட்ட சாலை",
+    LANDSLIDE: "நிலச்சரிவு",
+    DRAINAGE_OVERFLOW: "வடிகால் நிரம்பி வழிதல்",
+    STRUCTURAL_DAMAGE: "கட்டிட சேதம்",
+    HELP_REQUEST: "உதவி / மீட்பு கோரிக்கை",
+  },
+};
+
+export function categoryLabel(id: HazardCategory, lang = "en") {
+  return CATEGORY_TRANSLATIONS[lang]?.[id] ?? CATEGORIES.find((item) => item.id === id)?.label ?? id;
 }
 
 export function scorePct(score: number) {
