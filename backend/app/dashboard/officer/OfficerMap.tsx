@@ -37,14 +37,14 @@ type LeafletNS = {
   polyline: (latLngs: [number, number][], opts?: Record<string, unknown>) => LeafletPolyline;
 };
 
-declare global {
-  interface Window {
-    L?: LeafletNS;
-  }
+function getWindowL(): LeafletNS | undefined {
+  if (typeof window === "undefined") return undefined;
+  return (window as unknown as { L?: LeafletNS }).L;
 }
 
 function loadLeaflet(): Promise<LeafletNS> {
-  if (window.L) return Promise.resolve(window.L);
+  const currentL = getWindowL();
+  if (currentL) return Promise.resolve(currentL);
   return new Promise((resolve, reject) => {
     if (!document.getElementById("leaflet-css")) {
       const link = document.createElement("link");
@@ -55,7 +55,11 @@ function loadLeaflet(): Promise<LeafletNS> {
     }
     const existing = document.getElementById("leaflet-js") as HTMLScriptElement | null;
     if (existing) {
-      existing.addEventListener("load", () => (window.L ? resolve(window.L) : reject(new Error("Leaflet missing"))));
+      existing.addEventListener("load", () => {
+        const l = getWindowL();
+        if (l) resolve(l);
+        else reject(new Error("Leaflet missing"));
+      });
       existing.addEventListener("error", () => reject(new Error("Leaflet failed")));
       return;
     }
@@ -63,7 +67,11 @@ function loadLeaflet(): Promise<LeafletNS> {
     script.id = "leaflet-js";
     script.src = LEAFLET_JS;
     script.async = true;
-    script.onload = () => (window.L ? resolve(window.L) : reject(new Error("Leaflet missing")));
+    script.onload = () => {
+      const l = getWindowL();
+      if (l) resolve(l);
+      else reject(new Error("Leaflet missing"));
+    };
     script.onerror = () => reject(new Error("Leaflet failed"));
     document.body.appendChild(script);
   });
@@ -232,7 +240,7 @@ export function OfficerMap({
   }, []);
 
   useEffect(() => {
-    const L = window.L;
+    const L = getWindowL();
     const map = mapRef.current;
     if (!L || !map) return;
     syncMarkers(L, map);

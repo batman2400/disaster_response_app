@@ -10,7 +10,7 @@ export const WARD_CENTERS: Record<WardId, [number, number]> = {
 
 export const DEMO_GPS = { lat: 6.9535, lng: 79.8732 };
 
-function haversineKm(a: [number, number], b: [number, number]) {
+export function haversineKm(a: [number, number], b: [number, number]) {
   const toRad = (deg: number) => (deg * Math.PI) / 180;
   const dLat = toRad(b[0] - a[0]);
   const dLng = toRad(b[1] - a[1]);
