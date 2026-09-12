@@ -59,12 +59,7 @@
           "cameraPermission": "Used to photograph the hazard or the completed repair."
         }
       ],
-      [
-        "react-native-maps",
-        {
-          "androidGoogleMapsApiKey": "AIzaSyCh6DUA9LMp1Vf8Zs4XVr19njlRpRS9vpM"
-        }
-      ]
+      "react-native-maps"
     ],
     "experiments": {
       "typedRoutes": true
