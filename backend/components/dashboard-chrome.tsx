@@ -213,7 +213,7 @@ export function DashboardChrome({ role }: { role: DashRole }) {
       </div>
 
       <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-        <LanguageSwitcher className="hidden sm:inline-flex" />
+        <LanguageSwitcher className="inline-flex scale-90 sm:scale-100" />
 
         <Link
           href="/map"

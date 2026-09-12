@@ -29,6 +29,7 @@ import Link from "next/link";
 
 import { PublicShell } from "@/components/public-shell";
 import { Badge, StatusBadge, UrgencyBadge } from "@/components/ui";
+import { LanguageSwitcher } from "@/lib/i18n/language-context";
 import { cn } from "@/lib/cn";
 import { categoryLabel, timeAgo, wardShort } from "@/lib/format";
 import { haversineKm } from "@/lib/geo";
@@ -273,6 +274,7 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
           </div>
 
           <div className="flex items-center gap-2">
+            <LanguageSwitcher className="hidden sm:inline-flex" />
             {/* View Mode Toggle: List vs Tactical Map */}
             <div className="flex items-center rounded-2xl border border-slate-200 bg-slate-100 p-1 shadow-inner">
               <button

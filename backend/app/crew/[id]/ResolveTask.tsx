@@ -23,6 +23,7 @@ import { useRouter } from "next/navigation";
 
 import { PublicShell } from "@/components/public-shell";
 import { Badge, Button, SectionLabel, StatusBadge, UrgencyBadge } from "@/components/ui";
+import { LanguageSwitcher } from "@/lib/i18n/language-context";
 import { cn } from "@/lib/cn";
 import { categoryLabel, timeAgo, wardShort } from "@/lib/format";
 import { readFileAsDataUrl } from "@/lib/geo";
@@ -128,16 +129,19 @@ export function ResolveTask({ hazard }: { hazard: HazardRow }) {
           </p>
         </div>
 
-        <a
-          href={navUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          title="Open Turn-by-Turn in Google Maps"
-          className="flex h-10 items-center gap-1.5 rounded-2xl border border-blue-200 bg-blue-50 px-3 text-xs font-bold text-blue-700 shadow-sm hover:bg-blue-100 active:scale-95"
-        >
-          <Navigation className="h-4 w-4 text-blue-600" />
-          <span className="hidden sm:inline">Navigate</span>
-        </a>
+        <div className="flex items-center gap-2">
+          <LanguageSwitcher className="hidden sm:inline-flex" />
+          <a
+            href={navUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Open Turn-by-Turn in Google Maps"
+            className="flex h-10 items-center gap-1.5 rounded-2xl border border-blue-200 bg-blue-50 px-3 text-xs font-bold text-blue-700 shadow-sm hover:bg-blue-100 active:scale-95"
+          >
+            <Navigation className="h-4 w-4 text-blue-600" />
+            <span className="hidden sm:inline">Navigate</span>
+          </a>
+        </div>
       </div>
 
       {/* Main Resolution Workspace */}

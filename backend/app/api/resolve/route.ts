@@ -24,10 +24,29 @@ export async function POST(request: Request) {
     return json({ error: "Incident not found" }, 404);
   }
 
+  let originalPhotoBase64: string | undefined = undefined;
+  if (existing.photo_url) {
+    if (existing.photo_url.startsWith("data:")) {
+      originalPhotoBase64 = existing.photo_url;
+    } else if (existing.photo_url.startsWith("http")) {
+      try {
+        const resp = await fetch(existing.photo_url);
+        if (resp.ok) {
+          const buf = await resp.arrayBuffer();
+          const mime = resp.headers.get("content-type") || "image/jpeg";
+          originalPhotoBase64 = `data:${mime};base64,${Buffer.from(buf).toString("base64")}`;
+        }
+      } catch (err) {
+        console.warn("Could not fetch original incident photo for comparison:", err);
+      }
+    }
+  }
+
   const resolutionCheck = await checkResolution({
     category: existing.category,
     description: existing.description || "",
     closurePhotoBase64: body.closure_photo_base64,
+    originalPhotoBase64,
   });
 
   const resolved_at = new Date().toISOString();
