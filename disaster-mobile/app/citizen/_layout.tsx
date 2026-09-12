@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import { View } from "react-native";
 
@@ -16,15 +17,38 @@ export default function CitizenLayout() {
       screenOptions={{
         headerStyle: { backgroundColor: colors.bg },
         headerTintColor: colors.text,
+        headerTitleStyle: { fontWeight: "700" },
         headerShadowVisible: false,
-        headerLeft: () => <SignOutLink />,
-        tabBarStyle: { backgroundColor: colors.bg, borderTopColor: colors.line },
-        tabBarActiveTintColor: colors.amber,
+        headerRight: () => <SignOutLink />,
+        tabBarStyle: {
+          backgroundColor: colors.card,
+          borderTopColor: colors.line,
+          borderTopWidth: 1,
+          elevation: 0,
+        },
+        tabBarActiveTintColor: colors.blue,
         tabBarInactiveTintColor: colors.muted,
+        tabBarLabelStyle: { fontWeight: "600", fontSize: 12 },
       }}
     >
-      <Tabs.Screen name="report" options={{ title: "Report hazard" }} />
-      <Tabs.Screen name="map" options={{ title: "Public map" }} />
+      <Tabs.Screen
+        name="report"
+        options={{
+          title: "Report hazard",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="document-text-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="map"
+        options={{
+          title: "Public map",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="map-outline" size={size} color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

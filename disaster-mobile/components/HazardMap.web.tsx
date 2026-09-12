@@ -9,7 +9,7 @@ import type { HazardMapProps } from "./hazard-map-types";
 const COLOMBO: [number, number] = [COLOMBO_CENTER.latitude, COLOMBO_CENTER.longitude];
 const LEAFLET_CSS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
 const LEAFLET_JS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-const TILES = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+const TILES = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
 
 type LeafletMap = {
   setView: (latLng: [number, number], zoom?: number) => void;
@@ -90,8 +90,8 @@ export function HazardMap({ hazards, routeWards }: HazardMapProps) {
       if (!marker) {
         marker = L.circleMarker([hazard.lat, hazard.lng], {
           radius: 8,
-          color: "#07111C",
-          weight: 1,
+          color: "#FFFFFF",
+          weight: 2,
           fillColor: color,
           fillOpacity: 1,
         }).addTo(map);

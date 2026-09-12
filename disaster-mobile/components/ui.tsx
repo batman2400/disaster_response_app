@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import type { ReactNode } from "react";
 import {
   ActivityIndicator,
@@ -9,6 +10,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { colors, urgencyColor, wardStatusColor } from "@/lib/theme";
 import { PIN_COLORS, type HazardStatus, type Urgency, type WardStatus } from "@/lib/types";
@@ -21,16 +23,18 @@ export function Screen({
   style?: StyleProp<ViewStyle>;
 }) {
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={[styles.content, style]}
-    >
-      {children}
-    </ScrollView>
+    <SafeAreaView style={styles.safeArea} edges={["bottom"]}>
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={[styles.content, style]}
+      >
+        {children}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
-export function Kicker({ children, color = colors.amber }: { children: ReactNode; color?: string }) {
+export function Kicker({ children, color = colors.blue }: { children: ReactNode; color?: string }) {
   return <Text style={[styles.kicker, { color }]}>{children}</Text>;
 }
 
@@ -60,7 +64,7 @@ export function Card({
 
 export function Badge({ label, color }: { label: string; color: string }) {
   return (
-    <View style={[styles.badge, { backgroundColor: `${color}22`, borderColor: color }]}>
+    <View style={[styles.badge, { backgroundColor: `${color}12`, borderColor: `${color}40` }]}>
       <Text style={[styles.badgeText, { color }]}>{label}</Text>
     </View>
   );
@@ -83,7 +87,7 @@ export function PrimaryButton({
   onPress,
   disabled,
   loading,
-  color = colors.amber,
+  color = colors.blue,
   textColor = colors.ink,
 }: {
   label: string;
@@ -183,7 +187,12 @@ export function CheckRow({
 }) {
   return (
     <View style={styles.checkRow}>
-      <View style={[styles.checkDot, { backgroundColor: ok ? colors.green : colors.red }]} />
+      <Ionicons
+        name={ok ? "checkmark-circle" : "close-circle"}
+        size={18}
+        color={ok ? colors.green : colors.red}
+        style={{ marginTop: 1 }}
+      />
       <View style={{ flex: 1 }}>
         <Text style={styles.checkLabel}>{label}</Text>
         <Text style={styles.sub}>{detail}</Text>
@@ -195,12 +204,19 @@ export function CheckRow({
   );
 }
 
+export function SectionHeader({ children }: { children: ReactNode }) {
+  return <Text style={styles.sectionHeader}>{children}</Text>;
+}
+
 const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: colors.bg },
   screen: { flex: 1, backgroundColor: colors.bg },
   content: { padding: 16, paddingBottom: 48 },
   kicker: {
     fontSize: 11,
     fontWeight: "700",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
     marginBottom: 8,
   },
   title: {
@@ -221,6 +237,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
   badge: {
     borderWidth: 1,
@@ -245,17 +266,23 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     borderColor: colors.line,
-    backgroundColor: colors.bg2,
+    backgroundColor: colors.card,
   },
   ghostText: { color: colors.text, fontWeight: "700" },
   emptyTitle: { color: colors.text, fontWeight: "700", fontSize: 16 },
   stat: {
     flex: 1,
-    backgroundColor: colors.bg2,
+    minWidth: 100,
+    backgroundColor: colors.card,
     borderColor: colors.line,
     borderWidth: 1,
     borderRadius: 12,
     padding: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
   statValue: { fontSize: 22, fontWeight: "700" },
   statLabel: { color: colors.muted, marginTop: 4, fontSize: 12, fontWeight: "600" },
@@ -275,7 +302,15 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.line,
   },
-  checkDot: { width: 10, height: 10, borderRadius: 5, marginTop: 5 },
   checkLabel: { color: colors.text, fontWeight: "700" },
   checkState: { fontWeight: "700", fontSize: 12, marginTop: 4 },
+  sectionHeader: {
+    color: colors.blue,
+    fontWeight: "700",
+    fontSize: 12,
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    marginTop: 24,
+    marginBottom: 10,
+  },
 });

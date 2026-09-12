@@ -11,6 +11,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { PrimaryButton } from "@/components/ui";
 import { useAuth } from "@/lib/auth-context";
@@ -36,7 +37,7 @@ function BrandMark() {
     return createElement("img", {
       src: logoUri(),
       alt: "Fender",
-      style: { width: 92, height: 92, objectFit: "contain", display: "block" },
+      style: { width: 72, height: 72, objectFit: "contain", display: "block" },
     });
   }
   return (
@@ -55,6 +56,7 @@ function homeFor(role: Role) {
 
 export default function LoginScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { session, ready, signIn } = useAuth();
   const [role, setRole] = useState<Role>("CITIZEN");
   const [name, setName] = useState("");
@@ -95,7 +97,10 @@ export default function LoginScreen() {
       style={styles.screen}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 48 }]}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.logoWrap}>
           <BrandMark />
         </View>
@@ -180,20 +185,27 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  content: { paddingHorizontal: 22, paddingTop: 72, paddingBottom: 48 },
+  content: { paddingHorizontal: 22, paddingBottom: 48 },
   logoWrap: {
-    width: 104,
-    height: 104,
-    borderRadius: 24,
-    backgroundColor: "#FFFFFF",
+    width: 88,
+    height: 88,
+    borderRadius: 20,
+    backgroundColor: colors.card,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 18,
     overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: colors.line,
   },
-  logo: { width: 92, height: 92 },
+  logo: { width: 72, height: 72 },
   kicker: {
-    color: colors.amber,
+    color: colors.blue,
     fontSize: 12,
     fontWeight: "700",
     letterSpacing: 0.8,
@@ -217,6 +229,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 20,
     padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
   },
   label: {
     color: colors.muted,
@@ -224,6 +241,8 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginBottom: 8,
     marginTop: 12,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
   },
   roleRow: { gap: 10 },
   roleChip: {

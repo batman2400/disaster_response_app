@@ -1,17 +1,17 @@
 export const colors = {
-  bg: "#07111C",
-  bg2: "#0B1624",
-  card: "#122033",
-  cardSoft: "#173049",
-  line: "#24344A",
-  text: "#F4F7FB",
-  muted: "#9AA8B8",
-  amber: "#F5A524",
-  red: "#E23B3B",
-  green: "#2F9E6A",
-  blue: "#3B82F6",
+  bg: "#F8F9FB",
+  bg2: "#F1F3F6",
+  card: "#FFFFFF",
+  cardSoft: "#EEF2F7",
+  line: "#E2E6EC",
+  text: "#1A2332",
+  muted: "#6B7A8D",
+  amber: "#D97706",
+  red: "#DC2626",
+  green: "#16A34A",
+  blue: "#2563EB",
   purple: "#7C3AED",
-  ink: "#07111C",
+  ink: "#FFFFFF",
 };
 
 export const urgencyColor = {
@@ -25,4 +25,3 @@ export const wardStatusColor = {
   WATCH: colors.amber,
   CRITICAL: colors.red,
 } as const;
-

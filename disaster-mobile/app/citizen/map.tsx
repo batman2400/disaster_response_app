@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HazardMap } from "@/components/HazardMap";
 import {
@@ -18,6 +19,7 @@ import { colors } from "@/lib/theme";
 import { PIN_COLORS, type HazardRow, type WardId, type WardRow } from "@/lib/types";
 
 export default function PublicMapScreen() {
+  const insets = useSafeAreaInsets();
   const { rows: hazards } = useLiveRows<HazardRow>({
     table: "hazards",
     mapRow: mapHazardRow,
@@ -72,11 +74,11 @@ export default function PublicMapScreen() {
         <HazardMap hazards={hazards} routeWards={activeSafeRouteWards} />
       </View>
 
-      <View style={styles.overlayContainer} pointerEvents="box-none">
+      <View style={[styles.overlayContainer, { paddingTop: insets.top > 0 ? insets.top : 8 }]} pointerEvents="box-none">
         {criticalWard || alertHazard ? (
           <View style={styles.alert}>
             <Text style={styles.alertTitle}>
-              AREA ALERT · {criticalWard?.name ?? categoryLabel(alertHazard!.category)}
+              ⚠ AREA ALERT · {criticalWard?.name ?? categoryLabel(alertHazard!.category)}
             </Text>
             <Text style={styles.alertBody}>
               {criticalWard
@@ -136,7 +138,9 @@ export default function PublicMapScreen() {
         {confirmError ? <Text style={styles.confirmError}>{confirmError}</Text> : null}
       </View>
 
-      <View style={styles.bottomSheet}>
+      <View style={[styles.bottomSheet, { paddingBottom: insets.bottom + 60 }]}>
+        <View style={styles.handle} />
+
         {activeSafeRouteWards.length > 0 ? (
           <Text style={styles.routeLegend}>
             ┅ Dashed line marks a static safe route toward the nearest shelter — not computed.
@@ -180,11 +184,18 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 10,
   },
-  alert: { backgroundColor: colors.red, paddingHorizontal: 16, paddingVertical: 12 },
-  alertTitle: { color: colors.text, fontWeight: "700" },
-  alertBody: { color: colors.text, marginTop: 4 },
+  alert: {
+    backgroundColor: colors.red,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginHorizontal: 12,
+    marginBottom: 8,
+    borderRadius: 12,
+  },
+  alertTitle: { color: "#FFFFFF", fontWeight: "700", fontSize: 14 },
+  alertBody: { color: "#FFFFFF", marginTop: 4, fontSize: 13, opacity: 0.9 },
   wardScroll: { flexGrow: 0, maxHeight: 102 },
-  wardRow: { paddingHorizontal: 12, paddingVertical: 10, gap: 8, alignItems: "flex-start" },
+  wardRow: { paddingHorizontal: 12, paddingVertical: 8, gap: 8, alignItems: "flex-start" },
   wardChip: {
     backgroundColor: colors.card,
     borderColor: colors.line,
@@ -192,18 +203,28 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 10,
     width: 168,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  wardName: { color: colors.text, fontWeight: "700", marginTop: 8 },
+  wardName: { color: colors.text, fontWeight: "700", marginTop: 8, fontSize: 14 },
   wardMeta: { color: colors.muted, marginTop: 2, fontSize: 12 },
   confirmScroll: { flexGrow: 0, maxHeight: 148 },
-  confirmRow: { paddingHorizontal: 12, paddingVertical: 10, gap: 8, alignItems: "flex-start" },
+  confirmRow: { paddingHorizontal: 12, paddingVertical: 8, gap: 8, alignItems: "flex-start" },
   confirmCard: {
     backgroundColor: colors.card,
     borderColor: colors.amber,
     borderWidth: 1,
     borderRadius: 14,
-    padding: 10,
+    padding: 12,
     width: 200,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
   confirmTitle: { color: colors.text, fontWeight: "700", marginTop: 8 },
   confirmMeta: { color: colors.muted, marginTop: 2, marginBottom: 8, fontSize: 12 },
@@ -213,31 +234,49 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    maxHeight: "38%",
+    maxHeight: "45%",
     zIndex: 10,
-    backgroundColor: colors.bg,
+    backgroundColor: colors.card,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     borderTopColor: colors.line,
     borderTopWidth: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.line,
+    alignSelf: "center",
+    marginTop: 10,
+    marginBottom: 4,
   },
   routeLegend: {
     color: colors.green,
     fontSize: 12,
     fontWeight: "600",
     marginHorizontal: 16,
-    marginTop: 10,
+    marginTop: 6,
     marginBottom: 4,
   },
   list: { flex: 1 },
-  listContent: { padding: 16, paddingBottom: 32 },
+  listContent: { padding: 16, paddingBottom: 16 },
   listTitle: {
     color: colors.muted,
     fontWeight: "700",
     marginBottom: 10,
     fontSize: 12,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
   },
   item: { marginBottom: 10 },
-  badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 8 },
+  badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, rowGap: 6, marginBottom: 8 },
   itemTitle: { color: colors.text, fontWeight: "700", fontSize: 16 },
-  itemBody: { color: colors.text, marginTop: 4 },
+  itemBody: { color: colors.text, marginTop: 4, fontSize: 14 },
   itemMeta: { color: colors.muted, marginTop: 6, fontSize: 12 },
 });

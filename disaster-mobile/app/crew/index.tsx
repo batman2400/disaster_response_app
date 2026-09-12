@@ -82,7 +82,7 @@ export default function CrewScreen() {
       </Sub>
 
       <View style={styles.stats}>
-        <Stat label="Open jobs" value={tickets.length} color={colors.amber} />
+        <Stat label="Open jobs" value={tickets.length} color={colors.blue} />
         <Stat label="Roads blocked" value={blocked} color={colors.red} />
         <Stat label="Critical" value={critical} color={urgencyColor.CRITICAL} />
       </View>
@@ -102,14 +102,13 @@ export default function CrewScreen() {
             <Text style={styles.cardTitle}>{categoryLabel(ticket.category)}</Text>
             <Text style={styles.body}>{ticket.description}</Text>
             <Text style={styles.meta}>
-              {wardName(ticket.ward_id)} · {ticket.lat.toFixed(4)}, {ticket.lng.toFixed(4)}
+              {wardName(ticket.ward_id)} · {ticket.lat.toFixed(4)}, {ticket.lng.toFixed(4)} · {timeAgo(ticket.created_at)}
             </Text>
-            <Text style={styles.meta}>{timeAgo(ticket.created_at)}</Text>
             <View style={{ marginTop: 14 }}>
               <PrimaryButton
                 label="Close with after-fix photo"
                 color={colors.green}
-                textColor={colors.text}
+                textColor={colors.ink}
                 loading={busyId === ticket.id}
                 onPress={() => void closeTicket(ticket.id)}
               />
@@ -122,9 +121,9 @@ export default function CrewScreen() {
 }
 
 const styles = StyleSheet.create({
-  stats: { flexDirection: "row", gap: 8, marginTop: 16, marginBottom: 14 },
+  stats: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 16, marginBottom: 14 },
   error: { color: colors.red, marginBottom: 12, fontWeight: "600" },
-  badges: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 8 },
+  badges: { flexDirection: "row", flexWrap: "wrap", gap: 6, rowGap: 6, marginBottom: 8 },
   cardTitle: { color: colors.text, fontWeight: "700", fontSize: 18 },
   body: { color: colors.text, marginTop: 6, lineHeight: 20 },
   meta: { color: colors.muted, marginTop: 6, fontSize: 12 },

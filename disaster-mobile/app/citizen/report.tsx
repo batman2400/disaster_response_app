@@ -11,6 +11,7 @@ import {
   Kicker,
   PrimaryButton,
   Screen,
+  SectionHeader,
   StatusBadge,
   Sub,
   Title,
@@ -97,6 +98,9 @@ export default function ReportScreen() {
       <Title>Tag a hazard</Title>
       <Sub>Take a photo, pin your location, and send the report. You get a status and reason back.</Sub>
 
+      {/* ── Section: What & Where ── */}
+      <SectionHeader>What & where</SectionHeader>
+
       <Text style={styles.label}>Category</Text>
       <View style={styles.row}>
         {CATEGORIES.map((item) => (
@@ -119,12 +123,14 @@ export default function ReportScreen() {
           onPress={() => setWardId(item.id)}
           style={[styles.option, wardId === item.id && styles.optionOn]}
         >
-          <Text style={styles.optionId}>{item.id}</Text>
           <Text style={styles.optionText}>{item.name}</Text>
+          <Text style={styles.optionId}>{item.id.replace("_", " ")}</Text>
         </Pressable>
       ))}
 
-      <Text style={styles.label}>What is happening?</Text>
+      {/* ── Section: Details ── */}
+      <SectionHeader>Details</SectionHeader>
+
       <TextInput
         value={description}
         onChangeText={setDescription}
@@ -133,6 +139,9 @@ export default function ReportScreen() {
         style={styles.input}
         multiline
       />
+
+      {/* ── Section: Evidence ── */}
+      <SectionHeader>Evidence</SectionHeader>
 
       <Card style={styles.tight}>
         <Text style={styles.cardTitle}>GPS lock</Text>
@@ -162,16 +171,21 @@ export default function ReportScreen() {
         </View>
       </Card>
 
-      <PrimaryButton
-        label="Submit report"
-        onPress={() => void submit()}
-        disabled={!canSubmit}
-        loading={busy}
-      />
+      {/* ── Submit ── */}
+      <View style={{ marginTop: 8 }}>
+        <PrimaryButton
+          label="Submit report"
+          onPress={() => void submit()}
+          disabled={!canSubmit}
+          loading={busy}
+        />
+      </View>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       {verdict ? <VerdictCard verdict={verdict} category={category} /> : null}
+
+      <View style={{ height: 24 }} />
     </Screen>
   );
 }
@@ -230,11 +244,13 @@ function VerdictCard({
 
 const styles = StyleSheet.create({
   label: {
-    color: colors.amber,
+    color: colors.muted,
     fontWeight: "700",
     marginBottom: 8,
-    marginTop: 16,
+    marginTop: 12,
     fontSize: 12,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
   },
   row: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
@@ -242,10 +258,10 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     borderWidth: 1,
     borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
   },
-  chipOn: { borderColor: colors.amber, backgroundColor: colors.cardSoft },
+  chipOn: { borderColor: colors.blue, backgroundColor: colors.cardSoft },
   chipText: { color: colors.muted, fontWeight: "700" },
   chipTextOn: { color: colors.text },
   option: {
@@ -255,10 +271,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 12,
     marginBottom: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  optionOn: { borderColor: colors.amber },
-  optionId: { color: colors.amber, fontWeight: "700", fontSize: 12 },
-  optionText: { color: colors.text, marginTop: 2 },
+  optionOn: { borderColor: colors.blue, backgroundColor: colors.cardSoft },
+  optionText: { color: colors.text, fontWeight: "600", fontSize: 15 },
+  optionId: { color: colors.muted, fontSize: 11, marginTop: 2, textTransform: "uppercase" },
   input: {
     minHeight: 88,
     borderColor: colors.line,
@@ -267,12 +288,13 @@ const styles = StyleSheet.create({
     color: colors.text,
     padding: 12,
     textAlignVertical: "top",
-    backgroundColor: colors.card,
+    backgroundColor: colors.bg2,
+    fontSize: 15,
   },
   tight: { marginTop: 12, marginBottom: 0 },
   cardTitle: { color: colors.text, fontWeight: "700", fontSize: 16 },
   coords: { color: colors.text, fontSize: 20, fontWeight: "700", marginTop: 6 },
-  meta: { color: colors.muted, marginTop: 6 },
+  meta: { color: colors.muted, marginTop: 6, fontSize: 13 },
   actions: { marginTop: 12 },
   preview: { height: 160, borderRadius: 12, marginTop: 10 },
   photoSlot: {
@@ -287,7 +309,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg2,
   },
   error: { color: colors.red, marginTop: 12, fontWeight: "600" },
-  badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 10 },
+  badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, rowGap: 8, marginBottom: 10 },
   verdictTitle: { color: colors.text, fontSize: 20, fontWeight: "700" },
   reason: { color: colors.text, marginTop: 10, lineHeight: 21 },
 });

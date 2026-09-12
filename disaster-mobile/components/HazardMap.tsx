@@ -7,7 +7,7 @@ import { COLOMBO_CENTER, PIN_COLORS } from "@/lib/types";
 
 import type { HazardMapProps } from "./hazard-map-types";
 
-const TILES = "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png";
+const TILES = "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png";
 
 export function HazardMap({ hazards, routeWards }: HazardMapProps) {
   return (

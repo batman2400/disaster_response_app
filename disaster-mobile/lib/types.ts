@@ -116,9 +116,9 @@ export interface WardRow {
 }
 
 export const PIN_COLORS: Record<HazardStatus, string> = {
-  PENDING: "#9CA3AF",
+  PENDING: "#6B7280",
   PUBLISHED: "#2563EB",
-  NEED_INFO: "#F59E0B",
+  NEED_INFO: "#D97706",
   AREA_ALERT: "#DC2626",
   COUNCIL_TICKET: "#7C3AED",
   RESOLVED: "#16A34A",
