@@ -5,6 +5,7 @@
 ---
 
 ## ⚡ Quick Access Links
+- **PowerPoint Pitch Deck (PPTX):** [`FENDER_Pitch_Presentation.pptx`](./FENDER_Pitch_Presentation.pptx)
 - **Interactive Presentation Deck (In-App):** [`http://localhost:3000/pitch`](http://localhost:3000/pitch) *(or live on Vercel)*
 - **Live Production URL:** [`https://backend-chi-gilt-80.vercel.app`](https://backend-chi-gilt-80.vercel.app)
 - **Municipal Command Console:** [`http://localhost:3000/dashboard/officer`](http://localhost:3000/dashboard/officer)

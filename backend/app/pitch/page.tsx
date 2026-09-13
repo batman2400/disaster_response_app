@@ -56,6 +56,27 @@ export default function PitchDeck() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [secondsElapsed, setSecondsElapsed] = useState(0);
   const [timerRunning, setTimerRunning] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+
+  const downloadPptx = async () => {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const res = await fetch("/api/pitch/download");
+      if (!res.ok) throw new Error("Failed to generate PPTX");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "FENDER-PitchDeck-CodeArena26.pptx";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert("Could not generate PPTX. Please try again.");
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   // Timer logic
   useEffect(() => {
@@ -1117,15 +1138,32 @@ export default function PitchDeck() {
             </button>
           </div>
 
-          <a
-            href="/FENDER_Pitch_Deck.pptx"
-            download
-            className="px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 bg-slate-900 text-slate-400 hover:text-white border border-slate-800"
-            title="Download PowerPoint"
+          {/* DOWNLOAD PPTX BUTTON */}
+          <button
+            onClick={downloadPptx}
+            disabled={downloading}
+            className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 border transition-all ${
+              downloading
+                ? "bg-blue-900/40 text-blue-300 border-blue-700/50 cursor-wait"
+                : "bg-slate-900 text-slate-300 hover:text-white hover:bg-blue-900/30 hover:border-blue-600/50 border-slate-800"
+            }`}
+            title="Download PowerPoint Deck (D)"
           >
-            <Download className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">PPTX</span>
-          </a>
+            {downloading ? (
+              <>
+                <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+                <span className="hidden md:inline">Building…</span>
+              </>
+            ) : (
+              <>
+                <Download className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">PPTX</span>
+              </>
+            )}
+          </button>
 
           {/* SPEAKER NOTES BUTTON */}
           <button
