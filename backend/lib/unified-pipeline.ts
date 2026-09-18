@@ -216,7 +216,13 @@ Requirements:
      * Clearly state what the image actually depicts in image_reason (e.g. "Image is a logo/graphic, not a real disaster scene")
      * Set confidence_score <= 0.2
      * Set status to "NEED_INFO" or "PENDING". NEVER mark as PUBLISHED or AREA_ALERT!
-3. GEOGRAPHY: Verify if coordinates and landmarks are plausible within Colombo.
+3. GEOGRAPHY & LOCATION MATCHING:
+   - Check if coordinates (lat ${body.lat}, lng ${body.lng}) are genuinely within Greater Colombo, Sri Lanka.
+   - Cross-check any landmarks, roads, canals, or bridges mentioned in text or audio: do they plausibly match the GPS coordinates and Ward (${body.ward_id})?
+   - If coordinates are outside Greater Colombo, or if the mentioned landmark is in a different city or distant ward (e.g. GPS is in Wellawatte Ward 02, but text describes Kelani bridge in North Colombo):
+     * Set location_matched = false
+     * Explain the spatial mismatch clearly in location_reason
+   - Otherwise, set location_matched = true with clear ward confirmation in location_reason.
 4. RISK ASSESSMENT: Assess immediate risk (LOW, MEDIUM, CRITICAL). Non-disaster images, singing, or fake reports should be LOW risk.
 5. AGGREGATION & STATUS:
    - AREA_ALERT: ONLY for verified widespread flood with weather support & cluster >= 2 and genuine hazard evidence.
@@ -292,6 +298,25 @@ Respond strictly in JSON matching the schema.`;
     }
     if (value.confidence_score > 0.35) {
       value.confidence_score = 0.15;
+    }
+  }
+
+  // Anti-spoofing guardrail for location (Greater Colombo envelope)
+  const COLOMBO_BOUNDS = { minLat: 6.8, maxLat: 7.05, minLng: 79.78, maxLng: 79.95 };
+  const isOutsideColombo =
+    body.lat < COLOMBO_BOUNDS.minLat ||
+    body.lat > COLOMBO_BOUNDS.maxLat ||
+    body.lng < COLOMBO_BOUNDS.minLng ||
+    body.lng > COLOMBO_BOUNDS.maxLng;
+
+  if (isOutsideColombo) {
+    value.location_matched = false;
+    value.location_reason = `Coordinates (${body.lat.toFixed(4)}, ${body.lng.toFixed(4)}) fall outside Greater Colombo municipal bounds.`;
+    if (value.status === "PUBLISHED" || value.status === "AREA_ALERT") {
+      value.status = "NEED_INFO";
+    }
+    if (value.confidence_score > 0.25) {
+      value.confidence_score = 0.1;
     }
   }
 
