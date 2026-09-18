@@ -3,6 +3,9 @@ import { json, options } from "@/lib/cors";
 import { findHazard, saveHazard, uploadPhoto } from "@/lib/db";
 import type { OfficerLogEntry, ResolveRequest } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
 export function OPTIONS() {
   return options();
 }

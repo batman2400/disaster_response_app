@@ -1,4 +1,7 @@
 import type { WardId } from "./types";
+import { compressImage, safeFetchJson } from "./image";
+
+export { compressImage, safeFetchJson };
 
 export const COLOMBO_CENTER: [number, number] = [6.9271, 79.8612];
 
@@ -35,10 +38,24 @@ export function nearestWard(lat: number, lng: number): WardId {
 }
 
 export async function readFileAsDataUrl(file: File) {
+  // If in browser and the file is an image, compress it automatically to prevent HTTP 413
+  const isImage =
+    typeof window !== "undefined" &&
+    (file.type?.startsWith("image/") || /\.(jpe?g|png|webp|heic|bmp)$/i.test(file.name));
+
+  if (isImage) {
+    try {
+      return await compressImage(file);
+    } catch (err) {
+      console.warn("Client image compression fallback triggered:", err);
+    }
+  }
+
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error("Could not read the photo"));
+    reader.onerror = () => reject(new Error("Could not read the file"));
     reader.readAsDataURL(file);
   });
 }
+

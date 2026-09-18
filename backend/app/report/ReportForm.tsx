@@ -46,7 +46,7 @@ import { WaterDepthGauge } from "@/components/water-depth-gauge";
 import { PublicShell } from "@/components/public-shell";
 import { Button, Modal, PipelineStepper, SectionLabel, type PipelineStep } from "@/components/ui";
 import { cn } from "@/lib/cn";
-import { DEMO_GPS, nearestWard, readFileAsDataUrl } from "@/lib/geo";
+import { DEMO_GPS, nearestWard, readFileAsDataUrl, safeFetchJson } from "@/lib/geo";
 import { categoryLabel, wardShort } from "@/lib/format";
 import { LanguageSwitcher, useI18n } from "@/lib/i18n/language-context";
 import {
@@ -164,6 +164,7 @@ export function ReportForm() {
   const inputRef = useRef<HTMLInputElement>(null);
   const { lang, t } = useI18n();
   const [photo, setPhoto] = useState("");
+  const [photoCompressing, setPhotoCompressing] = useState(false);
   const [category, setCategory] = useState<HazardCategory | null>(null);
   const [description, setDescription] = useState("");
   const [lat, setLat] = useState(DEMO_GPS.lat);
@@ -382,11 +383,23 @@ export function ReportForm() {
   }
 
   const isRescue = category === "HELP_REQUEST";
-  const canSubmit = Boolean(photo && category && (!isRescue || rescuePhone.trim().length > 0));
+  const canSubmit = Boolean(
+    photo && category && !photoCompressing && (!isRescue || rescuePhone.trim().length > 0),
+  );
 
   async function onPickPhoto(file: File | undefined) {
     if (!file) return;
-    setPhoto(await readFileAsDataUrl(file));
+    setError("");
+    setPhotoCompressing(true);
+    try {
+      const data = await readFileAsDataUrl(file);
+      setPhoto(data);
+    } catch (err) {
+      console.error("Failed to process photo:", err);
+      setError("Could not process the selected image. Please try again.");
+    } finally {
+      setPhotoCompressing(false);
+    }
   }
 
   function getOrCreateReporterId(): string {
@@ -453,8 +466,11 @@ export function ReportForm() {
           audio_mime: audioBase64 ? audioMime : undefined,
         }),
       });
-      const payload = (await response.json()) as ReportResponse & { error?: string };
-      if (!response.ok) throw new Error(payload.error || "Report failed");
+      const res = await safeFetchJson<ReportResponse>(response, "Report submission failed");
+      if (!res.ok || !res.data) {
+        throw new Error(res.error || "Report failed");
+      }
+      const payload = res.data;
       const details = detailsFromVerdict(payload);
       const captured = parseTrace(payload.trace);
       setSteps(
@@ -706,7 +722,19 @@ export function ReportForm() {
               photo && "border-solid border-brand ring-4 ring-blue-500/20",
             )}
           >
-            {photo ? (
+            {photoCompressing ? (
+              <div className="flex flex-col items-center">
+                <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-brand shadow-sm">
+                  <LoaderCircle className="h-7 w-7 animate-spin text-brand" />
+                </div>
+                <p className="text-sm font-extrabold text-slate-800">
+                  {lang === "si" ? "ඡායාරූපය ප්‍රශස්ත කරමින්..." : lang === "ta" ? "புகைப்படம் உகப்பாக்கப்படுகிறது..." : "Optimizing photo for mobile upload..."}
+                </p>
+                <p className="mt-1 text-xs font-medium text-slate-500">
+                  {lang === "si" ? "වේගවත් යැවීම සඳහා ප්‍රමාණය අඩු කරයි" : lang === "ta" ? "விரைவான பதிவேற்றத்திற்கு சுருக்கப்படுகிறது" : "Compressing to prevent payload timeout"}
+                </p>
+              </div>
+            ) : photo ? (
               <>
                 <img src={photo} alt="Captured hazard" className="absolute inset-0 h-full w-full object-cover" />
                 <span className="absolute top-4 right-4 flex items-center gap-2 rounded-xl bg-slate-900/60 px-3 py-2 text-xs font-bold text-white backdrop-blur-md">

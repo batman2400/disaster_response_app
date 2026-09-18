@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReportRequest, ReportResponse } from "./types";
+import { safeFetchJson } from "./image";
 
 export interface OfflineReport extends ReportRequest {
   id: string;
@@ -97,13 +98,13 @@ export async function syncSingleReport(report: OfflineReport): Promise<ReportRes
     }),
   });
 
-  const payload = (await response.json()) as ReportResponse & { error?: string };
-  if (!response.ok) {
-    throw new Error(payload.error || `Server responded with ${response.status}`);
+  const res = await safeFetchJson<ReportResponse>(response, "Sync failed");
+  if (!res.ok || !res.data) {
+    throw new Error(res.error || `Server responded with ${response.status}`);
   }
 
   await removeOfflineReport(report.id);
-  return payload;
+  return res.data;
 }
 
 export async function syncAllOfflineReports(

@@ -26,7 +26,7 @@ import { Badge, Button, SectionLabel, StatusBadge, UrgencyBadge } from "@/compon
 import { LanguageSwitcher } from "@/lib/i18n/language-context";
 import { cn } from "@/lib/cn";
 import { categoryLabel, timeAgo, wardShort } from "@/lib/format";
-import { readFileAsDataUrl } from "@/lib/geo";
+import { readFileAsDataUrl, safeFetchJson } from "@/lib/geo";
 import { latestDispatchNote } from "@/lib/officer-log";
 import { ROLE_THEME } from "@/lib/role-theme";
 import type { HazardRow } from "@/lib/types";
@@ -89,8 +89,8 @@ export function ResolveTask({ hazard }: { hazard: HazardRow }) {
           resolution_notes: notes,
         }),
       });
-      const payload = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(payload.error || "Resolve failed");
+      const res = await safeFetchJson<{ error?: string }>(response, "Resolution failed");
+      if (!res.ok) throw new Error(res.error || "Resolve failed");
       setDone(true);
       window.setTimeout(() => router.push("/crew"), 2000);
     } catch (err) {

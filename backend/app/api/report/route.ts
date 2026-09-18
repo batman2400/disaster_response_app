@@ -3,6 +3,9 @@ import { buildVerdict, persistReport } from "@/lib/pipeline";
 import { runUnifiedPipeline } from "@/lib/unified-pipeline";
 import type { ReportRequest, ReportResponse } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
 export function OPTIONS() {
   return options();
 }
