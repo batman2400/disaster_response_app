@@ -154,14 +154,66 @@ const DETOUR_ROUTES: Record<WardId, [number, number][]> = {
   ],
 };
 
+const VERIFIED_HAZARD_STATUSES = new Set(["AREA_ALERT", "PUBLISHED", "COUNCIL_TICKET"]);
+
+type RoutingHazard = {
+  status: string;
+  is_road_blocked: boolean;
+  category?: string | null;
+  urgency?: string | null;
+  passability?: string | null;
+  estimated_water_depth_cm?: number | null;
+  confirmations_count?: number | null;
+  confidence_score?: number | null;
+};
+
+/**
+ * Only verified / official hazards may force a detour. Junk or unverified
+ * NEED_INFO pins (e.g. "Just for fun") must not reroute evacuees.
+ */
+export function isVerifiedRoutingObstacle(hazard: RoutingHazard): boolean {
+  if (hazard.status === "RESOLVED") return false;
+
+  const crowdConfirmed =
+    Number(hazard.confirmations_count ?? 0) >= 2 || Number(hazard.confidence_score ?? 0) >= 0.65;
+  const official =
+    VERIFIED_HAZARD_STATUSES.has(hazard.status) ||
+    (hazard.status !== "NEED_INFO" && hazard.status !== "PENDING" && crowdConfirmed);
+  if (!official) return false;
+
+  const isBlocked = Boolean(hazard.is_road_blocked);
+  const isDeep =
+    typeof hazard.estimated_water_depth_cm === "number" && hazard.estimated_water_depth_cm >= 20;
+  const isImpassable = hazard.passability === "IMPASSABLE" || hazard.passability === "EXTREME_BOAT_ONLY";
+  const isCriticalAlert = hazard.status === "AREA_ALERT" || (hazard.urgency === "CRITICAL" && official);
+  const isDangerousType =
+    hazard.category === "POWERLINE" ||
+    hazard.category === "ELECTRICAL_HAZARD" ||
+    hazard.category === "BLOCKED_ROAD" ||
+    hazard.category === "LANDSLIDE" ||
+    hazard.category === "DRAINAGE_OVERFLOW" ||
+    hazard.category === "FLOOD";
+
+  return isBlocked || isDeep || isImpassable || isCriticalAlert || isDangerousType;
+}
+
 export function computeDynamicRoute(
   wardId: WardId,
-  hazards: Array<{ lat: number; lng: number; is_road_blocked: boolean; status: string }>,
+  hazards: Array<{
+    lat: number;
+    lng: number;
+    is_road_blocked: boolean;
+    status: string;
+    category?: string | null;
+    urgency?: string | null;
+    passability?: string | null;
+    estimated_water_depth_cm?: number | null;
+    confirmations_count?: number | null;
+    confidence_score?: number | null;
+  }>,
 ): DynamicRouteResult {
   const basePoints = SAFE_ROUTES[wardId] || [];
-  const blockedHazards = hazards.filter(
-    (h) => h.is_road_blocked && h.status !== "RESOLVED",
-  );
+  const blockedHazards = hazards.filter((h) => isVerifiedRoutingObstacle(h));
 
   let nearCount = 0;
   for (const pt of basePoints) {
@@ -229,10 +281,57 @@ export interface DynamicDetourRoute {
   googleMapsSafeUrl: string;
   activeAnchorName?: string;
   activeAnchorCoords?: [number, number];
+  fullyCircumnavigated: boolean;
+  minClearanceM: number;
+}
+
+const SUPPLY_RANK: Record<ShelterRow["supplies_status"], number> = {
+  ADEQUATE: 2,
+  LOW: 1,
+  CRITICAL: 0,
+};
+
+function shelterNameKey(name: string) {
+  return name.trim().toLowerCase();
+}
+
+/**
+ * Collapse duplicate facility rows (memory seed + live DB copies) to one record.
+ * Prefers canonical `s-*` ids, then the more conservative occupancy/supply snapshot.
+ */
+export function dedupeShelterRows<T extends ShelterRow>(shelters: T[]): T[] {
+  const byName = new Map<string, T>();
+  for (const shelter of shelters) {
+    const key = shelterNameKey(shelter.name || "");
+    if (!key) continue;
+    const existing = byName.get(key);
+    if (!existing) {
+      byName.set(key, shelter);
+      continue;
+    }
+    byName.set(key, preferShelterRecord(existing, shelter));
+  }
+  return Array.from(byName.values());
+}
+
+function preferShelterRecord<T extends ShelterRow>(a: T, b: T): T {
+  const aCanonical = a.id.startsWith("s-");
+  const bCanonical = b.id.startsWith("s-");
+  if (aCanonical !== bCanonical) return bCanonical ? b : a;
+
+  const freeA = Math.max(0, a.total_beds - a.occupied_beds);
+  const freeB = Math.max(0, b.total_beds - b.occupied_beds);
+  if (freeA !== freeB) return freeB < freeA ? b : a;
+
+  const rankA = SUPPLY_RANK[a.supplies_status] ?? 1;
+  const rankB = SUPPLY_RANK[b.supplies_status] ?? 1;
+  if (rankA !== rankB) return rankB < rankA ? b : a;
+
+  return a;
 }
 
 export function attachShelterCoords(shelters: ShelterRow[]): ShelterWithCoords[] {
-  return shelters.map((s) => {
+  return dedupeShelterRows(shelters).map((s) => {
     const coords = SHELTER_LOCATIONS[s.name] ?? [6.9271, 79.8612];
     return {
       ...s,
@@ -243,29 +342,44 @@ export function attachShelterCoords(shelters: ShelterRow[]): ShelterWithCoords[]
   });
 }
 
+export function sortSheltersForCitizen(shelters: ShelterWithCoords[]): ShelterWithCoords[] {
+  return [...shelters].sort((a, b) => {
+    if (b.available_beds !== a.available_beds) return b.available_beds - a.available_beds;
+    return (SUPPLY_RANK[b.supplies_status] ?? 0) - (SUPPLY_RANK[a.supplies_status] ?? 0);
+  });
+}
+
+function scoreOpenShelter(origin: [number, number], shelter: ShelterWithCoords): number {
+  const distKm = haversineDistanceM(origin[0], origin[1], shelter.lat, shelter.lng) / 1000;
+  const occupancy = shelter.total_beds > 0 ? shelter.occupied_beds / shelter.total_beds : 1;
+  const distScore = 1 / (1 + distKm);
+  const bedScore = Math.min(1, shelter.available_beds / 50);
+  const suppliesScore = (SUPPLY_RANK[shelter.supplies_status] ?? 1) / 2;
+  const capacityScore = occupancy > 0.9 ? 0.15 : occupancy > 0.8 ? 0.4 : 1;
+  return distScore * 0.35 + bedScore * 0.35 + suppliesScore * 0.2 + capacityScore * 0.1;
+}
+
 /**
- * Finds the closest open shelter with free bed capacity.
+ * Picks the best open shelter: free beds, supplies, remaining capacity, then distance.
  */
 export function findNearestSafeShelter(
   origin: [number, number],
   shelters: ShelterWithCoords[],
 ): ShelterWithCoords | null {
   if (!shelters.length) return null;
-  const withBeds = shelters.filter((s) => s.available_beds > 0);
-  const candidates = withBeds.length > 0 ? withBeds : shelters;
+  const unique = dedupeShelterRows(shelters);
+  const withBeds = unique.filter((s) => s.available_beds > 0);
+  const candidates = withBeds.length > 0 ? withBeds : unique;
 
   let best = candidates[0];
-  let minDistance = haversineDistanceM(origin[0], origin[1], best.lat, best.lng);
-
+  let bestScore = scoreOpenShelter(origin, best);
   for (let i = 1; i < candidates.length; i++) {
-    const s = candidates[i];
-    const dist = haversineDistanceM(origin[0], origin[1], s.lat, s.lng);
-    if (dist < minDistance) {
-      minDistance = dist;
-      best = s;
+    const score = scoreOpenShelter(origin, candidates[i]);
+    if (score > bestScore) {
+      best = candidates[i];
+      bestScore = score;
     }
   }
-
   return best;
 }
 
@@ -384,26 +498,7 @@ export function calculateDynamicShelterDetour(
   const destination: [number, number] = [targetShelter.lat, targetShelter.lng];
   const directDistance = haversineDistanceM(origin[0], origin[1], destination[0], destination[1]);
 
-  // Comprehensive filter of affected paths:
-  // 1. Road is blocked by debris, fallen tree, or closure order
-  // 2. Flood water depth >= 20cm (dangerous for vehicles and pedestrians)
-  // 3. Impassable / Boat-only passability classification
-  // 4. Critical urgency hazards and area alerts
-  // 5. Downed electrical powerlines, electrical hazards, landslides, and blocked roads
-  const activeObstructions = hazards.filter((h) => {
-    if (h.status === "RESOLVED") return false;
-    const isBlocked = Boolean(h.is_road_blocked);
-    const isDeep = typeof h.estimated_water_depth_cm === "number" && h.estimated_water_depth_cm >= 20;
-    const isImpassable = h.passability === "IMPASSABLE" || h.passability === "EXTREME_BOAT_ONLY";
-    const isCritical = h.urgency === "CRITICAL" || h.status === "AREA_ALERT";
-    const isDangerousType =
-      h.category === "POWERLINE" ||
-      h.category === "ELECTRICAL_HAZARD" ||
-      h.category === "BLOCKED_ROAD" ||
-      h.category === "LANDSLIDE" ||
-      h.category === "DRAINAGE_OVERFLOW";
-    return isBlocked || isDeep || isImpassable || isCritical || isDangerousType;
-  });
+  const activeObstructions = hazards.filter((h) => isVerifiedRoutingObstacle(h));
 
   // Safety buffer radius: 350 meters
   const SAFETY_BUFFER_M = 350;
@@ -437,7 +532,9 @@ export function calculateDynamicShelterDetour(
       estimatedMinutes,
       bypassedHazardsCount: 0,
       bypassedHazards: [],
-      safetyScorePct: 99,
+      safetyScorePct: 96,
+      fullyCircumnavigated: true,
+      minClearanceM: SAFETY_BUFFER_M,
       steps: [
         {
           instruction: `Proceed along direct municipal access road toward ${targetShelter.name}`,
@@ -448,7 +545,7 @@ export function calculateDynamicShelterDetour(
           distanceM: Math.round(directDistance * 0.5),
         },
       ],
-      reason: "Direct municipal access route is 100% clear of floodwaters and road closures.",
+      reason: "No verified flood closures sit on the direct municipal access route.",
       googleMapsSafeUrl,
     };
   }
@@ -559,15 +656,16 @@ export function calculateDynamicShelterDetour(
     .filter((info) => info.distanceFromPathM < 1200) // within vicinity of journey
     .sort((a, b) => a.distanceFromPathM - b.distanceFromPathM);
 
-  // High-accuracy safety score calculation
-  const safetyScorePct = Math.min(
-    98,
-    Math.max(82, Math.round(75 + Math.min(23, (best.minClearanceM / 500) * 23)))
-  );
+  const fullyCircumnavigated = best.violationsCount === 0;
+  const safetyScorePct = fullyCircumnavigated
+    ? Math.min(96, Math.max(70, Math.round(70 + Math.min(26, (best.minClearanceM / 500) * 26))))
+    : Math.max(45, Math.round(68 - best.violationsCount * 8));
 
-  // Embed the high-ground anchor coordinates into the Google Maps URL as a waypoint!
-  // This forces Google Maps to route around the flood through our safe waypoint
-  const googleMapsSafeUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin[0]},${origin[1]}&destination=${destination[0]},${destination[1]}&waypoints=${bestAnchor.point[0]},${bestAnchor.point[1]}&travelmode=walking`;
+  const via = bestPoints
+    .slice(1, -1)
+    .map((point) => `${point[0]},${point[1]}`)
+    .join("|");
+  const googleMapsSafeUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin[0]},${origin[1]}&destination=${destination[0]},${destination[1]}${via ? `&waypoints=${encodeURIComponent(via)}` : ""}&travelmode=walking`;
 
   return {
     origin,
@@ -582,6 +680,8 @@ export function calculateDynamicShelterDetour(
     bypassedHazardsCount: collidedWithDirect.length,
     bypassedHazards,
     safetyScorePct,
+    fullyCircumnavigated,
+    minClearanceM: Math.round(best.minClearanceM),
     activeAnchorName: bestAnchor.name,
     activeAnchorCoords: bestAnchor.point,
     steps: [

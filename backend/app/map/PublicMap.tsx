@@ -37,10 +37,10 @@ import {
   attachShelterCoords,
   ARTERIAL_SAFE_CORRIDORS,
   calculateDynamicShelterDetour,
+  computeDynamicRoute,
   findNearestSafeShelter,
-  SAFE_ROUTES,
+  sortSheltersForCitizen,
   type DynamicDetourRoute,
-  type SafeCorridor,
   type ShelterWithCoords,
 } from "@/lib/safe-routes";
 import type { ConfirmResponse, HazardRow, HazardStatus, ShelterRow, WardId, WardRow } from "@/lib/types";
@@ -327,11 +327,23 @@ export function PublicMap({
     fallbackFetch: () => fetch("/api/shelters").then((res) => res.json() as Promise<ShelterRow[]>),
   });
 
-  const shelters = useMemo(() => attachShelterCoords(rawShelters), [rawShelters]);
+  const shelters = useMemo(
+    () => sortSheltersForCitizen(attachShelterCoords(rawShelters)),
+    [rawShelters],
+  );
   const totalFreeBeds = useMemo(
     () => shelters.reduce((acc, s) => acc + s.available_beds, 0),
     [shelters],
   );
+  const corridorHealth = useMemo(
+    () =>
+      ARTERIAL_SAFE_CORRIDORS.map((corridor) => ({
+        corridor,
+        route: computeDynamicRoute(corridor.wardId, hazards),
+      })),
+    [hazards],
+  );
+  const clearCorridorCount = corridorHealth.filter((item) => item.route.status === "CLEAR").length;
 
   const visible = useMemo(
     () => hazards.filter((row) => (filter === "ALL" ? true : row.status === filter)),
@@ -348,6 +360,7 @@ export function PublicMap({
   const [originPreset, setOriginPreset] = useState<string>("NAGALAGAM");
   const [gpsLocation, setGpsLocation] = useState<[number, number] | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsError, setGpsError] = useState<string | null>(null);
 
   function getEffectiveOrigin(): [number, number] {
     if (originPreset === "GPS" && gpsLocation) return gpsLocation;
@@ -364,7 +377,6 @@ export function PublicMap({
     const origin: [number, number] = customOrigin || getEffectiveOrigin();
     const target =
       customShelter ||
-      (selectedShelterId ? shelters.find((s) => s.id === selectedShelterId) : null) ||
       findNearestSafeShelter(origin, shelters) ||
       shelters[0];
     if (!target) return;
@@ -381,21 +393,24 @@ export function PublicMap({
   function handleRequestGps() {
     if (typeof window === "undefined" || !navigator.geolocation) return;
     setGpsLoading(true);
+    setGpsError(null);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setGpsLoading(false);
+        if (pos.coords.accuracy > 250) {
+          setGpsError("GPS is too coarse. Use a listed starting point or try again outdoors.");
+          return;
+        }
         const loc: [number, number] = [pos.coords.latitude, pos.coords.longitude];
         setGpsLocation(loc);
         setOriginPreset("GPS");
-        const target = selectedShelter || findNearestSafeShelter(loc, shelters) || shelters[0];
-        if (target) {
-          handleStartDetourNavigation(target, loc);
-        }
+        handleStartDetourNavigation(undefined, loc);
       },
       () => {
         setGpsLoading(false);
+        setGpsError("Could not read GPS. Use a listed starting point.");
       },
-      { timeout: 8000 }
+      { timeout: 8000, enableHighAccuracy: true, maximumAge: 15000 },
     );
   }
 
@@ -560,7 +575,7 @@ export function PublicMap({
                 </div>
                 <p className="mt-0.5 text-[11px] font-semibold leading-tight text-slate-600 line-clamp-2">
                   {criticalWard
-                    ? `High water in ${wardShort(criticalWard.id)} · ${criticalWard.rainfall_mm} mm rain, river ${criticalWard.river_level_pct}%. Follow green evacuation route.`
+                    ? `High water in ${wardShort(criticalWard.id)} · ${Math.round(criticalWard.rainfall_mm)} mm rain, river ${Math.round(criticalWard.river_level_pct)}%. Follow green evacuation route.`
                     : "An area alert is active. Avoid low-lying river roads."}
                 </p>
               </div>
@@ -623,7 +638,7 @@ export function PublicMap({
                 className="border-l border-emerald-400 bg-emerald-600 px-2 py-2 text-[10px] font-bold text-white hover:bg-emerald-700 touch-manipulation"
                 title="View designated evacuation corridors list"
               >
-                List ({ARTERIAL_SAFE_CORRIDORS.length})
+                List ({clearCorridorCount}/{ARTERIAL_SAFE_CORRIDORS.length})
               </button>
             ) : null}
           </div>
@@ -911,7 +926,9 @@ export function PublicMap({
 
           <div className="mb-3 flex items-center justify-between">
             <span className="text-xs font-bold text-slate-600">
-              {selectedCorridorId ? "1 Corridor Isolated" : "All 4 Corridors Active"}
+              {selectedCorridorId
+                ? "1 Corridor Isolated"
+                : `${clearCorridorCount} of ${ARTERIAL_SAFE_CORRIDORS.length} corridors clear of verified hazards`}
             </span>
             {selectedCorridorId ? (
               <button
@@ -925,8 +942,9 @@ export function PublicMap({
           </div>
 
           <div className="space-y-3">
-            {ARTERIAL_SAFE_CORRIDORS.map((corridor) => {
+            {corridorHealth.map(({ corridor, route }) => {
               const isSelected = selectedCorridorId === corridor.id;
+              const compromised = route.status !== "CLEAR";
               return (
                 <div
                   key={corridor.id}
@@ -938,15 +956,27 @@ export function PublicMap({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="text-sm font-extrabold text-slate-900">{corridor.name}</h3>
                         {corridor.elevatedHighGround ? (
                           <span className="rounded bg-slate-100 px-1.5 py-0.2 text-[9px] font-bold uppercase text-slate-600">
                             Elevated
                           </span>
                         ) : null}
+                        <span
+                          className={`rounded px-1.5 py-0.2 text-[9px] font-bold uppercase ${
+                            compromised
+                              ? "bg-amber-100 text-amber-800"
+                              : "bg-emerald-100 text-emerald-800"
+                          }`}
+                        >
+                          {compromised ? "Use detour" : "Clear"}
+                        </span>
                       </div>
                       <p className="mt-1 text-xs font-medium text-slate-600">{corridor.description}</p>
+                      {compromised ? (
+                        <p className="mt-1 text-[11px] font-semibold text-amber-700">{route.reason}</p>
+                      ) : null}
                     </div>
                   </div>
 
@@ -993,7 +1023,7 @@ export function PublicMap({
                 </div>
                 <div>
                   <h2 className="text-base font-black text-slate-900">Dynamic Evacuation Navigator</h2>
-                  <p className="text-[10px] font-bold text-slate-400">Safest Path Routing · Avoiding All Flood Obstacles</p>
+                  <p className="text-[10px] font-bold text-slate-400">Suggested high-ground path · verified hazards only</p>
                 </div>
               </div>
               <button
@@ -1095,6 +1125,9 @@ export function PublicMap({
                     <LocateFixed className="h-3 w-3" />
                   </button>
                 </div>
+                {gpsError ? (
+                  <p className="text-[11px] font-semibold text-amber-700">{gpsError}</p>
+                ) : null}
               </div>
             </div>
 
@@ -1131,7 +1164,7 @@ export function PublicMap({
                 >
                   {activeDetourRoute.status === "DETOUR_ACTIVE"
                     ? `Bypassing ${activeDetourRoute.bypassedHazardsCount} Hazards`
-                    : "100% Clear"}
+                    : "Verified clear"}
                 </span>
               </div>
               <p className="mt-2 text-xs font-semibold leading-relaxed text-slate-700">
@@ -1154,7 +1187,7 @@ export function PublicMap({
                 </span>
               </div>
               <div className="rounded-xl border border-slate-100 bg-slate-50 p-2.5">
-                <span className="text-[9px] font-extrabold uppercase text-slate-400 block">Safety Score</span>
+                <span className="text-[9px] font-extrabold uppercase text-slate-400 block">Clearance</span>
                 <span className="font-mono text-base font-black text-emerald-600">
                   {activeDetourRoute.safetyScorePct}%
                 </span>
@@ -1167,8 +1200,10 @@ export function PublicMap({
                 <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
                   Avoided Affected Roads & Hazards ({activeDetourRoute.bypassedHazards.length})
                 </span>
-                <span className="text-[10px] font-extrabold text-emerald-600">
-                  🛡️ 100% Circumnavigated
+                <span className={`text-[10px] font-extrabold ${activeDetourRoute.fullyCircumnavigated ? "text-emerald-600" : "text-amber-700"}`}>
+                  {activeDetourRoute.fullyCircumnavigated
+                    ? `🛡️ ${activeDetourRoute.minClearanceM}m clearance`
+                    : "⚠️ Closest approach listed below"}
                 </span>
               </div>
 
@@ -1206,7 +1241,7 @@ export function PublicMap({
               ) : (
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 text-center">
                   <p className="text-xs font-bold text-emerald-800">
-                    ✅ Direct corridor is 100% clear. Zero active road closures or flood ponding detected along this route.
+                    No verified road closures sit on this suggested path. Still check conditions before you move.
                   </p>
                 </div>
               )}
@@ -1258,11 +1293,11 @@ export function PublicMap({
               >
                 <div className="flex items-center gap-2 text-xs font-black">
                   <Navigation className="h-4 w-4" />
-                  <span>Launch Safest Path in Google Maps GPS</span>
+                  <span>Open Walking Directions in Google Maps</span>
                   <ExternalLink className="h-3 w-3 opacity-75" />
                 </div>
                 <span className="mt-0.5 text-[10px] font-semibold text-emerald-100 text-center">
-                  Forces Google Maps via high-ground waypoint ({activeDetourRoute.activeAnchorName || "Safe Corridor"}) to bypass flooded streets
+                  Uses high-ground waypoints ({activeDetourRoute.activeAnchorName || "safe corridor"}). Confirm the path is passable before you move.
                 </span>
               </a>
 

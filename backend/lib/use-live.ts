@@ -158,41 +158,19 @@ export function useLiveRows<T extends Identified>(options: {
 
   const commit = useCallback((next: T[]) => {
     setRows((prev) => {
-      const map = new Map<string, T>();
-      for (const r of prev) map.set(r.id, r);
-      for (const r of initial) {
-        if (!map.has(r.id)) map.set(r.id, r);
-        else map.set(r.id, mergeIdentified(r, map.get(r.id)!));
+      const prevById = new Map(prev.map((row) => [row.id, row]));
+      const seen = new Set<string>();
+      const replaced: T[] = [];
+      for (const row of next) {
+        if (seen.has(row.id)) continue;
+        seen.add(row.id);
+        const prevRow = prevById.get(row.id);
+        replaced.push(prevRow ? mergeIdentified(prevRow, row) : row);
       }
-      for (const r of next) {
-        const prevRow = map.get(r.id);
-        if (!prevRow) {
-          map.set(r.id, r);
-        } else {
-          map.set(r.id, mergeIdentified(prevRow, r));
-        }
-      }
-      const merged = Array.from(map.values());
-      return sortRef.current ? sortRef.current(merged) : merged;
+      return sortRef.current ? sortRef.current(replaced) : replaced;
     });
     setUpdatedAt(new Date());
-  }, [initial]);
-
-  useEffect(() => {
-    if (initial && initial.length > 0) {
-      setRows((prev) => {
-        const map = new Map<string, T>();
-        for (const r of prev) map.set(r.id, r);
-        for (const r of initial) {
-          if (!map.has(r.id)) map.set(r.id, r);
-          else map.set(r.id, mergeIdentified(r, map.get(r.id)!));
-        }
-        const merged = Array.from(map.values());
-        return sortRef.current ? sortRef.current(merged) : merged;
-      });
-      setUpdatedAt(new Date());
-    }
-  }, [initial]);
+  }, []);
 
   const refetch = useCallback(async () => {
     const client = getBrowserSupabase();
@@ -211,7 +189,8 @@ export function useLiveRows<T extends Identified>(options: {
   useEffect(() => {
     const client = getBrowserSupabase();
     let cancelled = false;
-    let pollId: ReturnType<typeof setInterval> | undefined;
+    let pollTimer: ReturnType<typeof setTimeout> | undefined;
+    const liveRef = { current: false };
 
     const safeCommit = (next: T[]) => {
       if (cancelled) return;
@@ -219,33 +198,40 @@ export function useLiveRows<T extends Identified>(options: {
     };
 
     async function seed() {
-      if (fallbackRef.current) {
-        try {
-          const fresh = await fallbackRef.current();
-          safeCommit(fresh);
-        } catch {}
-      }
       if (client) {
         const { data, error } = await client.from(table).select("*");
         if (!error && data) {
           safeCommit(data.map((row) => mapRef.current(row as Record<string, unknown>)));
+          return;
         }
+      }
+      if (fallbackRef.current) {
+        try {
+          safeCommit(await fallbackRef.current());
+        } catch {}
       }
     }
 
     void seed();
 
-    // Continuous safety polling: ensures dashboard updates every 4s even if WebSocket is sleeping or stalled
-    if (fallbackRef.current) {
-      pollId = setInterval(() => {
-        void fallbackRef.current?.().then(safeCommit);
-      }, 4000);
-    }
+    const schedulePoll = () => {
+      if (!fallbackRef.current) return;
+      pollTimer = setTimeout(() => {
+        void fallbackRef.current
+          ?.()
+          .then(safeCommit)
+          .catch(() => undefined)
+          .finally(() => {
+            if (!cancelled) schedulePoll();
+          });
+      }, liveRef.current ? 20000 : 5000);
+    };
+    schedulePoll();
 
     if (!client) {
       return () => {
         cancelled = true;
-        if (pollId) clearInterval(pollId);
+        if (pollTimer) clearTimeout(pollTimer);
       };
     }
 
@@ -269,15 +255,17 @@ export function useLiveRows<T extends Identified>(options: {
         },
       )
       .subscribe((status) => {
+        liveRef.current = status === "SUBSCRIBED";
         setLive(status === "SUBSCRIBED");
         if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          liveRef.current = false;
           void fallbackRef.current?.().then(safeCommit);
         }
       });
 
     return () => {
       cancelled = true;
-      if (pollId) clearInterval(pollId);
+      if (pollTimer) clearTimeout(pollTimer);
       void client.removeChannel(channel);
     };
   }, [table, commit]);

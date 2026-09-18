@@ -11,6 +11,7 @@ import {
   upsertShelter as memoryUpsertShelter,
   wards as memoryWards,
 } from "./store";
+import { dedupeShelterRows } from "./safe-routes";
 import { parseTrace } from "./trace";
 import type { AiSettings, HazardRow, PipelineTrace, ReplayState, ShelterRow, WardId, WardRow, WardStatus } from "./types";
 
@@ -156,10 +157,10 @@ export async function listHazards(): Promise<HazardRow[]> {
 
 export async function listShelters(): Promise<ShelterRow[]> {
   const supabase = getSupabase();
-  if (!supabase) return memoryShelters;
+  if (!supabase) return dedupeShelterRows(memoryShelters);
   const { data, error } = await supabase.from("shelters").select("*");
-  if (error || !data) return memoryShelters;
-  return data as ShelterRow[];
+  if (error || !data) return dedupeShelterRows(memoryShelters);
+  return dedupeShelterRows(data as ShelterRow[]);
 }
 
 export async function findShelter(id: string): Promise<ShelterRow | null> {
