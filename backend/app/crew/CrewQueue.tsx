@@ -45,6 +45,7 @@ import {
   SELECTED_CREW_STORAGE_KEY,
   getCrewTeam,
   isHazardAssignedToCrew,
+  resolveAssignedCrew,
 } from "@/lib/store";
 import type { HazardRow, WardId } from "@/lib/types";
 import { mapHazardRow, useLiveRows } from "@/lib/use-live";
@@ -245,8 +246,13 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
     }
   };
 
-  const openHazards = useMemo(() => hazards.filter((row) => row.status !== "RESOLVED"), [hazards]);
-  const resolvedHazards = useMemo(() => hazards.filter((row) => row.status === "RESOLVED"), [hazards]);
+  const unitHazards = useMemo(() => {
+    if (selectedCrewUnit === "all") return hazards;
+    return hazards.filter((row) => isHazardAssignedToCrew(row, selectedCrewUnit));
+  }, [hazards, selectedCrewUnit]);
+
+  const openHazards = useMemo(() => unitHazards.filter((row) => row.status !== "RESOLVED"), [unitHazards]);
+  const resolvedHazards = useMemo(() => unitHazards.filter((row) => row.status === "RESOLVED"), [unitHazards]);
 
   const dispatchedCount = useMemo(() => openHazards.filter((row) => Boolean(row.dispatched_at)).length, [openHazards]);
   const blockedCount = useMemo(() => openHazards.filter((row) => row.is_road_blocked).length, [openHazards]);
@@ -288,12 +294,7 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
     }
 
     if (selectedCrewUnit !== "all") {
-      result = result.filter((row) => {
-        const mine = isHazardAssignedToCrew(row, selectedCrewUnit);
-        const unassigned = !row.assigned_crew_id && !row.assigned_crew_name;
-        if (activeTab === "resolved") return mine;
-        return mine || unassigned;
-      });
+      result = result.filter((row) => isHazardAssignedToCrew(row, selectedCrewUnit));
     }
 
     // Hide child corroboration reports from the root field queue unless actively searching
@@ -318,11 +319,11 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
 
   const assignableTasks = useMemo(() => {
     return sortCrewQueue(
-      openHazards.filter((row) => !row.parent_incident_id),
+      hazards.filter((row) => row.status !== "RESOLVED" && !row.parent_incident_id && !resolveAssignedCrew(row)),
       userLocation,
       "priority",
     );
-  }, [openHazards, userLocation]);
+  }, [hazards, userLocation]);
 
   const closeAssign = () => {
     if (assignBusy) return;
@@ -821,9 +822,9 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
           className="mb-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-extrabold text-white shadow-md hover:bg-indigo-700 active:scale-[0.99]"
         >
           <Truck className="h-4 w-4" />
-          Assign a task
+          {selectedCrewUnit === "all" ? "Assign a task" : "Assign more to this unit"}
           <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold">
-            {assignableTasks.length} open
+            {assignableTasks.length} unassigned
           </span>
         </button>
         {viewMode === "map" ? (
@@ -994,9 +995,11 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
                 <Truck className="h-10 w-10 text-indigo-400 mb-2" />
                 <h4 className="text-sm font-extrabold text-slate-700">No tasks in this view</h4>
                 <p className="mt-1 text-xs font-medium text-slate-500 max-w-sm">
-                  {activeTab === "dispatched"
-                    ? "Dispatched Priority only shows jobs already sent to a crew. Use Assign task to claim an open neighborhood report for this unit."
-                    : "No reports match the current unit, ward, or search. Assign an open task or clear filters."}
+                  {selectedCrewUnit !== "all"
+                    ? `Only tickets assigned to ${getCrewTeam(selectedCrewUnit)?.shortName ?? "this unit"} appear here. Assign more from the unassigned pool, or switch back to All Response Units.`
+                    : activeTab === "dispatched"
+                      ? "Dispatched Priority only shows jobs already sent to a crew. Use Assign task to claim an open neighborhood report."
+                      : "No reports match the current ward or search. Assign an open task or clear filters."}
                 </p>
                 <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                   <button
@@ -1004,9 +1007,17 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
                     onClick={openAssignPicker}
                     className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-extrabold text-white hover:bg-indigo-700 shadow-sm"
                   >
-                    Assign a task ({assignableTasks.length} open)
+                    Assign a task ({assignableTasks.length} unassigned)
                   </button>
-                  {activeTab !== "all" ? (
+                  {selectedCrewUnit !== "all" ? (
+                    <button
+                      type="button"
+                      onClick={() => chooseCrewUnit("all")}
+                      className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-extrabold text-slate-700 hover:bg-slate-50 shadow-sm"
+                    >
+                      Show all units
+                    </button>
+                  ) : activeTab !== "all" ? (
                     <button
                       type="button"
                       onClick={() => setActiveTab("all")}
