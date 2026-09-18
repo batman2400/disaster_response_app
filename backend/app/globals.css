@@ -258,6 +258,12 @@ body {
   padding-bottom: calc(max(env(safe-area-inset-bottom, 0px), 16px) + 72px);
 }
 
+@media (min-width: 768px) {
+  .pb-safe-nav {
+    padding-bottom: 1.5rem;
+  }
+}
+
 .mb-safe {
   margin-bottom: env(safe-area-inset-bottom, 0px);
 }

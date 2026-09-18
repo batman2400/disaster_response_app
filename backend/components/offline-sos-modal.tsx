@@ -62,10 +62,10 @@ export function OfflineSosModal({
   }, [open, wardId, category, peopleCount, medicalPriority, description, defaultLat, defaultLng]);
 
   return (
-    <Modal open={open} onClose={onClose} className="max-w-lg">
-      <div className="overflow-hidden rounded-3xl bg-white shadow-2xl">
-        {/* Header */}
-        <div className="border-b border-slate-100 bg-slate-900 px-6 py-5 text-white">
+    <Modal open={open} onClose={onClose} className="sm:max-w-lg">
+      <div className="flex flex-col flex-1 min-h-0 w-full overflow-hidden">
+        {/* Header (shrink-0) */}
+        <div className="shrink-0 border-b border-slate-800 bg-slate-900 px-5 py-4 text-white sm:px-6 sm:py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30">
@@ -88,32 +88,20 @@ export function OfflineSosModal({
           </div>
         </div>
 
-        <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto custom-scrollbar">
-          {/* Instructions banner */}
-          <div className="rounded-2xl border border-purple-200 bg-purple-50/60 p-4 text-xs">
-            <div className="flex items-start gap-3">
-              <ShieldAlert className="h-5 w-5 text-purple-600 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <p className="font-extrabold text-purple-950">How This Rescues You When Cell Towers Fail:</p>
-                <p className="font-medium leading-relaxed text-purple-800">
-                  Show this screen to any <strong>rescue boat, army personnel, or municipal crew</strong>. Their device will scan and store your SOS token locally as a <strong>"Data Mule"</strong>. The moment their vehicle reaches cell range, your emergency details are instantly relayed to the Colombo Municipal Command Center.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* QR Code Presentation */}
-          <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center">
+        {/* Scrollable Body (flex-1 min-h-0 overflow-y-auto) */}
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-4 custom-scrollbar">
+          {/* 1. QR Code Presentation FIRST - immediately visible to rescuers */}
+          <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-purple-200 bg-purple-50/40 p-4 sm:p-5 text-center">
             {qrDataUrl ? (
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-md">
-                <img src={qrDataUrl} alt="Emergency SOS QR Beacon" className="h-56 w-56 object-contain" />
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-2.5 shadow-md">
+                <img src={qrDataUrl} alt="Emergency SOS QR Beacon" className="h-44 w-44 sm:h-52 sm:w-52 object-contain" />
               </div>
             ) : (
-              <div className="flex h-56 w-56 items-center justify-center">
+              <div className="flex h-44 w-44 sm:h-52 sm:w-52 items-center justify-center">
                 <Radio className="h-8 w-8 animate-spin text-purple-600" />
               </div>
             )}
-            <div className="mt-4 flex items-center gap-2">
+            <div className="mt-3 flex items-center gap-2">
               <span className="font-mono text-xs font-black text-slate-900">
                 #{beaconId.slice(0, 14).toUpperCase()}
               </span>
@@ -126,8 +114,21 @@ export function OfflineSosModal({
             </p>
           </div>
 
-          {/* Rapid Tweak Controls */}
-          <div className="space-y-4 rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+          {/* 2. Instructions banner */}
+          <div className="rounded-2xl border border-purple-200 bg-purple-50/70 p-3.5 sm:p-4 text-xs">
+            <div className="flex items-start gap-2.5">
+              <ShieldAlert className="h-4.5 w-4.5 text-purple-600 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-extrabold text-purple-950">How This Rescues You When Cell Towers Fail:</p>
+                <p className="font-medium leading-relaxed text-purple-800 text-[11px] sm:text-xs">
+                  Show this screen to any <strong>rescue boat, army personnel, or municipal crew</strong>. Their device will scan and store your SOS token locally as a <strong>"Data Mule"</strong>. The moment their vehicle reaches cell range, your emergency details are instantly relayed to the Colombo Municipal Command Center.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Rapid Tweak Controls */}
+          <div className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50/70 p-3.5 sm:p-4">
             <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">
               Beacon Telemetry Tuning
             </h4>
@@ -174,11 +175,12 @@ export function OfflineSosModal({
           </div>
         </div>
 
-        <div className="border-t border-slate-100 bg-slate-50 px-6 py-4 flex items-center justify-between">
-          <p className="text-[11px] font-semibold text-slate-500">
-            Keep this screen illuminated for passing responders
+        {/* Footer (shrink-0) */}
+        <div className="shrink-0 border-t border-slate-100 bg-slate-50 px-4 py-3 sm:px-6 sm:py-3.5 flex items-center justify-between gap-2">
+          <p className="text-[11px] font-semibold text-slate-500 truncate">
+            Keep screen bright for passing responders
           </p>
-          <Button type="button" variant="gradient" onClick={onClose} className="px-5 py-2 text-xs font-extrabold">
+          <Button type="button" variant="gradient" onClick={onClose} className="px-5 py-2 text-xs font-extrabold shrink-0">
             Done
           </Button>
         </div>

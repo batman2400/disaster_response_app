@@ -288,10 +288,10 @@ export function MuleScannerModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} className="max-w-xl">
-      <div className="overflow-hidden rounded-3xl bg-white shadow-2xl">
-        {/* Header */}
-        <div className="border-b border-slate-800 bg-slate-900 px-6 py-4 text-white">
+    <Modal open={open} onClose={onClose} className="sm:max-w-xl">
+      <div className="flex flex-col flex-1 min-h-0 w-full overflow-hidden">
+        {/* Header (shrink-0) */}
+        <div className="shrink-0 border-b border-slate-800 bg-slate-900 px-4 py-3.5 sm:px-6 sm:py-4 text-white">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30">
@@ -358,10 +358,10 @@ export function MuleScannerModal({
           </div>
         </div>
 
-        {/* Global Relay Toast / Alert */}
+        {/* Global Relay Toast / Alert (shrink-0) */}
         {relayFeedback && (
           <div
-            className={`border-b px-5 py-3 text-xs font-bold flex items-center justify-between ${
+            className={`shrink-0 border-b px-4 py-3 text-xs font-bold flex items-center justify-between ${
               relayFeedback.success
                 ? "border-emerald-200 bg-emerald-50 text-emerald-900"
                 : "border-rose-200 bg-rose-50 text-rose-900"
@@ -385,7 +385,7 @@ export function MuleScannerModal({
           </div>
         )}
 
-        <div className="p-6">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 custom-scrollbar">
           {/* TAB 1: SCANNER */}
           {activeTab === "scan" && (
             <div className="space-y-4">
@@ -503,7 +503,7 @@ export function MuleScannerModal({
               ) : (
                 <>
                   {/* Video viewfinder */}
-                  <div className="relative aspect-square w-full overflow-hidden rounded-2xl border-2 border-slate-200 bg-slate-950 shadow-inner">
+                  <div className="relative mx-auto aspect-square w-full max-w-[320px] max-h-[260px] sm:max-h-[300px] overflow-hidden rounded-2xl border-2 border-slate-200 bg-slate-950 shadow-inner">
                     <video ref={videoRef} className="h-full w-full object-cover" />
                     <canvas ref={canvasRef} className="hidden" />
 

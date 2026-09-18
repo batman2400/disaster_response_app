@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect } from "react";
 import { cn } from "@/lib/cn";
 
 export function Modal({
@@ -11,10 +14,33 @@ export function Modal({
   children: React.ReactNode;
   className?: string;
 }) {
+  // Lock body scroll when modal is active
+  useEffect(() => {
+    if (!open) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [open]);
+
+  // Handle ESC key to dismiss
+  useEffect(() => {
+    if (!open || !onClose) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose]);
+
   if (!open) return null;
+
   return (
     <div
-      className="absolute inset-0 z-50 flex flex-col justify-end bg-slate-900/60 backdrop-blur-sm lg:items-center lg:justify-center lg:p-8"
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-[100] flex flex-col justify-end sm:justify-center items-center bg-slate-950/75 backdrop-blur-sm p-0 sm:p-4 md:p-6 animate-in fade-in duration-150"
       onClick={(e) => {
         if (e.target === e.currentTarget && onClose) {
           onClose();
@@ -23,16 +49,17 @@ export function Modal({
     >
       <div
         className={cn(
-          "flex h-[88%] w-full flex-col rounded-t-[40px] bg-white shadow-2xl animate-slide-up",
-          "lg:h-auto lg:max-h-[min(88vh,840px)] lg:max-w-xl lg:rounded-[32px]",
+          "relative flex w-full flex-col bg-white shadow-2xl overflow-hidden",
+          // Mobile: bottom sheet with max height and rounded top
+          "max-h-[92dvh] h-auto rounded-t-[32px] animate-slide-up",
+          // Tablet / Laptop / Desktop: centered modal card with max height and width
+          "sm:max-h-[88vh] sm:max-w-xl sm:rounded-[28px] sm:my-auto sm:animate-in sm:zoom-in-95 sm:fade-in",
           className,
         )}
       >
-        <div className="flex justify-center pb-2 pt-4 lg:pt-5">
-          <div className="h-1.5 w-12 rounded-full bg-slate-200 lg:hidden" />
-        </div>
         {children}
       </div>
     </div>
   );
 }
+

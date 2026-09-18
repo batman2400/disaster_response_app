@@ -136,8 +136,8 @@ export function CitizenMobileView({ shelters, hazards, wards }: CitizenMobileVie
         </div>
       </div>
 
-      {/* 2. Minimalist 2x2 Frontline Action Grid */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+      {/* 2. Frontline Action Grid (2x2 Mobile, 4-Col Desktop) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Card 1: Report Hazard */}
         <Link
           href="/report"

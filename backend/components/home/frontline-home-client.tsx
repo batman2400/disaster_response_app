@@ -115,10 +115,10 @@ export function FrontlineHomeClient({
           <Link
             href="/pitch"
             title="Open Pitch Presentation"
-            className="flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-2.5 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100 hover:text-blue-900 transition-colors shadow-2xs"
+            className="hidden sm:flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-2.5 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100 hover:text-blue-900 transition-colors shadow-2xs"
           >
             <Sparkles className="h-3.5 w-3.5 text-blue-600" />
-            <span className="hidden sm:inline">Pitch Deck</span>
+            <span>Pitch Deck</span>
           </Link>
 
           {/* Council Desk Link (Desktop discrete link) */}

@@ -123,7 +123,7 @@ export function SitRepExportModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose}>
+    <Modal open={open} onClose={onClose} className="sm:max-w-3xl lg:max-w-4xl">
       <div className="flex max-h-[90vh] flex-col overflow-hidden">
         {/* Modal Top Actions */}
         <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-6 py-4">
