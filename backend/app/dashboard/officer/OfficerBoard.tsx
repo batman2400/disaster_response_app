@@ -54,7 +54,10 @@ import { mapHazardRow, mapWardRow, sortHazards, sortWards, useLiveRows } from "@
 import { OfficerMap } from "./OfficerMap";
 
 const FILTERS = [
-  { id: "OPEN", label: "Open" },
+  { id: "ALL", label: "All" },
+  { id: "HIGH", label: "High priority" },
+  { id: "LESS", label: "Less priority" },
+  { id: "REJECTED", label: "Rejected" },
   { id: "PENDING", label: "Pending AI" },
   { id: "PUBLISHED", label: "Published" },
   { id: "NEED_INFO", label: "Need info" },
@@ -121,7 +124,7 @@ export function OfficerBoard({
   initialWards: WardRow[];
 }) {
   const [note, setNote] = useState("");
-  const [filter, setFilter] = useState<FilterId>("OPEN");
+  const [filter, setFilter] = useState<FilterId>("ALL");
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState<"newest" | "urgency" | "confidence">("newest");
   const [busy, setBusy] = useState(false);
@@ -185,17 +188,28 @@ export function OfficerBoard({
     fallbackFetch: () => fetch("/api/wards").then((res) => res.json() as Promise<WardRow[]>),
   });
 
+  const activeCount = useMemo(
+    () => tickets.filter((t) => t.status !== "RESOLVED").length,
+    [tickets],
+  );
+
   // Calculate filter counts
   const filterCounts = useMemo(() => {
     const counts: Record<FilterId, number> = {
-      OPEN: 0,
+      ALL: 0,
+      HIGH: 0,
+      LESS: 0,
+      REJECTED: 0,
       PENDING: 0,
       PUBLISHED: 0,
       NEED_INFO: 0,
       ALERT: 0,
     };
     for (const t of tickets) {
-      if (t.status !== "RESOLVED") counts.OPEN += 1;
+      counts.ALL += 1;
+      if (t.status !== "RESOLVED" && (t.urgency === "CRITICAL" || t.urgency === "MEDIUM")) counts.HIGH += 1;
+      if (t.status !== "RESOLVED" && t.urgency === "LOW") counts.LESS += 1;
+      if (t.status === "COUNCIL_TICKET") counts.REJECTED += 1;
       if (t.status === "PENDING") counts.PENDING += 1;
       if (t.status === "PUBLISHED") counts.PUBLISHED += 1;
       if (t.status === "NEED_INFO") counts.NEED_INFO += 1;
@@ -207,11 +221,17 @@ export function OfficerBoard({
   const visible = useMemo(() => {
     const list = tickets.filter((ticket) => {
       const matchesFilter =
-        filter === "OPEN"
-          ? ticket.status !== "RESOLVED"
-          : filter === "ALERT"
-            ? ticket.status === "AREA_ALERT" || ticket.urgency === "CRITICAL"
-            : ticket.status === filter;
+        filter === "ALL"
+          ? true
+          : filter === "HIGH"
+            ? ticket.status !== "RESOLVED" && (ticket.urgency === "CRITICAL" || ticket.urgency === "MEDIUM")
+            : filter === "LESS"
+              ? ticket.status !== "RESOLVED" && ticket.urgency === "LOW"
+              : filter === "REJECTED"
+                ? ticket.status === "COUNCIL_TICKET"
+                : filter === "ALERT"
+                  ? ticket.status === "AREA_ALERT" || ticket.urgency === "CRITICAL"
+                  : ticket.status === filter;
       const hay = `${ticket.id} ${ticket.description ?? ""} ${wardShort(ticket.ward_id)} ${ticket.category}`.toLowerCase();
       return matchesFilter && hay.includes(query.toLowerCase());
     });
@@ -412,7 +432,7 @@ export function OfficerBoard({
                 <option value="confidence">Sort: Confidence</option>
               </select>
               <span className="rounded-md bg-brand px-2 py-0.5 text-xs font-bold text-white">
-                {filterCounts.OPEN} Active
+                {activeCount} Active
               </span>
             </div>
           </div>
@@ -551,7 +571,7 @@ export function OfficerBoard({
               <button
                 type="button"
                 onClick={() => {
-                  setFilter("OPEN");
+                  setFilter("ALL");
                   setQuery("");
                 }}
                 className="mt-3 text-xs font-bold text-brand hover:underline"
