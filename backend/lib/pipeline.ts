@@ -44,6 +44,7 @@ async function runTracedChecks(body: ReportRequest) {
     cluster_count: cluster.value.cluster_count,
     location_matched: location.value.location_matched,
     risk_level: risk.value.risk_level,
+    input_verified: summaryRes.value.input_verified ?? false,
     estimated_water_depth_cm: image.value.estimated_water_depth_cm,
     depth_confidence: image.value.depth_confidence,
     depth_reference_anchor: image.value.depth_reference_anchor,
@@ -55,13 +56,15 @@ async function runTracedChecks(body: ReportRequest) {
     {
       id: "summary",
       name: "Input & Multilingual AI",
-      passed: Boolean(summaryRes.value.summary),
+      passed: Boolean(summaryRes.value.input_verified),
       detail: `[${summaryRes.value.detected_language}] ${summaryRes.value.summary}`,
       latency_ms: summaryRes.latency_ms,
       source: summaryRes.value.source,
+      confidence: summaryRes.value.input_verified ? 0.9 : 0.1,
       extra: {
         detected_language: summaryRes.value.detected_language,
         landmarks: summaryRes.value.extracted_landmarks,
+        input_verified: summaryRes.value.input_verified,
       },
     },
     {

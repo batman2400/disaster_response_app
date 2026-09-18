@@ -91,7 +91,7 @@ function checkTiles(ticket: HazardRow, trace: ReturnType<typeof parseTrace>) {
         .filter((step) => step.id !== "aggregator")
         .map((step) => ({
           id: step.id,
-          label: step.name.replace(" (Gemini)", "").replace(" (PostGIS)", "").replace(" (SYS)", ""),
+          label: step.name.replace(" (Gemini Vision)", "").replace(" (Gemini)", "").replace(" (PostGIS)", "").replace(" (SYS)", ""),
           value: `${step.passed ? "PASS" : "HOLD"} · ${step.latency_ms}ms`,
           passed: step.passed,
           detail: step.detail || "Step completed successfully according to pipeline rules.",
@@ -103,6 +103,7 @@ function checkTiles(ticket: HazardRow, trace: ReturnType<typeof parseTrace>) {
   return {
     inferred: true,
     tiles: [
+      { id: "summary", label: "Input & Multilingual AI", value: "Verified · 210ms", passed: true, detail: "Citizen input validated for operational clarity.", source: "gemini", latency: 210 },
       { id: "image", label: "Image AI", value: "Verified · 3432ms", passed: true, detail: "Identified visible floodwaters and submerged vehicle/roadway.", source: "gemini", latency: 3432 },
       { id: "weather", label: "Weather", value: "PASS · 616ms", passed: true, detail: "Rainfall telemetry exceeds heavy precipitation threshold (42mm).", source: "fallback", latency: 616 },
       { id: "cluster", label: "Cluster", value: "PASS · 776ms", passed: true, detail: "2 independent reports detected within 400m spatial buffer.", source: "code", latency: 776 },
@@ -1008,8 +1009,8 @@ export function OfficerBoard({
                       </div>
                     ) : null}
 
-                    {/* 5 Clickable AI Step Verification Tiles */}
-                    <div className="relative z-10 grid grid-cols-5 gap-2">
+                    {/* Clickable AI Step Verification Tiles */}
+                    <div className="relative z-10 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                       {checks?.tiles.map((tile) => (
                         <button
                           key={tile.id}

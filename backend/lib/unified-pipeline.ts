@@ -31,6 +31,11 @@ const UNIFIED_SCHEMA = {
       type: "STRING",
       description: "Primary language: 'English', 'Sinhala', 'Tamil', 'Mixed', or 'None (No Speech)'.",
     },
+    input_verified: {
+      type: "BOOLEAN",
+      description:
+        "True ONLY if citizen speech/audio or written description genuinely describes an actual disaster, hazard, flood, road obstruction, fallen tree, or emergency. MUST BE FALSE if audio or text contains singing, music, song lyrics, casual chat, prank, clicking/ambient noise, or NO hazard description.",
+    },
     image_verified: {
       type: "BOOLEAN",
       description: "True if photo is genuine and visibly shows the reported hazard.",
@@ -68,6 +73,7 @@ const UNIFIED_SCHEMA = {
     "summary",
     "has_speech",
     "detected_language",
+    "input_verified",
     "image_verified",
     "image_reason",
     "location_matched",
@@ -86,6 +92,7 @@ interface UnifiedAiOutput {
   summary: string;
   has_speech?: boolean;
   detected_language: string;
+  input_verified: boolean;
   image_verified: boolean;
   image_reason: string;
   location_matched: boolean;
@@ -122,12 +129,20 @@ export async function runUnifiedPipeline(
     const isFlood = body.category === "FLOOD";
     const weatherSupported = weather.weather_supported;
     const clusterCount = cluster.cluster_count;
+    const isSingingOrNonHazard = /(singing|song|music|lyrics)/i.test(body.description || "");
+    const inputVerified = Boolean(body.description?.trim()) && !isSingingOrNonHazard;
+
+    let detected_language = "English";
+    if (/[\u0B80-\u0BFF]/.test(body.description || "")) detected_language = "Tamil";
+    else if (/[\u0D80-\u0DFF]/.test(body.description || "")) detected_language = "Sinhala";
+
     const checks: ReportChecks = {
       image_verified: false,
       weather_supported: weatherSupported,
       cluster_count: clusterCount,
       location_matched: body.lat >= 6.8 && body.lat <= 7.05,
       risk_level: isFlood ? "MEDIUM" : "LOW",
+      input_verified: inputVerified,
     };
     const agg = deterministicAggregate(body, checks, settings);
     return {
@@ -135,7 +150,8 @@ export async function runUnifiedPipeline(
         ? `${body.category}: ${body.description}`
         : `${body.category} reported at ward ${body.ward_id}.`,
       has_speech: Boolean(body.description),
-      detected_language: "English",
+      detected_language,
+      input_verified: inputVerified,
       image_verified: false,
       image_reason: body.photo_base64
         ? "Automated vision check unavailable. Held for manual officer review."
@@ -174,9 +190,25 @@ Council Thresholds:
 - Reject threshold: ${settings.reject_threshold}
 
 Requirements:
-1. SPEECH VERIFICATION: Listen carefully to any attached voice note audio. Does it contain actual spoken human words, or only clicking, ticking, tapping, coughing, or ambient silence?
-   - If audio contains NO spoken words: set has_speech = false, detected_language = "None (No Speech)". DO NOT INVENT or hallucinate an emergency plea or flood details! State clearly: "Audio contains only clicking/ambient sounds with no verbal description."
-   - If audio has spoken words: set has_speech = true, accurately translate and summarize what was said.
+1. AUDIO & MULTILINGUAL INPUT VERIFICATION:
+   - Carefully inspect any attached voice note audio and citizen description.
+   - ACCURATE LANGUAGE IDENTIFICATION (CRITICAL):
+     * Sri Lanka has two official national languages: Sinhala and Tamil, plus English.
+     * Accurately distinguish Tamil vs Sinhala:
+       - TAMIL (Dravidian): Distinctive Tamil phonetics, retroflex sounds ('zh/ழ', 'L/ள', 'R/ற'), lack of voiced/aspirated stops, Tamil vocabulary/lyrics (e.g., "வணக்கம்" / vanakkam, "பாடல்" / paadal, "மழை" / mazhai, "தண்ணீர்" / thanneer, "வெள்ளம்" / vellam, "கண்ணே" / kanne, Tamil cinema/film songs, Tamil singing). If the speech or singing is in Tamil, you MUST set detected_language = "Tamil". NEVER classify Tamil audio/song as Sinhala!
+       - SINHALA (Indo-Aryan): Distinctive Sinhala phonetics, pre-nasalized consonants ('ඟ', 'ඳ', 'ඬ', 'ඹ'), words like "වතුර" / wathura, "වැස්ස" / wassa, "ගංවතුර" / gamwathura, "බේරගන්න" / beraganna.
+       - ENGLISH: Clear English words/phrases.
+       - NONE (No Speech): If only silence, clicks, ticking, tapping, coughing, breathing, or ambient noise.
+   - HAZARD CONTENT VS ENTERTAINMENT / JUNK:
+     * Does the audio or text genuinely report an emergency or physical hazard (flooding, trapped persons, fallen tree, wire down, landslide)?
+     * If the audio or text contains SINGING, MUSIC, SONG LYRICS, ENTERTAINMENT, CASUAL CHAT, PRANK, OR NO HAZARD DESCRIPTION:
+       - You MUST set input_verified = false!
+       - In summary, state clearly what was heard (e.g., "Audio contains singing with no description of a hazard").
+       - You MUST NOT hallucinate an emergency plea or hazard details!
+       - Set urgency = "LOW", risk_level = "LOW".
+     * If recognizable speech or text genuinely describes a hazard/emergency:
+       - Set input_verified = true.
+       - Accurately summarize the situation, hazards, and locations described.
 2. IMAGE VERIFICATION: Look carefully at any attached photo:
    - Does it genuinely show an actual real-world physical disaster scene consistent with the reported category (${body.category})?
    - If the photo is a logo, graphic, meme, cartoon, indoor selfie, watermark, screenshot, movie poster, or unrelated picture:
@@ -185,12 +217,12 @@ Requirements:
      * Set confidence_score <= 0.2
      * Set status to "NEED_INFO" or "PENDING". NEVER mark as PUBLISHED or AREA_ALERT!
 3. GEOGRAPHY: Verify if coordinates and landmarks are plausible within Colombo.
-4. RISK ASSESSMENT: Assess immediate risk (LOW, MEDIUM, CRITICAL). Non-disaster images or fake reports should be LOW risk.
+4. RISK ASSESSMENT: Assess immediate risk (LOW, MEDIUM, CRITICAL). Non-disaster images, singing, or fake reports should be LOW risk.
 5. AGGREGATION & STATUS:
-   - AREA_ALERT: ONLY for verified widespread flood with weather support & cluster >= 2.
+   - AREA_ALERT: ONLY for verified widespread flood with weather support & cluster >= 2 and genuine hazard evidence.
    - PUBLISHED: image_verified and location_matched are BOTH TRUE and confidence >= threshold.
    - COUNCIL_TICKET: image_verified is TRUE for routine actionable road/tree hazards.
-   - NEED_INFO or PENDING: if image is fake, unrelated, unverified, or checks conflict.
+   - NEED_INFO or PENDING: if image is fake, unrelated, unverified, or input is singing/non-hazard, or checks conflict.
 6. Set is_road_blocked, confidence_score (0-1), and clear officer reasoning.
 
 Respond strictly in JSON matching the schema.`;
@@ -218,9 +250,39 @@ Respond strictly in JSON matching the schema.`;
     /only (clicking|ticking|ambient|noise|clicks|ticks)/i.test(value.summary) ||
     /no (speech|words|voice|spoken|verbal)/i.test(value.summary);
 
+  const hasSingingOrNonHazard =
+    value.input_verified === false ||
+    /\b(singing|song|music|lyrics|melody|no (description of a hazard|hazard described|emergency described|verbal description))\b/i.test(
+      value.summary,
+    );
+
   if (body.audio_base64 && hasNoSpeech && !body.description?.trim()) {
     value.summary = `Incident reported for ${body.category}. Audio contained only clicking or ambient noise with no spoken words.`;
     value.detected_language = "None (No Speech)";
+    value.input_verified = false;
+  } else if (hasSingingOrNonHazard && !body.description?.trim()) {
+    value.input_verified = false;
+    value.urgency = "LOW";
+    value.risk_level = "LOW";
+  }
+
+  // Language consistency guardrail: If summary mentions Tamil (e.g. Tamil song/singing) or text has Tamil script, ensure detected_language is Tamil
+  if (
+    (/tamil/i.test(value.summary) || /[\u0B80-\u0BFF]/.test(body.description || "")) &&
+    value.detected_language !== "Tamil"
+  ) {
+    value.detected_language = "Tamil";
+  }
+
+  // Anti-spoofing / junk input guardrail:
+  // If input fails verification (e.g. singing, music, noise, no hazard description)
+  // and image is either missing or unverified, NEVER publish or create ticket!
+  if (!value.input_verified && (!body.photo_base64 || !value.image_verified)) {
+    value.status = "NEED_INFO";
+    if (value.confidence_score > 0.15) {
+      value.confidence_score = 0.1;
+    }
+    value.reasoning = `Citizen input contains singing, music, or non-hazard audio without verified visual disaster evidence. Held as NEED_INFO for officer verification.`;
   }
 
   // Anti-spoofing guardrail for image
@@ -243,16 +305,18 @@ Respond strictly in JSON matching the schema.`;
     cluster_count: cluster.cluster_count,
     location_matched: value.location_matched,
     risk_level: value.risk_level,
+    input_verified: value.input_verified,
   };
 
   const steps: TraceStep[] = [
     {
       id: "summary",
       name: "Input & Multilingual AI",
-      passed: Boolean(value.summary),
+      passed: Boolean(value.input_verified),
       detail: `[${value.detected_language}] ${value.summary}`,
       latency_ms: Math.round(total_ms * 0.15),
       source,
+      confidence: value.input_verified ? 0.9 : 0.1,
     },
     {
       id: "image",

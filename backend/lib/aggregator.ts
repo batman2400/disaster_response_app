@@ -121,6 +121,19 @@ export function deterministicAggregate(
   }
 
   const hasPhoto = Boolean(body.photo_base64);
+
+  if (checks.input_verified === false && (!hasPhoto || !checks.image_verified)) {
+    return {
+      status: "NEED_INFO",
+      urgency: "LOW",
+      confidence_score: 0.1,
+      is_road_blocked: false,
+      reasoning:
+        "Citizen input contains singing, music, noise, or non-hazard audio without verified disaster visual evidence. Held as NEED_INFO for officer review.",
+      source: "code",
+    };
+  }
+
   const heldConfidence = hasPhoto && !checks.image_verified ? 0.2 : 0.44;
   const status: HazardStatus =
     heldConfidence >= settings.confirm_threshold ? "PUBLISHED" : "NEED_INFO";

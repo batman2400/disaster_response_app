@@ -52,6 +52,7 @@ export interface ReportChecks {
   cluster_count: number;
   location_matched: boolean;
   risk_level: Urgency;
+  input_verified?: boolean;
   estimated_water_depth_cm?: number | null;
   depth_confidence?: DepthConfidence | null;
   depth_reference_anchor?: string | null;

@@ -188,6 +188,10 @@ export function VoiceModal({
     detectedLang.includes("No Speech") ||
     hazard.summary?.includes("clicking") ||
     hazard.summary?.includes("no verbal");
+  const isSingingOrNonHazard =
+    /singing|song|music|lyrics|melody|no (description of a hazard|hazard described|emergency)/i.test(
+      hazard.summary || "",
+    );
 
   return (
     <Modal open={open} onClose={onClose} className="lg:max-w-2xl">
@@ -362,7 +366,7 @@ export function VoiceModal({
               <span
                 className={cn(
                   "flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase",
-                  hasNoSpeech
+                  hasNoSpeech || isSingingOrNonHazard
                     ? "bg-amber-100 text-amber-800"
                     : "bg-emerald-100 text-emerald-800",
                 )}
@@ -370,6 +374,10 @@ export function VoiceModal({
                 {hasNoSpeech ? (
                   <>
                     <AlertTriangle className="h-3 w-3" /> Non-Verbal / Ambient
+                  </>
+                ) : isSingingOrNonHazard ? (
+                  <>
+                    <AlertTriangle className="h-3 w-3" /> Non-Hazard / Singing
                   </>
                 ) : (
                   <>
