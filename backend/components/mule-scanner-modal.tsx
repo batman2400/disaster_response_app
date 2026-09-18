@@ -31,8 +31,9 @@ import {
   saveMuleBeacon,
   syncMuleBeacons,
 } from "@/lib/offline-mule";
-import type { DataMuleBeacon } from "@/lib/types";
+import type { DataMuleBeacon, WardId } from "@/lib/types";
 import { timeAgo, wardShort } from "@/lib/format";
+import { nearestWard } from "@/lib/geo";
 
 interface MuleScannerModalProps {
   open: boolean;
@@ -219,28 +220,46 @@ export function MuleScannerModal({
   }
 
   function handleSimulate() {
-    const mockBeacon: DataMuleBeacon = {
-      id: `beacon_${Date.now()}_sim`,
-      type: "FENDER_SOS_BEACON",
-      lat: 6.9535,
-      lng: 79.8732,
-      ward_id: "ward_01",
-      category: "FLOOD",
-      help_request: true,
-      description: "Stranded on upper floor with 4 family members, 1 diabetic patient requiring insulin",
-      estimated_people: 4,
-      medical_priority: "CRITICAL",
-      created_at: new Date().toISOString(),
-      collected_by_crew_id: crewId,
-      collected_at: new Date().toISOString(),
+    const runSim = (simLat: number, simLng: number, simWard: WardId) => {
+      const mockBeacon: DataMuleBeacon = {
+        id: `beacon_${Date.now()}_sim`,
+        type: "FENDER_SOS_BEACON",
+        lat: simLat,
+        lng: simLng,
+        ward_id: simWard,
+        category: "FLOOD",
+        help_request: true,
+        description: "Stranded on upper floor with 4 family members, 1 diabetic patient requiring insulin",
+        estimated_people: 4,
+        medical_priority: "CRITICAL",
+        created_at: new Date().toISOString(),
+        collected_by_crew_id: crewId,
+        collected_at: new Date().toISOString(),
+      };
+
+      void saveMuleBeacon(mockBeacon).then(async () => {
+        setCapturedBeacon(mockBeacon);
+        setRelayFeedback(null);
+        await refreshVault();
+        if (onBeaconCaptured) onBeaconCaptured(mockBeacon);
+      });
     };
 
-    void saveMuleBeacon(mockBeacon).then(async () => {
-      setCapturedBeacon(mockBeacon);
-      setRelayFeedback(null);
-      await refreshVault();
-      if (onBeaconCaptured) onBeaconCaptured(mockBeacon);
-    });
+    if (typeof window !== "undefined" && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const sLat = Number(pos.coords.latitude.toFixed(5));
+          const sLng = Number(pos.coords.longitude.toFixed(5));
+          runSim(sLat, sLng, nearestWard(sLat, sLng));
+        },
+        () => {
+          runSim(6.9271, 79.8612, "ward_02");
+        },
+        { timeout: 4000, enableHighAccuracy: true }
+      );
+    } else {
+      runSim(6.9271, 79.8612, "ward_02");
+    }
   }
 
   async function handleRelayAll() {

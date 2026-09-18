@@ -1,5 +1,6 @@
 import { json, options } from "@/lib/cors";
 import { saveHazard } from "@/lib/db";
+import { nearestWard } from "@/lib/geo";
 import type { DataMuleBeacon, HazardRow } from "@/lib/types";
 
 export function OPTIONS() {
@@ -25,11 +26,17 @@ export async function POST(request: Request) {
     const incidentId = crypto.randomUUID();
     const isCritical = beacon.medical_priority === "CRITICAL" || beacon.help_request;
 
+    const rawLat = Number(beacon.lat);
+    const rawLng = Number(beacon.lng);
+    const lat = !isNaN(rawLat) && rawLat !== 0 ? rawLat : 6.9535;
+    const lng = !isNaN(rawLng) && rawLng !== 0 ? rawLng : 79.8732;
+    const ward_id = beacon.ward_id && beacon.ward_id !== "ward_01" ? beacon.ward_id : nearestWard(lat, lng);
+
     const row: HazardRow = {
       id: incidentId,
-      lat: beacon.lat,
-      lng: beacon.lng,
-      ward_id: beacon.ward_id,
+      lat,
+      lng,
+      ward_id,
       category: beacon.category,
       description: `[DATA MULE RESCUE RELAY - Relayed via ${crewId}] ${beacon.description || "Zero-signal stranded citizen emergency"} (Est. Persons: ${beacon.estimated_people || 1}, Medical: ${beacon.medical_priority || "MEDIUM"})`,
       photo_url: null,

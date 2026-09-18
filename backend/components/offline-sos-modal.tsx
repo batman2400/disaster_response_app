@@ -1,12 +1,14 @@
 "use client";
 
-import { AlertTriangle, Download, QrCode, Radio, ShieldAlert, Sparkles, Users, X } from "lucide-react";
+import { AlertTriangle, Download, Loader2, MapPin, QrCode, Radio, RefreshCw, ShieldAlert, Sparkles, Users, X } from "lucide-react";
 import QRCode from "qrcode";
 import { useEffect, useState } from "react";
 
 import { Modal } from "./ui/modal";
 import { Button } from "./ui/button";
 import type { DataMuleBeacon, HazardCategory, Urgency, WardId } from "@/lib/types";
+import { nearestWard, WARD_CENTERS } from "@/lib/geo";
+import { WARDS, wardShort } from "@/lib/format";
 
 interface OfflineSosModalProps {
   open: boolean;
@@ -24,12 +26,55 @@ export function OfflineSosModal({
   defaultLng = 79.8732,
 }: OfflineSosModalProps) {
   const [wardId, setWardId] = useState<WardId>(defaultWard);
+  const [lat, setLat] = useState<number>(defaultLat);
+  const [lng, setLng] = useState<number>(defaultLng);
+  const [gpsStatus, setGpsStatus] = useState<"live" | "ward" | "detecting">("detecting");
   const [category, setCategory] = useState<HazardCategory>("FLOOD");
   const [peopleCount, setPeopleCount] = useState(3);
   const [medicalPriority, setMedicalPriority] = useState<Urgency>("CRITICAL");
   const [description, setDescription] = useState("Stranded on upper floor, floodwater rising, elderly person needs evacuation");
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
   const [beaconId, setBeaconId] = useState<string>("");
+
+  const acquireGps = () => {
+    if (typeof window === "undefined" || !navigator.geolocation) {
+      setGpsStatus("ward");
+      return;
+    }
+    setGpsStatus("detecting");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const liveLat = Number(pos.coords.latitude.toFixed(5));
+        const liveLng = Number(pos.coords.longitude.toFixed(5));
+        setLat(liveLat);
+        setLng(liveLng);
+        const autoWard = nearestWard(liveLat, liveLng);
+        setWardId(autoWard);
+        setGpsStatus("live");
+      },
+      (err) => {
+        console.warn("Live GPS unavailable, using ward fallback:", err.message);
+        setGpsStatus("ward");
+      },
+      { enableHighAccuracy: true, timeout: 6000, maximumAge: 30000 }
+    );
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    acquireGps();
+  }, [open]);
+
+  const handleWardChange = (newWard: WardId) => {
+    setWardId(newWard);
+    if (gpsStatus !== "live") {
+      const center = WARD_CENTERS[newWard];
+      if (center) {
+        setLat(center[0]);
+        setLng(center[1]);
+      }
+    }
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -40,8 +85,8 @@ export function OfflineSosModal({
     const payload: DataMuleBeacon = {
       id,
       type: "FENDER_SOS_BEACON",
-      lat: defaultLat,
-      lng: defaultLng,
+      lat,
+      lng,
       ward_id: wardId,
       category,
       help_request: true,
@@ -59,7 +104,7 @@ export function OfflineSosModal({
         light: "#ffffff",
       },
     }).then(setQrDataUrl);
-  }, [open, wardId, category, peopleCount, medicalPriority, description, defaultLat, defaultLng]);
+  }, [open, wardId, lat, lng, category, peopleCount, medicalPriority, description]);
 
   return (
     <Modal open={open} onClose={onClose} className="sm:max-w-lg">
@@ -109,8 +154,39 @@ export function OfflineSosModal({
                 {medicalPriority} Urgency
               </span>
             </div>
+
+            {/* Accurate Location Display & Refresh */}
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5 text-center">
+              {gpsStatus === "live" ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-black text-emerald-800 border border-emerald-300">
+                  <MapPin className="h-3 w-3 text-emerald-600" />
+                  <span>Live GPS: {lat.toFixed(4)}, {lng.toFixed(4)}</span>
+                </span>
+              ) : gpsStatus === "detecting" ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-black text-amber-800 border border-amber-300">
+                  <Loader2 className="h-3 w-3 animate-spin text-amber-600" />
+                  <span>Locking GPS Satellites...</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2.5 py-0.5 text-[10px] font-bold text-slate-700">
+                  <MapPin className="h-3 w-3 text-slate-500" />
+                  <span>{wardShort(wardId)} Sector: {lat.toFixed(4)}, {lng.toFixed(4)}</span>
+                </span>
+              )}
+
+              <button
+                type="button"
+                onClick={acquireGps}
+                className="inline-flex items-center gap-1 text-[10px] font-extrabold text-purple-700 hover:text-purple-900 bg-purple-100/80 px-2 py-0.5 rounded-full"
+                title="Re-acquire current satellite GPS"
+              >
+                <RefreshCw className="h-2.5 w-2.5" />
+                <span>Refresh GPS</span>
+              </button>
+            </div>
+
             <p className="mt-1 text-[11px] font-semibold text-slate-500">
-              GPS: {defaultLat.toFixed(4)}, {defaultLng.toFixed(4)} · Persons: {peopleCount}
+              Sector: {wardShort(wardId)} · Headcount: {peopleCount} Persons
             </p>
           </div>
 
@@ -132,6 +208,24 @@ export function OfflineSosModal({
             <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">
               Beacon Telemetry Tuning
             </h4>
+
+            {/* Ward / Sector Selector */}
+            <div>
+              <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                Your Sector / Ward Area
+              </label>
+              <select
+                value={wardId}
+                onChange={(e) => handleWardChange(e.target.value as WardId)}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-900"
+              >
+                {WARDS.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
