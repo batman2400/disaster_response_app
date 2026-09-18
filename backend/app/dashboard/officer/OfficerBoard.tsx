@@ -1299,17 +1299,17 @@ export function OfficerBoard({
 
       {/* 2. Dispatch Crew Modal */}
       {showDispatchModal && selected ? (
-        <Modal open={showDispatchModal} onClose={() => setShowDispatchModal(false)}>
-          <div className="p-6">
-            <div className="mb-4 flex items-center justify-between">
+        <Modal open={showDispatchModal} onClose={() => setShowDispatchModal(false)} className="sm:max-w-2xl">
+          <div className="flex max-h-[88vh] flex-col">
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-4">
               <div className="flex items-center gap-2">
                 <Truck className="h-5 w-5 text-brand" />
-                <h3 className="text-base font-extrabold text-slate-900">Deploy Field Crew Unit</h3>
+                <h3 className="text-base font-extrabold text-slate-900">Assign Field Crew</h3>
               </div>
               <span className="text-xs font-bold text-slate-400">#{selected.id.slice(0, 8).toUpperCase()}</span>
             </div>
 
-            <div className="space-y-4">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-4">
               <div>
                 <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
                   Select Unit / Squad
@@ -1404,33 +1404,33 @@ export function OfficerBoard({
                   />
                 </div>
               </div>
+            </div>
 
-              <div className="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-4">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setShowDispatchModal(false)}
-                  className="rounded-xl px-4 py-2 text-xs"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => {
-                    const unit = CREW_TEAMS.find((u) => u.id === selectedCrew) || CREW_TEAMS[0];
-                    const dispatchNote = `Dispatched ${unit.name} (${selectedPriority} priority, ETA: ${customEta}). Gear: ${selectedGear.join(", ")}. ${note}`.trim();
-                    void override(selected.id, selected.status, dispatchNote, "dispatch", {
-                      assigned_crew_id: unit.id,
-                      assigned_crew_name: unit.name,
-                    });
-                    setShowDispatchModal(false);
-                  }}
-                  className="rounded-xl px-4 py-2 text-xs font-bold"
-                >
-                  <Truck className="h-4 w-4" /> Confirm Dispatch Order
-                </Button>
-              </div>
+            <div className="flex shrink-0 items-center justify-end gap-3 border-t border-slate-100 bg-white px-6 py-4">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setShowDispatchModal(false)}
+                className="rounded-xl px-4 py-2 text-xs"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  const unit = CREW_TEAMS.find((u) => u.id === selectedCrew) || CREW_TEAMS[0];
+                  const dispatchNote = `Dispatched ${unit.name} (${selectedPriority} priority, ETA: ${customEta}). Gear: ${selectedGear.join(", ")}. ${note}`.trim();
+                  void override(selected.id, selected.status, dispatchNote, "dispatch", {
+                    assigned_crew_id: unit.id,
+                    assigned_crew_name: unit.name,
+                  });
+                  setShowDispatchModal(false);
+                }}
+                className="rounded-xl px-4 py-2 text-xs font-bold"
+              >
+                <Truck className="h-4 w-4" /> Assign & dispatch
+              </Button>
             </div>
           </div>
         </Modal>

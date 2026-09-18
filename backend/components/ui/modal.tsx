@@ -56,7 +56,7 @@ export function Modal({
     >
       <div
         className={cn(
-          "relative flex w-full flex-col bg-white shadow-2xl overflow-hidden",
+          "relative flex min-h-0 w-full flex-col overflow-hidden bg-white shadow-2xl",
           // Mobile: bottom sheet with max height and rounded top
           "max-h-[92dvh] h-auto rounded-t-[32px] animate-slide-up",
           // Tablet / Laptop / Desktop: centered modal card with max height and width
