@@ -258,7 +258,11 @@ Respond strictly in JSON matching the schema.`;
 
   const hasSingingOrNonHazard =
     value.input_verified === false ||
-    /\b(singing|song|music|lyrics|melody|no (description of a hazard|hazard described|emergency described|verbal description))\b/i.test(
+    /\b(singing|song|music|lyrics|melody)\b/i.test(value.summary) ||
+    /no (verbal description|description of a hazard|hazard described|emergency described)/i.test(
+      value.summary,
+    ) ||
+    /no (verbal description|description|evidence) of (structural damage|hazard|flood|disaster|emergency|damage)/i.test(
       value.summary,
     );
 
@@ -266,7 +270,9 @@ Respond strictly in JSON matching the schema.`;
     value.summary = `Incident reported for ${body.category}. Audio contained only clicking or ambient noise with no spoken words.`;
     value.detected_language = "None (No Speech)";
     value.input_verified = false;
-  } else if (hasSingingOrNonHazard && !body.description?.trim()) {
+  }
+
+  if (hasSingingOrNonHazard) {
     value.input_verified = false;
     value.urgency = "LOW";
     value.risk_level = "LOW";

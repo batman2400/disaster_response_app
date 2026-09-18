@@ -151,7 +151,11 @@ Respond strictly in JSON matching the schema.`;
 
   const hasSingingOrNonHazard =
     value.input_verified === false ||
-    /\b(singing|song|music|lyrics|melody|no (description of a hazard|hazard described|emergency described|verbal description))\b/i.test(
+    /\b(singing|song|music|lyrics|melody)\b/i.test(value.summary) ||
+    /no (verbal description|description of a hazard|hazard described|emergency described)/i.test(
+      value.summary,
+    ) ||
+    /no (verbal description|description|evidence) of (structural damage|hazard|flood|disaster|emergency|damage)/i.test(
       value.summary,
     );
 
@@ -161,11 +165,13 @@ Respond strictly in JSON matching the schema.`;
     value.extracted_landmarks = [];
     value.urgency_hint = "LOW";
     value.input_verified = false;
-  } else if (hasSingingOrNonHazard && !description.trim()) {
-    value.input_verified = false;
-    value.urgency_hint = "LOW";
   } else if (hasNoSpeech && description.trim()) {
     value.summary = `${category}: ${description} (Audio note contained no spoken words)`;
+  }
+
+  if (hasSingingOrNonHazard) {
+    value.input_verified = false;
+    value.urgency_hint = "LOW";
   }
 
   // Language consistency guardrail: If summary mentions Tamil (e.g. Tamil song/singing) or text has Tamil script, ensure detected_language is Tamil
