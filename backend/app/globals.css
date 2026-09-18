@@ -188,6 +188,8 @@ body {
 .leaflet-container {
   background: #f8fafc;
   font-family: inherit;
+  isolation: isolate;
+  z-index: 0;
 }
 
 .leaflet-control-attribution {

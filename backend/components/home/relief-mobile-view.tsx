@@ -718,7 +718,7 @@ export function ReliefMobileView({ shelters }: ReliefMobileViewProps) {
 
       {/* 5. Central Hub Logistics Requisition Modal */}
       {isModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-in fade-in">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-in fade-in">
           <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl animate-in zoom-in-95">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 bg-indigo-50/60 px-5 py-4">

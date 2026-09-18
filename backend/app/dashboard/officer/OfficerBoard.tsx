@@ -890,7 +890,7 @@ export function OfficerBoard({
                   </Card>
 
                   {/* Mini Map */}
-                  <div className="relative h-56 overflow-hidden rounded-3xl border border-slate-100 shadow-sm">
+                  <div className="relative isolate z-0 h-56 overflow-hidden rounded-3xl border border-slate-100 shadow-sm">
                     <OfficerMap
                       className="absolute inset-0"
                       hazards={tickets}
@@ -1658,7 +1658,7 @@ export function OfficerBoard({
 
       {/* 8. Evidence Lightbox Modal */}
       {showLightbox && selected?.photo_url ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-6 backdrop-blur-md animate-fade-in">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/85 p-6 backdrop-blur-md animate-fade-in">
           <div className="relative flex max-h-[90vh] max-w-4xl flex-col overflow-hidden rounded-3xl bg-slate-900 text-white shadow-2xl">
             <div className="flex h-14 items-center justify-between border-b border-white/10 px-6">
               <div className="flex items-center gap-3">

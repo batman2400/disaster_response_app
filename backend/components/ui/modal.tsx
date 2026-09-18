@@ -47,7 +47,7 @@ export function Modal({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-[100] flex flex-col justify-end sm:justify-center items-center bg-slate-950/75 backdrop-blur-sm p-0 sm:p-4 md:p-6 animate-in fade-in duration-150"
+      className="fixed inset-0 z-[9999] flex flex-col justify-end sm:justify-center items-center bg-slate-950/75 backdrop-blur-sm p-0 sm:p-4 md:p-6 animate-in fade-in duration-150"
       onClick={(e) => {
         if (e.target === e.currentTarget && onClose) {
           onClose();
