@@ -307,7 +307,7 @@ Respond strictly in JSON matching the schema.`;
     }
   }
 
-  // Anti-spoofing guardrail for location (Greater Colombo envelope)
+  // Anti-spoofing guardrail for location (Greater Colombo envelope & landmark sanity)
   const COLOMBO_BOUNDS = { minLat: 6.8, maxLat: 7.05, minLng: 79.78, maxLng: 79.95 };
   const isOutsideColombo =
     body.lat < COLOMBO_BOUNDS.minLat ||
@@ -315,9 +315,15 @@ Respond strictly in JSON matching the schema.`;
     body.lng < COLOMBO_BOUNDS.minLng ||
     body.lng > COLOMBO_BOUNDS.maxLng;
 
-  if (isOutsideColombo) {
+  const foreignLocationMatch = (body.description || "").match(
+    /\b(dubai|uae|london|new york|paris|india|chennai|bangalore|singapore|australia|canada|toronto|kandy|jaffna|galle|matara|batticaloa|anuradhapura|nuwara eliya|kurunegala|ratnapura|badulla|negombo)\b/i,
+  );
+
+  if (isOutsideColombo || foreignLocationMatch) {
     value.location_matched = false;
-    value.location_reason = `Coordinates (${body.lat.toFixed(4)}, ${body.lng.toFixed(4)}) fall outside Greater Colombo municipal bounds.`;
+    value.location_reason = foreignLocationMatch
+      ? `Report specifies a location outside Colombo ("${foreignLocationMatch[0]}"), conflicting with local Colombo municipal dispatch.`
+      : `Coordinates (${body.lat.toFixed(4)}, ${body.lng.toFixed(4)}) fall outside Greater Colombo municipal bounds.`;
     if (value.status === "PUBLISHED" || value.status === "AREA_ALERT") {
       value.status = "NEED_INFO";
     }

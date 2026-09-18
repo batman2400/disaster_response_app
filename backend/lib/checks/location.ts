@@ -64,6 +64,17 @@ export async function checkLocation(
     return { location_matched: false, reason: "Coordinates fall outside Greater Colombo.", source: "code" };
   }
 
+  const foreignLocationMatch = (description || "").match(
+    /\b(dubai|uae|london|new york|paris|india|chennai|bangalore|singapore|australia|canada|toronto|kandy|jaffna|galle|matara|batticaloa|anuradhapura|nuwara eliya|kurunegala|ratnapura|badulla|negombo)\b/i,
+  );
+  if (foreignLocationMatch) {
+    return {
+      location_matched: false,
+      reason: `Description mentions "${foreignLocationMatch[0]}", which is outside Greater Colombo municipal limits.`,
+      source: "code",
+    };
+  }
+
   const prompt = `You are a geography and urban landmark plausibility checker for Colombo, Sri Lanka.
 
 Reported ward: ${wardId} — ${await wardName(wardId)}
