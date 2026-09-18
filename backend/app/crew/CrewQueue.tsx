@@ -40,7 +40,12 @@ import { haversineKm } from "@/lib/geo";
 import { latestDispatchNote } from "@/lib/officer-log";
 import { getMuleBeacons, syncMuleBeacons } from "@/lib/offline-mule";
 import { ROLE_THEME } from "@/lib/role-theme";
-import { CREW_TEAMS } from "@/lib/store";
+import {
+  CREW_TEAMS,
+  SELECTED_CREW_STORAGE_KEY,
+  getCrewTeam,
+  isHazardAssignedToCrew,
+} from "@/lib/store";
 import type { HazardRow, WardId } from "@/lib/types";
 import { mapHazardRow, useLiveRows } from "@/lib/use-live";
 
@@ -97,6 +102,28 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedWard, setSelectedWard] = useState<string>("all");
   const [selectedCrewUnit, setSelectedCrewUnit] = useState<string>("all");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = params.get("unit");
+    const fromStorage = window.localStorage.getItem(SELECTED_CREW_STORAGE_KEY);
+    const next = fromUrl || fromStorage;
+    if (next && (next === "all" || getCrewTeam(next))) {
+      setSelectedCrewUnit(next);
+    }
+  }, []);
+
+  const chooseCrewUnit = (crewId: string) => {
+    setSelectedCrewUnit(crewId);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(SELECTED_CREW_STORAGE_KEY, crewId);
+      const url = new URL(window.location.href);
+      if (crewId === "all") url.searchParams.delete("unit");
+      else url.searchParams.set("unit", crewId);
+      window.history.replaceState({}, "", url.pathname + url.search);
+    }
+  };
   const [sortMode, setSortMode] = useState<SortOption>("priority");
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [locationStatus, setLocationStatus] = useState<"pending" | "ready" | "denied">("pending");
@@ -256,11 +283,7 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
     }
 
     if (selectedCrewUnit !== "all") {
-      result = result.filter(
-        (row) =>
-          row.assigned_crew_id === selectedCrewUnit ||
-          row.assigned_crew_name?.toLowerCase().includes(selectedCrewUnit.toLowerCase())
-      );
+      result = result.filter((row) => isHazardAssignedToCrew(row, selectedCrewUnit));
     }
 
     // Hide child corroboration reports from the root field queue unless actively searching
@@ -644,7 +667,7 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
           <div className="flex flex-wrap items-center gap-2">
             <select
               value={selectedCrewUnit}
-              onChange={(e) => setSelectedCrewUnit(e.target.value)}
+              onChange={(e) => chooseCrewUnit(e.target.value)}
               className="h-10 rounded-2xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-sm focus:border-indigo-500 focus:outline-none"
             >
               <option value="all">All Response Units</option>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -8,7 +8,9 @@ import {
   AlertTriangle,
   ArrowRight,
   Camera,
+  Check,
   CheckCircle2,
+  ChevronDown,
   Clock,
   Construction,
   Database,
@@ -27,6 +29,12 @@ import {
 } from "lucide-react";
 import { MuleScannerModal } from "@/components/mule-scanner-modal";
 import { getMuleBeacons, syncMuleBeacons } from "@/lib/offline-mule";
+import {
+  CREW_TEAMS,
+  SELECTED_CREW_STORAGE_KEY,
+  getCrewTeam,
+  isHazardAssignedToCrew,
+} from "@/lib/store";
 import type { DataMuleBeacon, HazardRow, WardRow } from "@/lib/types";
 import { timeAgo, wardShort } from "@/lib/format";
 
@@ -42,6 +50,8 @@ export function CrewMobileView({ hazards, wards }: CrewMobileViewProps) {
   const [vaultBeacons, setVaultBeacons] = useState<DataMuleBeacon[]>([]);
   const [isRelaying, setIsRelaying] = useState(false);
   const [relayToast, setRelayToast] = useState<string | null>(null);
+  const [selectedCrewId, setSelectedCrewId] = useState<string>("all");
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const refreshVault = async () => {
     try {
@@ -54,13 +64,30 @@ export function CrewMobileView({ hazards, wards }: CrewMobileViewProps) {
 
   useEffect(() => {
     void refreshVault();
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem(SELECTED_CREW_STORAGE_KEY);
+    if (saved && (saved === "all" || getCrewTeam(saved))) {
+      setSelectedCrewId(saved);
+    }
   }, []);
+
+  const selectCrew = (crewId: string) => {
+    setSelectedCrewId(crewId);
+    setPickerOpen(false);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(SELECTED_CREW_STORAGE_KEY, crewId);
+    }
+  };
+
+  const selectedCrew = selectedCrewId === "all" ? undefined : getCrewTeam(selectedCrewId);
+  const deskHref = selectedCrewId === "all" ? "/crew" : `/crew?unit=${selectedCrewId}`;
+  const muleCrewId = selectedCrewId !== "all" ? selectedCrewId : "crew_general_01";
 
   const handleQuickRelay = async () => {
     if (vaultBeacons.length === 0) return;
     setIsRelaying(true);
     try {
-      const res = await syncMuleBeacons("crew_mobile_home");
+      const res = await syncMuleBeacons(muleCrewId);
       if (res.synced > 0) {
         setRelayToast(`Successfully relayed ${res.synced} offline citizen SOS beacon(s) to Municipal Command!`);
         await refreshVault();
@@ -76,55 +103,146 @@ export function CrewMobileView({ hazards, wards }: CrewMobileViewProps) {
     }
   };
 
-  const activeHazards = hazards.filter((h) => h.status !== "RESOLVED");
-  const criticalHazards = activeHazards.filter(
-    (h) => h.urgency === "CRITICAL" || h.is_road_blocked
+  const crewLoads = useMemo(
+    () =>
+      CREW_TEAMS.map((crew) => ({
+        ...crew,
+        open: hazards.filter((h) => h.status !== "RESOLVED" && isHazardAssignedToCrew(h, crew.id)).length,
+        urgent: hazards.filter(
+          (h) =>
+            h.status !== "RESOLVED" &&
+            isHazardAssignedToCrew(h, crew.id) &&
+            (h.urgency === "CRITICAL" || h.is_road_blocked),
+        ).length,
+      })),
+    [hazards],
   );
+
+  const unitHazards = useMemo(() => {
+    const open = hazards.filter((h) => h.status !== "RESOLVED");
+    if (selectedCrewId === "all") return open;
+    return open.filter((h) => isHazardAssignedToCrew(h, selectedCrewId));
+  }, [hazards, selectedCrewId]);
+
+  const priorityHazards = useMemo(() => {
+    const urgent = unitHazards.filter((h) => h.urgency === "CRITICAL" || h.is_road_blocked);
+    if (selectedCrewId === "all") return urgent;
+    return [...urgent, ...unitHazards.filter((h) => !urgent.includes(h))];
+  }, [unitHazards, selectedCrewId]);
 
   return (
     <div className="flex flex-col gap-5 animate-pop">
       {/* 1. Crew Status & Unit Banner */}
       <div className="rounded-3xl border border-cyan-200 bg-gradient-to-r from-cyan-50 via-sky-50 to-blue-50 p-5 shadow-xs">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-cyan-600 text-white shadow-md shadow-cyan-500/20">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-cyan-600 text-white shadow-md shadow-cyan-500/20">
               <HardHat className="h-6 w-6" />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <span className="rounded-full bg-cyan-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-cyan-800">
                   On-Ground Team
                 </span>
                 <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
               </div>
-              <h3 className="text-base font-black text-slate-900">
-                Kelani Municipal Clearance Unit
-              </h3>
+              <button
+                type="button"
+                onClick={() => setPickerOpen((open) => !open)}
+                className="mt-1 flex w-full items-center gap-1.5 text-left touch-manipulation"
+                aria-expanded={pickerOpen}
+                aria-label="Choose field crew unit"
+              >
+                <h3 className="truncate text-base font-black text-slate-900">
+                  {selectedCrew?.name || "All Response Units"}
+                </h3>
+                <ChevronDown
+                  className={`h-4 w-4 shrink-0 text-cyan-700 transition-transform ${pickerOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+              <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-500">
+                {selectedCrew
+                  ? `${selectedCrew.station} · ${selectedCrew.specialty}`
+                  : "Select a dispatched unit to inspect only that crew's work orders."}
+              </p>
             </div>
           </div>
 
           <Link
-            href="/crew"
-            className="flex items-center gap-1 rounded-xl bg-cyan-600 px-3 py-2 text-xs font-bold text-white shadow-xs transition-transform hover:bg-cyan-700 active:scale-95 touch-manipulation"
+            href={deskHref}
+            className="flex shrink-0 items-center gap-1 rounded-xl bg-cyan-600 px-3 py-2 text-xs font-bold text-white shadow-xs transition-transform hover:bg-cyan-700 active:scale-95 touch-manipulation"
           >
             <span>Open Desk</span>
             <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
 
+        {pickerOpen ? (
+          <div className="mt-3 flex flex-col gap-1.5 rounded-2xl border border-cyan-200 bg-white/90 p-2 shadow-sm">
+            <button
+              type="button"
+              onClick={() => selectCrew("all")}
+              className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-left touch-manipulation ${
+                selectedCrewId === "all" ? "bg-cyan-600 text-white" : "hover:bg-cyan-50"
+              }`}
+            >
+              <span className="text-xs font-black">All Response Units</span>
+              <span className="text-[10px] font-bold">
+                {hazards.filter((h) => h.status !== "RESOLVED").length} open
+              </span>
+            </button>
+            {crewLoads.map((crew) => (
+              <button
+                key={crew.id}
+                type="button"
+                onClick={() => selectCrew(crew.id)}
+                className={`flex items-start justify-between gap-3 rounded-xl px-3 py-2.5 text-left touch-manipulation ${
+                  selectedCrewId === crew.id ? "bg-cyan-600 text-white" : "hover:bg-cyan-50"
+                }`}
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    {selectedCrewId === crew.id ? <Check className="h-3.5 w-3.5 shrink-0" /> : null}
+                    <span className="text-xs font-black">{crew.shortName}</span>
+                  </div>
+                  <p
+                    className={`mt-0.5 truncate text-[10px] font-semibold ${
+                      selectedCrewId === crew.id ? "text-cyan-50" : "text-slate-500"
+                    }`}
+                  >
+                    {crew.name}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-xs font-black">{crew.open}</p>
+                  <p
+                    className={`text-[10px] font-bold ${
+                      selectedCrewId === crew.id ? "text-cyan-50" : "text-rose-600"
+                    }`}
+                  >
+                    {crew.urgent} urgent
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+        ) : null}
+
         <div className="mt-4 grid grid-cols-3 gap-2 border-t border-cyan-200/60 pt-3 text-center">
           <div className="rounded-xl bg-white/70 p-2">
             <p className="text-[10px] font-bold text-slate-500 uppercase">Assigned</p>
-            <p className="text-lg font-black text-slate-900">{activeHazards.length}</p>
+            <p className="text-lg font-black text-slate-900">{unitHazards.length}</p>
           </div>
           <div className="rounded-xl bg-white/70 p-2">
             <p className="text-[10px] font-bold text-rose-500 uppercase">Urgent</p>
-            <p className="text-lg font-black text-rose-600">{criticalHazards.length}</p>
+            <p className="text-lg font-black text-rose-600">
+              {unitHazards.filter((h) => h.urgency === "CRITICAL" || h.is_road_blocked).length}
+            </p>
           </div>
           <div className="rounded-xl bg-white/70 p-2">
             <p className="text-[10px] font-bold text-amber-500 uppercase">Roadblocks</p>
             <p className="text-lg font-black text-amber-600">
-              {activeHazards.filter((h) => h.is_road_blocked).length}
+              {unitHazards.filter((h) => h.is_road_blocked).length}
             </p>
           </div>
         </div>
@@ -258,30 +376,34 @@ export function CrewMobileView({ hazards, wards }: CrewMobileViewProps) {
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <HardHat className="h-4 w-4 text-cyan-600" />
-            <h4 className="text-sm font-black text-slate-900">Priority Work Orders</h4>
+            <h4 className="text-sm font-black text-slate-900">
+              {selectedCrew ? `${selectedCrew.shortName} Work Orders` : "Priority Work Orders"}
+            </h4>
           </div>
           <Link
-            href="/crew"
+            href={deskHref}
             className="text-xs font-bold text-cyan-700 hover:text-cyan-900"
           >
-            View All ({activeHazards.length})
+            View All ({unitHazards.length})
           </Link>
         </div>
 
-        {criticalHazards.length === 0 ? (
+        {priorityHazards.length === 0 ? (
           <div className="py-6 text-center text-xs text-slate-400">
-            No critical clearance tickets in this sector.
+            {selectedCrew
+              ? `No open tickets assigned to ${selectedCrew.shortName}.`
+              : "No critical clearance tickets in this sector."}
           </div>
         ) : (
           <div className="flex flex-col gap-2.5">
-            {criticalHazards.slice(0, 4).map((h) => (
+            {priorityHazards.slice(0, 4).map((h) => (
               <div
                 key={h.id}
                 className="flex flex-col gap-2 rounded-2xl border border-slate-100 bg-slate-50/80 p-3.5 transition-all hover:border-slate-300"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-md bg-slate-200 px-2 py-0.5 text-[10px] font-extrabold text-slate-700 uppercase">
                         {wardShort(h.ward_id)}
                       </span>
@@ -299,6 +421,15 @@ export function CrewMobileView({ hazards, wards }: CrewMobileViewProps) {
                       >
                         {h.urgency}
                       </span>
+                      {h.assigned_crew_name ? (
+                        <span className="rounded-md bg-cyan-50 px-2 py-0.5 text-[10px] font-extrabold text-cyan-800">
+                          {getCrewTeam(h.assigned_crew_id || "")?.shortName || h.assigned_crew_name}
+                        </span>
+                      ) : (
+                        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-extrabold text-slate-500">
+                          Unassigned
+                        </span>
+                      )}
                     </div>
                     <p className="mt-1 text-xs font-bold text-slate-900">
                       {h.category} - {h.description?.slice(0, 75) || "Active hazard"}
@@ -318,7 +449,7 @@ export function CrewMobileView({ hazards, wards }: CrewMobileViewProps) {
                     <span>Navigate</span>
                   </Link>
                   <Link
-                    href="/crew"
+                    href={deskHref}
                     className="flex items-center gap-1 rounded-xl bg-cyan-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-xs hover:bg-cyan-700 touch-manipulation"
                   >
                     <Camera className="h-3 w-3" />
@@ -335,6 +466,7 @@ export function CrewMobileView({ hazards, wards }: CrewMobileViewProps) {
       <MuleScannerModal
         open={scannerOpen}
         initialTab={scannerTab}
+        crewId={muleCrewId}
         onClose={() => {
           setScannerOpen(false);
           void refreshVault();

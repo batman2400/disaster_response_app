@@ -41,7 +41,7 @@ import { SitRepExportModal } from "@/components/sitrep-export-modal";
 import { VoiceModal } from "@/components/voice-modal";
 import { WaterDepthGauge } from "@/components/water-depth-gauge";
 import { DEMO_SAMPLE_AUDIO_URL } from "@/lib/demo-audio";
-import { CREW_TEAMS } from "@/lib/store";
+import { CREW_TEAMS, getCrewTeam, isHazardAssignedToCrew } from "@/lib/store";
 
 import { PipelineAudit } from "@/app/dashboard/admin/pipeline/PipelineAudit";
 import { Badge, Button, Card, Chip, Modal, SectionLabel, StatusBadge, UrgencyBadge } from "@/components/ui";
@@ -124,6 +124,7 @@ export function OfficerBoard({
 }) {
   const [note, setNote] = useState("");
   const [filter, setFilter] = useState<FilterId>("ALL");
+  const [crewFilter, setCrewFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState<"newest" | "urgency" | "confidence">("newest");
   const [busy, setBusy] = useState(false);
@@ -215,6 +216,15 @@ export function OfficerBoard({
     return counts;
   }, [tickets]);
 
+  const crewLoads = useMemo(
+    () =>
+      CREW_TEAMS.map((crew) => ({
+        ...crew,
+        open: tickets.filter((t) => t.status !== "RESOLVED" && isHazardAssignedToCrew(t, crew.id)).length,
+      })),
+    [tickets],
+  );
+
   const visible = useMemo(() => {
     const list = tickets.filter((ticket) => {
       const matchesFilter =
@@ -229,8 +239,10 @@ export function OfficerBoard({
                 : filter === "ALERT"
                   ? ticket.status === "AREA_ALERT" || ticket.urgency === "CRITICAL"
                   : ticket.status === filter;
-      const hay = `${ticket.id} ${ticket.description ?? ""} ${wardShort(ticket.ward_id)} ${ticket.category}`.toLowerCase();
-      return matchesFilter && hay.includes(query.toLowerCase());
+      const matchesCrew =
+        crewFilter === "all" || isHazardAssignedToCrew(ticket, crewFilter);
+      const hay = `${ticket.id} ${ticket.description ?? ""} ${wardShort(ticket.ward_id)} ${ticket.category} ${ticket.assigned_crew_name ?? ""}`.toLowerCase();
+      return matchesFilter && matchesCrew && hay.includes(query.toLowerCase());
     });
 
     return list.sort((a, b) => {
@@ -247,7 +259,7 @@ export function OfficerBoard({
       }
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
-  }, [tickets, filter, query, sortBy]);
+  }, [tickets, filter, crewFilter, query, sortBy]);
 
   const selected = tickets.find((row) => row.id === selectedId) ?? visible[0] ?? null;
 
@@ -487,6 +499,48 @@ export function OfficerBoard({
               );
             })}
           </div>
+
+          <div className="mt-3">
+            <div className="mb-1.5 flex items-center gap-1.5">
+              <Truck className="h-3 w-3 text-slate-400" />
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                Field units
+              </span>
+            </div>
+            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+              <Chip
+                active={crewFilter === "all"}
+                onClick={() => setCrewFilter("all")}
+                className="flex items-center gap-1.5 whitespace-nowrap"
+              >
+                <span>All crews</span>
+              </Chip>
+              {crewLoads.map((crew) => (
+                <Chip
+                  key={crew.id}
+                  active={crewFilter === crew.id}
+                  onClick={() => setCrewFilter(crew.id)}
+                  className="flex items-center gap-1.5 whitespace-nowrap"
+                  title={crew.name}
+                >
+                  <span>{crew.shortName}</span>
+                  <span
+                    className={cn(
+                      "rounded-full px-1.5 py-0.2 text-[10px] font-bold",
+                      crewFilter === crew.id ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600",
+                    )}
+                  >
+                    {crew.open}
+                  </span>
+                </Chip>
+              ))}
+            </div>
+            {crewFilter !== "all" ? (
+              <p className="mt-2 truncate text-[11px] font-semibold text-slate-500">
+                {getCrewTeam(crewFilter)?.name} · {getCrewTeam(crewFilter)?.station}
+              </p>
+            ) : null}
+          </div>
         </div>
 
         <div className="flex flex-1 flex-col gap-2 overflow-y-auto custom-scrollbar bg-slate-50/50 p-3">
@@ -569,6 +623,7 @@ export function OfficerBoard({
                 type="button"
                 onClick={() => {
                   setFilter("ALL");
+                  setCrewFilter("all");
                   setQuery("");
                 }}
                 className="mt-3 text-xs font-bold text-brand hover:underline"
@@ -1275,11 +1330,14 @@ export function OfficerBoard({
                           : "border-slate-200 hover:border-slate-300",
                       )}
                     >
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-2">
                         <span className="text-xs font-extrabold text-slate-900">{unit.name}</span>
                         <span className="font-mono text-[10px] font-bold text-brand">ETA {unit.eta}</span>
                       </div>
                       <p className="mt-1 text-[11px] text-slate-500">{unit.specialty}</p>
+                      <p className="mt-1.5 text-[10px] font-bold text-slate-400">
+                        {crewLoads.find((c) => c.id === unit.id)?.open ?? 0} open tasks
+                      </p>
                     </button>
                   ))}
                 </div>
@@ -1833,7 +1891,7 @@ export function OfficerBoard({
                 <div className="rounded-xl border border-slate-100 bg-slate-50 p-2.5">
                   <span className="text-[10px] font-bold uppercase text-slate-400">Engine Source</span>
                   <div className="font-mono text-sm font-extrabold text-brand">
-                    {activeTileDetail.source ?? "gemini-2.5-flash"}
+                    {activeTileDetail.source ?? "gemini-3.5-flash-lite"}
                   </div>
                 </div>
               </div>

@@ -196,6 +196,7 @@ export function upsertShelter(row: ShelterRow) {
 export interface CrewTeam {
   id: string;
   name: string;
+  shortName: string;
   categorySpecialty: string[];
   contactPhone: string;
   station: string;
@@ -203,10 +204,13 @@ export interface CrewTeam {
   eta: string;
 }
 
+export const SELECTED_CREW_STORAGE_KEY = "fender_selected_crew_unit";
+
 export const CREW_TEAMS: CrewTeam[] = [
   {
     id: "crew_drainage_01",
     name: "CMC Drainage Unit 01 (Basin North)",
+    shortName: "Drainage 01",
     categorySpecialty: ["DRAINAGE_OVERFLOW", "FLOOD"],
     contactPhone: "+94 11 269 1111",
     station: "Kelani Basin Depot, Nagalagam St",
@@ -216,6 +220,7 @@ export const CREW_TEAMS: CrewTeam[] = [
   {
     id: "crew_watercraft_01",
     name: "Kelani Watercraft & Boat Rescue Unit",
+    shortName: "Boat Rescue",
     categorySpecialty: ["HELP_REQUEST", "FLOOD"],
     contactPhone: "+94 11 267 0002",
     station: "Peliyagoda Rapid Water Response Base",
@@ -225,6 +230,7 @@ export const CREW_TEAMS: CrewTeam[] = [
   {
     id: "crew_ceb_01",
     name: "CEB Colombo Emergency Line Crew",
+    shortName: "CEB Line",
     categorySpecialty: ["ELECTRICAL_HAZARD"],
     contactPhone: "+94 11 242 1198",
     station: "CEB Area Depot, Pettah",
@@ -234,6 +240,7 @@ export const CREW_TEAMS: CrewTeam[] = [
   {
     id: "crew_roads_01",
     name: "CMC Road & Culvert Clearing Unit",
+    shortName: "Roads",
     categorySpecialty: ["BLOCKED_ROAD", "FALLEN_TREE", "LANDSLIDE"],
     contactPhone: "+94 11 268 4422",
     station: "Town Hall Mechanical Works Yard",
@@ -243,6 +250,7 @@ export const CREW_TEAMS: CrewTeam[] = [
   {
     id: "crew_general_01",
     name: "CMC Rapid Disaster Taskforce",
+    shortName: "Taskforce",
     categorySpecialty: ["STRUCTURAL_DAMAGE", "FLOOD", "HELP_REQUEST"],
     contactPhone: "+94 11 269 3333",
     station: "CMC Central Depot, Maligawatta",
@@ -250,6 +258,19 @@ export const CREW_TEAMS: CrewTeam[] = [
     eta: "20 mins",
   },
 ];
+
+export function getCrewTeam(id: string): CrewTeam | undefined {
+  return CREW_TEAMS.find((crew) => crew.id === id);
+}
+
+export function isHazardAssignedToCrew(
+  hazard: { assigned_crew_id?: string | null; assigned_crew_name?: string | null },
+  crewId: string,
+): boolean {
+  if (hazard.assigned_crew_id === crewId) return true;
+  const team = getCrewTeam(crewId);
+  return Boolean(team && hazard.assigned_crew_name === team.name);
+}
 
 export const shelterNeeds: ShelterNeed[] = [
   {
