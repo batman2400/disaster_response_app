@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { officerFieldsFromStored } from "./officer-log";
 import { getBrowserSupabase } from "./supabase-browser";
@@ -84,7 +84,7 @@ export function useLiveRows<T extends Identified>(options: {
   mapRow: (row: Record<string, unknown>) => T;
   fallbackFetch?: () => Promise<T[]>;
   sort?: (rows: T[]) => T[];
-}): { rows: T[]; updatedAt: Date; live: boolean } {
+}): { rows: T[]; updatedAt: Date; live: boolean; refetch: () => Promise<void> } {
   const { table, initial, mapRow, fallbackFetch, sort } = options;
   const [rows, setRows] = useState(initial);
   const [updatedAt, setUpdatedAt] = useState(() => new Date());
@@ -96,27 +96,45 @@ export function useLiveRows<T extends Identified>(options: {
   mapRef.current = mapRow;
   sortRef.current = sort;
 
+  const commit = useCallback((next: T[]) => {
+    setRows(sortRef.current ? sortRef.current(next) : next);
+    setUpdatedAt(new Date());
+  }, []);
+
+  const refetch = useCallback(async () => {
+    const client = getBrowserSupabase();
+    if (client) {
+      const { data, error } = await client.from(table).select("*");
+      if (!error && data) {
+        commit(data.map((row) => mapRef.current(row as Record<string, unknown>)));
+        return;
+      }
+    }
+    if (fallbackRef.current) {
+      commit(await fallbackRef.current());
+    }
+  }, [table, commit]);
+
   useEffect(() => {
     const client = getBrowserSupabase();
     let cancelled = false;
     let pollId: ReturnType<typeof setInterval> | undefined;
 
-    const commit = (next: T[]) => {
+    const safeCommit = (next: T[]) => {
       if (cancelled) return;
-      setRows(sortRef.current ? sortRef.current(next) : next);
-      setUpdatedAt(new Date());
+      commit(next);
     };
 
     async function seed() {
       if (client) {
         const { data, error } = await client.from(table).select("*");
         if (!error && data) {
-          commit(data.map((row) => mapRef.current(row as Record<string, unknown>)));
+          safeCommit(data.map((row) => mapRef.current(row as Record<string, unknown>)));
           return;
         }
       }
       if (fallbackRef.current) {
-        commit(await fallbackRef.current());
+        safeCommit(await fallbackRef.current());
       }
     }
 
@@ -125,7 +143,7 @@ export function useLiveRows<T extends Identified>(options: {
     if (!client) {
       if (!fallbackRef.current) return;
       pollId = setInterval(() => {
-        void fallbackRef.current?.().then(commit);
+        void fallbackRef.current?.().then(safeCommit);
       }, 8000);
       return () => {
         cancelled = true;
@@ -155,7 +173,7 @@ export function useLiveRows<T extends Identified>(options: {
       .subscribe((status) => {
         setLive(status === "SUBSCRIBED");
         if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-          void fallbackRef.current?.().then(commit);
+          void fallbackRef.current?.().then(safeCommit);
         }
       });
 
@@ -163,7 +181,7 @@ export function useLiveRows<T extends Identified>(options: {
       cancelled = true;
       void client.removeChannel(channel);
     };
-  }, [table]);
+  }, [table, commit]);
 
-  return { rows, updatedAt, live };
+  return { rows, updatedAt, live, refetch };
 }

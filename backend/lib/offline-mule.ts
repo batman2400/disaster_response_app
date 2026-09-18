@@ -64,6 +64,21 @@ export async function removeMuleBeacon(id: string): Promise<void> {
   }
 }
 
+export async function clearMuleVault(): Promise<void> {
+  try {
+    const db = await openMuleDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(MULE_STORE_NAME, "readwrite");
+      const store = tx.objectStore(MULE_STORE_NAME);
+      const req = store.clear();
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  } catch {
+    // ignore
+  }
+}
+
 export async function syncMuleBeacons(crewId?: string): Promise<{ synced: number; failed: number }> {
   const beacons = await getMuleBeacons();
   if (!beacons.length) return { synced: 0, failed: 0 };

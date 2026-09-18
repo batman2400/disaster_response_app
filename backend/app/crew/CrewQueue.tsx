@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  Database,
   Eye,
   EyeOff,
   Flame,
@@ -27,6 +28,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { MuleScannerModal } from "@/components/mule-scanner-modal";
 import { PublicShell } from "@/components/public-shell";
@@ -81,7 +83,8 @@ function sortCrewQueue(rows: HazardRow[], userLoc?: [number, number] | null, sor
 }
 
 export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
-  const { rows: hazards, live } = useLiveRows<HazardRow>({
+  const router = useRouter();
+  const { rows: hazards, live, refetch } = useLiveRows<HazardRow>({
     table: "hazards",
     initial: sortCrewQueue(initialHazards),
     mapRow: mapHazardRow,
@@ -172,6 +175,7 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
 
   // Offline Data Mule Beacon state
   const [muleModalOpen, setMuleModalOpen] = useState(false);
+  const [muleModalInitialTab, setMuleModalInitialTab] = useState<"scan" | "vault">("scan");
   const [muleCount, setMuleCount] = useState(0);
   const [isSyncingMules, setIsSyncingMules] = useState(false);
   const [muleToast, setMuleToast] = useState<string | null>(null);
@@ -195,10 +199,12 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
       const result = await syncMuleBeacons(selectedCrewUnit !== "all" ? selectedCrewUnit : undefined);
       if (result.synced > 0) {
         setMuleToast(`Successfully relayed ${result.synced} offline citizen SOS beacon(s) to Municipal Command!`);
+        await refreshMules();
+        await refetch();
+        router.refresh();
       } else {
-        setMuleToast("No cached beacons to relay or transmission failed.");
+        setMuleToast("No cached beacons to relay or transmission failed. Check internet connection.");
       }
-      await refreshMules();
     } catch (e) {
       setMuleToast("Relay transmission failed. Beacons remain safely buffered in local IndexedDB vault.");
     } finally {
@@ -319,7 +325,10 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
             {/* Zero-Signal Data Mule SOS Scanner */}
             <button
               type="button"
-              onClick={() => setMuleModalOpen(true)}
+              onClick={() => {
+                setMuleModalInitialTab("scan");
+                setMuleModalOpen(true);
+              }}
               title="Zero-Signal Data Mule: Scan stranded citizen QR beacons"
               className="relative flex h-10 items-center gap-1.5 rounded-2xl border border-amber-300 bg-amber-50 px-3 text-xs font-bold text-amber-900 shadow-sm transition-all hover:bg-amber-100 active:scale-95"
             >
@@ -563,6 +572,52 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
             </span>
           </button>
         </div>
+
+        {/* Data Mule Vault Alert Banner in Field Queue */}
+        {muleCount > 0 && (
+          <div className="mt-3 flex flex-col gap-3 rounded-2xl border-2 border-amber-300 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-100/90 p-3.5 shadow-sm sm:flex-row sm:items-center sm:justify-between animate-pop">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-600 text-white shadow-sm">
+                <Radio className="h-4 w-4 animate-pulse" />
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-black text-amber-950">
+                    {muleCount} Offline Citizen SOS Beacon(s) Buffered in Device Vault
+                  </span>
+                  <span className="flex h-2 w-2 rounded-full bg-amber-600 animate-ping" />
+                </div>
+                <p className="text-[11px] font-medium text-amber-800">
+                  Harvested from stranded citizens with zero cellular connectivity. Transmit to Municipal Command.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleRelayMules}
+                disabled={isSyncingMules}
+                className="flex items-center gap-1.5 rounded-xl bg-amber-600 px-3.5 py-2 text-xs font-black text-white shadow-md shadow-amber-600/20 hover:bg-amber-700 active:scale-95 disabled:opacity-50"
+              >
+                <Radio className={cn("h-3.5 w-3.5", isSyncingMules && "animate-spin")} />
+                <span>{isSyncingMules ? "Relaying..." : `Relay (${muleCount}) to Command`}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMuleModalInitialTab("vault");
+                  setMuleModalOpen(true);
+                }}
+                className="flex items-center gap-1 rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs font-bold text-amber-900 shadow-2xs hover:bg-amber-50"
+              >
+                <Database className="h-3.5 w-3.5 text-amber-600" />
+                <span>Inspect Saved Output</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Filter & Search Bar */}
         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -892,6 +947,7 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
       {/* Data Mule QR Scanner Modal */}
       <MuleScannerModal
         open={muleModalOpen}
+        initialTab={muleModalInitialTab}
         onClose={() => {
           setMuleModalOpen(false);
           refreshMules();
@@ -899,6 +955,12 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
         crewId={selectedCrewUnit !== "all" ? selectedCrewUnit : "crew_field_alpha"}
         onBeaconCaptured={() => {
           refreshMules();
+        }}
+        onBeaconsRelayed={async (count) => {
+          refreshMules();
+          setMuleToast(`Successfully relayed ${count} offline citizen SOS beacon(s) to Municipal Command!`);
+          await refetch();
+          router.refresh();
         }}
       />
 

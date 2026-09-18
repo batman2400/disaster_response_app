@@ -1,16 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
+  AlertCircle,
   AlertTriangle,
   ArrowRight,
   Camera,
   CheckCircle2,
   Clock,
   Construction,
+  Database,
   ExternalLink,
   HardHat,
+  Loader2,
   MapPin,
   Navigation,
   QrCode,
@@ -18,10 +22,12 @@ import {
   Shield,
   Smartphone,
   Truck,
+  X,
   Zap,
 } from "lucide-react";
 import { MuleScannerModal } from "@/components/mule-scanner-modal";
-import type { HazardRow, WardRow } from "@/lib/types";
+import { getMuleBeacons, syncMuleBeacons } from "@/lib/offline-mule";
+import type { DataMuleBeacon, HazardRow, WardRow } from "@/lib/types";
 import { timeAgo, wardShort } from "@/lib/format";
 
 interface CrewMobileViewProps {
@@ -30,7 +36,45 @@ interface CrewMobileViewProps {
 }
 
 export function CrewMobileView({ hazards, wards }: CrewMobileViewProps) {
+  const router = useRouter();
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [scannerTab, setScannerTab] = useState<"scan" | "vault">("scan");
+  const [vaultBeacons, setVaultBeacons] = useState<DataMuleBeacon[]>([]);
+  const [isRelaying, setIsRelaying] = useState(false);
+  const [relayToast, setRelayToast] = useState<string | null>(null);
+
+  const refreshVault = async () => {
+    try {
+      const beacons = await getMuleBeacons();
+      setVaultBeacons(beacons);
+    } catch {
+      setVaultBeacons([]);
+    }
+  };
+
+  useEffect(() => {
+    void refreshVault();
+  }, []);
+
+  const handleQuickRelay = async () => {
+    if (vaultBeacons.length === 0) return;
+    setIsRelaying(true);
+    try {
+      const res = await syncMuleBeacons("crew_mobile_home");
+      if (res.synced > 0) {
+        setRelayToast(`Successfully relayed ${res.synced} offline citizen SOS beacon(s) to Municipal Command!`);
+        await refreshVault();
+        router.refresh();
+      } else {
+        setRelayToast("Relay failed or no beacons to send. Check cellular connection.");
+      }
+    } catch {
+      setRelayToast("Relay failed. Beacons remain safely stored in local vault.");
+    } finally {
+      setIsRelaying(false);
+      setTimeout(() => setRelayToast(null), 6000);
+    }
+  };
 
   const activeHazards = hazards.filter((h) => h.status !== "RESOLVED");
   const criticalHazards = activeHazards.filter(
@@ -86,15 +130,42 @@ export function CrewMobileView({ hazards, wards }: CrewMobileViewProps) {
         </div>
       </div>
 
+      {/* Toast Feedback */}
+      {relayToast && (
+        <div className="flex items-center justify-between rounded-2xl border border-emerald-300 bg-emerald-50 p-3.5 text-xs font-extrabold text-emerald-900 shadow-sm animate-pop">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+            <span>{relayToast}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setRelayToast(null)}
+            className="text-emerald-700 hover:text-emerald-950"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* 2. Rapid Field Actions */}
       <div className="grid grid-cols-2 gap-3">
         <button
           type="button"
-          onClick={() => setScannerOpen(true)}
+          onClick={() => {
+            setScannerTab("scan");
+            setScannerOpen(true);
+          }}
           className="flex flex-col items-start justify-between rounded-3xl border border-indigo-200 bg-white p-4.5 text-left shadow-xs transition-transform hover:border-indigo-500 active:scale-95 touch-manipulation"
         >
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
-            <QrCode className="h-5 w-5" />
+          <div className="flex items-center justify-between w-full">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+              <QrCode className="h-5 w-5" />
+            </div>
+            {vaultBeacons.length > 0 && (
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-[10px] font-black text-slate-900 animate-pulse">
+                {vaultBeacons.length} stored
+              </span>
+            )}
           </div>
           <div className="mt-3">
             <h4 className="text-sm font-black text-slate-900">Scan SOS Beacon</h4>
@@ -127,6 +198,60 @@ export function CrewMobileView({ hazards, wards }: CrewMobileViewProps) {
           </span>
         </Link>
       </div>
+
+      {/* 2.5 Data Mule Offline Vault & Relay Banner (When beacons exist) */}
+      {vaultBeacons.length > 0 && (
+        <div className="rounded-3xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100/70 p-4.5 shadow-md animate-pop">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="flex h-2.5 w-2.5 rounded-full bg-amber-600 animate-ping" />
+              <span className="text-[11px] font-black uppercase tracking-wider text-amber-900">
+                Data Mule Vault · {vaultBeacons.length} Offline SOS Buffered
+              </span>
+            </div>
+            <span className="rounded-full bg-amber-200/80 px-2 py-0.5 text-[10px] font-black text-amber-900">
+              Stored Locally
+            </span>
+          </div>
+
+          <p className="mt-1.5 text-xs font-semibold text-amber-900">
+            Citizen emergency distress requests captured in zero-cell zones are buffered safely on this device. When in network range, relay them to Municipal Command.
+          </p>
+
+          <div className="mt-3.5 flex flex-col gap-2 sm:flex-row">
+            <button
+              type="button"
+              onClick={handleQuickRelay}
+              disabled={isRelaying}
+              className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-amber-600 px-4 py-2.5 text-xs font-black text-white shadow-md shadow-amber-600/30 hover:bg-amber-700 active:scale-95 disabled:opacity-50"
+            >
+              {isRelaying ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Relaying to Command...</span>
+                </>
+              ) : (
+                <>
+                  <Radio className="h-4 w-4 animate-pulse" />
+                  <span>Relay All ({vaultBeacons.length}) to Command Center</span>
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setScannerTab("vault");
+                setScannerOpen(true);
+              }}
+              className="flex items-center justify-center gap-1.5 rounded-2xl border border-amber-300 bg-white px-3.5 py-2.5 text-xs font-black text-amber-900 shadow-2xs hover:bg-amber-50"
+            >
+              <Database className="h-3.5 w-3.5 text-amber-600" />
+              <span>Inspect Saved Output ({vaultBeacons.length})</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 3. Priority Dispatch Workorders */}
       <div className="rounded-3xl border border-slate-200/90 bg-white p-5 shadow-xs">
@@ -207,7 +332,22 @@ export function CrewMobileView({ hazards, wards }: CrewMobileViewProps) {
       </div>
 
       {/* Mule Scanner Modal */}
-      <MuleScannerModal open={scannerOpen} onClose={() => setScannerOpen(false)} />
+      <MuleScannerModal
+        open={scannerOpen}
+        initialTab={scannerTab}
+        onClose={() => {
+          setScannerOpen(false);
+          void refreshVault();
+        }}
+        onBeaconCaptured={() => {
+          void refreshVault();
+        }}
+        onBeaconsRelayed={(count) => {
+          void refreshVault();
+          setRelayToast(`Successfully relayed ${count} offline citizen beacon(s) to Municipal Command!`);
+          router.refresh();
+        }}
+      />
     </div>
   );
 }
