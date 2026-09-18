@@ -122,7 +122,7 @@ export function OfficerBoard({
   const [note, setNote] = useState("");
   const [filter, setFilter] = useState<FilterId>("OPEN");
   const [query, setQuery] = useState("");
-  const [sortBy, setSortBy] = useState<"newest" | "urgency" | "confidence">("urgency");
+  const [sortBy, setSortBy] = useState<"newest" | "urgency" | "confidence">("newest");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(initialHazards[0]?.id ?? null);
@@ -205,8 +205,6 @@ export function OfficerBoard({
 
   const visible = useMemo(() => {
     const list = tickets.filter((ticket) => {
-      // Hide child corroborations from the main queue (they are grouped under the parent ticket)
-      if (!query && ticket.parent_incident_id) return false;
       const matchesFilter =
         filter === "OPEN"
           ? ticket.status !== "RESOLVED"
@@ -451,6 +449,11 @@ export function OfficerBoard({
                     {(ticket.corroborations_count ?? 0) > 0 ? (
                       <span className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] font-extrabold uppercase bg-amber-50 text-amber-800 border border-amber-200">
                         <Link2 className="h-2.5 w-2.5 text-amber-600" /> +{ticket.corroborations_count} Corrob
+                      </span>
+                    ) : null}
+                    {ticket.parent_incident_id ? (
+                      <span className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] font-extrabold uppercase bg-indigo-50 text-indigo-700 border border-indigo-200" title={`Corroborates parent #${ticket.parent_incident_id.slice(0, 8).toUpperCase()}`}>
+                        <Link2 className="h-2.5 w-2.5 text-indigo-600" /> Corroboration
                       </span>
                     ) : null}
                     {ticket.assigned_crew_name ? (

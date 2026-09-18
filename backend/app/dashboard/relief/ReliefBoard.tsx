@@ -344,6 +344,16 @@ export function ReliefBoard({
 
         <div className="flex items-center gap-2 sm:self-start">
           <a
+            href="/supplies"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Open Public Supplies & Donation Board"
+            className="flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2.5 text-xs font-extrabold text-indigo-800 shadow-xs hover:bg-indigo-100 transition-colors"
+          >
+            <Package className="h-4 w-4 text-indigo-600" />
+            <span className="hidden sm:inline">Supplies</span> Bay ↗
+          </a>
+          <a
             href="/safe"
             target="_blank"
             rel="noopener noreferrer"

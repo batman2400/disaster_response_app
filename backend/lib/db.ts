@@ -99,12 +99,14 @@ function asHazard(row: Record<string, unknown>): HazardRow {
       null,
     parent_incident_id:
       (row.parent_incident_id as string | null) ??
+      (rawTrace?.parent_incident_id as string | null) ??
       memoryGetHazard(String(row.id))?.parent_incident_id ??
       null,
     corroborations_count:
-      Number(row.corroborations_count ?? memoryGetHazard(String(row.id))?.corroborations_count ?? 0),
+      Number(row.corroborations_count ?? rawTrace?.corroborations_count ?? memoryGetHazard(String(row.id))?.corroborations_count ?? 0),
     corroborating_reports:
       (row.corroborating_reports as HazardRow["corroborating_reports"]) ??
+      (rawTrace?.corroborating_reports as HazardRow["corroborating_reports"]) ??
       memoryGetHazard(String(row.id))?.corroborating_reports ??
       [],
   };
@@ -217,6 +219,9 @@ export async function saveHazard(row: HazardRow) {
   if (row.audio_url) traceObj.audio_url = row.audio_url;
   if (row.summary) traceObj.summary = row.summary;
   if (row.detected_language) traceObj.detected_language = row.detected_language;
+  if (row.parent_incident_id) traceObj.parent_incident_id = row.parent_incident_id;
+  if (row.corroborations_count) traceObj.corroborations_count = row.corroborations_count;
+  if (row.corroborating_reports) traceObj.corroborating_reports = row.corroborating_reports;
   if (Object.keys(traceObj).length > 0) {
     payload.trace = traceObj;
   }
