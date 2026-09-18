@@ -59,8 +59,14 @@ export function getGemini() {
   return new GoogleGenAI({ apiKey });
 }
 
+export function candidateModels(): string[] {
+  const primary = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
+  const fallbacks = ["gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-3.6-flash"];
+  return Array.from(new Set([primary, ...fallbacks]));
+}
+
 export function geminiModel() {
-  return process.env.GEMINI_MODEL || "gemini-3.6-flash";
+  return candidateModels()[0];
 }
 
 export function stripDataUrl(dataUrl: string, defaultMime = "image/jpeg") {
@@ -114,36 +120,46 @@ export async function callGeminiJson<T>(
     }
   }
 
+  const models = candidateModels();
   let lastError: Error | null = null;
-  for (const [index, apiKey] of keys.entries()) {
-    try {
-      const ai = new GoogleGenAI({ apiKey });
-      const response = await ai.models.generateContent({
-        model: geminiModel(),
-        contents: [{ role: "user", parts }],
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: schema,
-        },
-      });
 
-      const text = response.text;
-      if (!text) {
-        throw new Error("Gemini returned an empty response");
-      }
-      return JSON.parse(text) as T;
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-      if (/429|quota|RESOURCE_EXHAUSTED/i.test(lastError.message)) {
-        keyCoolOffs.set(apiKey, Date.now() + 5 * 60 * 1000);
-      }
-      if (index < keys.length - 1) {
-        console.warn("[gemini] key failed or quota hit, trying next prioritized key...");
+  for (const model of models) {
+    for (const [index, apiKey] of keys.entries()) {
+      try {
+        const ai = new GoogleGenAI({ apiKey });
+        const response = await ai.models.generateContent({
+          model,
+          contents: [{ role: "user", parts }],
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: schema,
+          },
+        });
+
+        const text = response.text;
+        if (!text) {
+          throw new Error("Gemini returned an empty response");
+        }
+        return JSON.parse(text) as T;
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        const isQuota = /429|quota|RESOURCE_EXHAUSTED/i.test(lastError.message);
+        const isDemandSpike = /503|UNAVAILABLE|high demand|temporarily/i.test(lastError.message);
+
+        if (isQuota) {
+          keyCoolOffs.set(apiKey, Date.now() + 5 * 60 * 1000);
+        } else if (isDemandSpike) {
+          keyCoolOffs.set(apiKey, Date.now() + 45 * 1000);
+        }
+
+        console.warn(
+          `[gemini] ${model} with key #${index} failed (${lastError.message.slice(0, 100)}), trying next candidate...`,
+        );
       }
     }
   }
 
-  throw lastError ?? new Error("Gemini call failed");
+  throw lastError ?? new Error("All Gemini models and keys failed");
 }
 
 /**

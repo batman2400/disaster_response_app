@@ -58,7 +58,7 @@ export interface ReportChecks {
   passability?: VehiclePassability | null;
 }
 
-export type CheckSource = "gemini" | "mock" | "fallback" | "code";
+export type CheckSource = "gemini" | "mock" | "fallback" | "code" | "open-meteo";
 
 export type TraceStepId = "image" | "weather" | "cluster" | "location" | "risk" | "aggregator" | "summary" | "resolution";
 

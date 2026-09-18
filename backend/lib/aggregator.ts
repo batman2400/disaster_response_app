@@ -83,12 +83,16 @@ export function deterministicAggregate(
   }
 
   if (checks.weather_supported && checks.image_verified) {
+    const isWater = body.category === "FLOOD" || body.category === "DRAINAGE_OVERFLOW";
+    const depthDetail = isWater && typeof checks.estimated_water_depth_cm === "number" && checks.estimated_water_depth_cm > 0
+      ? ` with water depth ~${checks.estimated_water_depth_cm}cm (${checks.passability ?? "CAUTION_SUV_ONLY"})`
+      : "";
     return {
       status: "PUBLISHED",
       urgency: isExtremeDepth ? "CRITICAL" : checks.risk_level,
       confidence_score: 0.76,
       is_road_blocked: isImpassable || body.category !== "HELP_REQUEST",
-      reasoning: `Image verified with water depth ~${checks.estimated_water_depth_cm ?? 25}cm (${checks.passability ?? "CAUTION_SUV_ONLY"}). Pin published on public map.`,
+      reasoning: `Image verified for ${body.category}${depthDetail}. Pin published on public map.`,
       source: "code",
     };
   }
@@ -102,20 +106,22 @@ export function deterministicAggregate(
       body.category === "LANDSLIDE" ||
       body.category === "DRAINAGE_OVERFLOW" ||
       body.category === "STRUCTURAL_DAMAGE";
+    const isWater = body.category === "FLOOD" || body.category === "DRAINAGE_OVERFLOW";
     return {
       status: "COUNCIL_TICKET",
       urgency: isExtremeDepth ? "CRITICAL" : "MEDIUM",
       confidence_score: 0.68,
       is_road_blocked: isActionable,
       reasoning:
-        checks.estimated_water_depth_cm && checks.estimated_water_depth_cm > 20
+        isWater && checks.estimated_water_depth_cm && checks.estimated_water_depth_cm > 20
           ? `Actionable hazard with water depth ~${checks.estimated_water_depth_cm}cm (${checks.passability}). Raised as council ticket for squad dispatch.`
-          : "Actionable hazard with a verified photo and plausible location. Raised as a council ticket for field dispatch.",
+          : `Actionable ${body.category} with a verified photo and plausible location. Raised as a council ticket for field dispatch.`,
       source: "code",
     };
   }
 
-  const heldConfidence = 0.48;
+  const hasPhoto = Boolean(body.photo_base64);
+  const heldConfidence = hasPhoto && !checks.image_verified ? 0.2 : 0.44;
   const status: HazardStatus =
     heldConfidence >= settings.confirm_threshold ? "PUBLISHED" : "NEED_INFO";
   return {
@@ -124,7 +130,9 @@ export function deterministicAggregate(
     confidence_score: heldConfidence,
     is_road_blocked: isImpassable,
     reasoning:
-      "Checks are mixed. Holding as NEED_INFO until nearby users confirm.",
+      hasPhoto && !checks.image_verified
+        ? "Attached image could not be verified as an authentic disaster scene. Held as NEED_INFO for officer verification."
+        : "Checks are mixed or inconclusive. Holding as NEED_INFO until nearby users confirm.",
     source: "code",
   };
 }
@@ -169,15 +177,15 @@ Current tuning thresholds:
 
 Decide one status from PENDING, PUBLISHED, NEED_INFO, AREA_ALERT, COUNCIL_TICKET:
 - AREA_ALERT: category is FLOOD, weather_supported is true, and cluster_count >= 2 — a confirmed area-wide event.
-- PUBLISHED: image_verified and location_matched are both true and confidence is at/above confirm_threshold.
+- PUBLISHED: image_verified and location_matched are both true and confidence is at/above confirm_threshold. Never publish if image_verified is false!
 - COUNCIL_TICKET: image_verified is true but this is a routine actionable hazard (e.g. BLOCKED_ROAD, FALLEN_TREE) needing field dispatch rather than a public alert.
-- NEED_INFO: checks conflict or confidence is below confirm_threshold — hold for crowdsourced confirmation.
-- PENDING: image_verified is false and risk_level is LOW — likely not a real hazard.
+- NEED_INFO: checks conflict, image_verified is false, or confidence is below confirm_threshold — hold for crowdsourced confirmation or officer review.
+- PENDING: image_verified is false and risk_level is LOW — likely not a real hazard or spam/meme image.
 
 Pick urgency from LOW, MEDIUM, CRITICAL consistent with risk_level and the chosen status.
 Set is_road_blocked true only if the category and checks indicate the road is actually impassable.
-Set confidence_score between 0 and 1 reflecting how sure you are this is a genuine, actionable hazard.
-Write one or two sentences of reasoning a council officer will read on their queue.
+Set confidence_score between 0 and 1 reflecting how sure you are this is a genuine, actionable hazard. If image_verified is false, confidence must be low (< 0.3).
+Write one or two sentences of reasoning a council officer will read on their queue. Do NOT mention water depth unless the category is FLOOD or DRAINAGE_OVERFLOW.
 
 Respond only with JSON matching the schema.`;
 

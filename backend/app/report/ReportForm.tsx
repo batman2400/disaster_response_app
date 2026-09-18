@@ -1180,25 +1180,30 @@ export function ReportForm() {
 
           {verdict ? (
             <div className="border-t border-slate-100 bg-white/90 p-6 backdrop-blur space-y-3">
-              <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-3.5 text-xs">
-                <div>
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
-                    Public Tracking Reference
-                  </span>
-                  <span className="font-mono text-sm font-black text-slate-900">
-                    #CLM-{verdict.incident_id.slice(0, 8).toUpperCase()}
-                  </span>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3.5 text-xs">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
+                      Public Tracking Reference
+                    </span>
+                    <span className="font-mono text-sm font-black text-slate-900">
+                      #CLM-{verdict.incident_id.slice(0, 8).toUpperCase()}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(verdict.incident_id);
+                      alert("Tracking Reference ID copied to clipboard!");
+                    }}
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 active:scale-95"
+                  >
+                    Copy ID
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(verdict.incident_id);
-                    alert("Tracking Reference ID copied to clipboard!");
-                  }}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 active:scale-95"
-                >
-                  Copy ID
-                </button>
+                <p className="mt-2 border-t border-slate-200/60 pt-2 text-[11px] font-medium text-slate-500">
+                  ✓ Automatically saved to your device. You can track this report anytime from the <span className="font-bold text-slate-700">Home page</span>.
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-2">

@@ -123,11 +123,11 @@ export async function runUnifiedPipeline(
     const weatherSupported = weather.weather_supported;
     const clusterCount = cluster.cluster_count;
     const checks: ReportChecks = {
-      image_verified: Boolean(body.photo_base64),
+      image_verified: false,
       weather_supported: weatherSupported,
       cluster_count: clusterCount,
       location_matched: body.lat >= 6.8 && body.lat <= 7.05,
-      risk_level: isFlood ? "CRITICAL" : "MEDIUM",
+      risk_level: isFlood ? "MEDIUM" : "LOW",
     };
     const agg = deterministicAggregate(body, checks, settings);
     return {
@@ -136,8 +136,10 @@ export async function runUnifiedPipeline(
         : `${body.category} reported at ward ${body.ward_id}.`,
       has_speech: Boolean(body.description),
       detected_language: "English",
-      image_verified: checks.image_verified,
-      image_reason: "Deterministic photo presence check.",
+      image_verified: false,
+      image_reason: body.photo_base64
+        ? "Automated vision check unavailable. Held for manual officer review."
+        : "No photo attached.",
       location_matched: checks.location_matched,
       location_reason: "Colombo bounding check.",
       risk_level: checks.risk_level,
@@ -175,10 +177,20 @@ Requirements:
 1. SPEECH VERIFICATION: Listen carefully to any attached voice note audio. Does it contain actual spoken human words, or only clicking, ticking, tapping, coughing, or ambient silence?
    - If audio contains NO spoken words: set has_speech = false, detected_language = "None (No Speech)". DO NOT INVENT or hallucinate an emergency plea or flood details! State clearly: "Audio contains only clicking/ambient sounds with no verbal description."
    - If audio has spoken words: set has_speech = true, accurately translate and summarize what was said.
-2. Verify if the attached photo genuinely and plausibly shows the hazard (${body.category}).
-3. Verify if coordinates and landmarks are plausible within Colombo.
-4. Assess immediate risk (LOW, MEDIUM, CRITICAL).
-5. Output final status (AREA_ALERT for widespread flood with weather support & cluster >= 2, PUBLISHED if verified and confidence >= threshold, COUNCIL_TICKET for routine actionable road/tree hazards, or NEED_INFO if inconclusive).
+2. IMAGE VERIFICATION: Look carefully at any attached photo:
+   - Does it genuinely show an actual real-world physical disaster scene consistent with the reported category (${body.category})?
+   - If the photo is a logo, graphic, meme, cartoon, indoor selfie, watermark, screenshot, movie poster, or unrelated picture:
+     * Set image_verified = false
+     * Clearly state what the image actually depicts in image_reason (e.g. "Image is a logo/graphic, not a real disaster scene")
+     * Set confidence_score <= 0.2
+     * Set status to "NEED_INFO" or "PENDING". NEVER mark as PUBLISHED or AREA_ALERT!
+3. GEOGRAPHY: Verify if coordinates and landmarks are plausible within Colombo.
+4. RISK ASSESSMENT: Assess immediate risk (LOW, MEDIUM, CRITICAL). Non-disaster images or fake reports should be LOW risk.
+5. AGGREGATION & STATUS:
+   - AREA_ALERT: ONLY for verified widespread flood with weather support & cluster >= 2.
+   - PUBLISHED: image_verified and location_matched are BOTH TRUE and confidence >= threshold.
+   - COUNCIL_TICKET: image_verified is TRUE for routine actionable road/tree hazards.
+   - NEED_INFO or PENDING: if image is fake, unrelated, unverified, or checks conflict.
 6. Set is_road_blocked, confidence_score (0-1), and clear officer reasoning.
 
 Respond strictly in JSON matching the schema.`;
@@ -200,7 +212,7 @@ Respond strictly in JSON matching the schema.`;
     { media: mediaParts.length > 0 ? mediaParts : undefined, timeoutMs: 12000 },
   );
 
-  // Anti-hallucination guardrail
+  // Anti-hallucination guardrail for audio
   const hasNoSpeech =
     value.has_speech === false ||
     /only (clicking|ticking|ambient|noise|clicks|ticks)/i.test(value.summary) ||
@@ -209,6 +221,16 @@ Respond strictly in JSON matching the schema.`;
   if (body.audio_base64 && hasNoSpeech && !body.description?.trim()) {
     value.summary = `Incident reported for ${body.category}. Audio contained only clicking or ambient noise with no spoken words.`;
     value.detected_language = "None (No Speech)";
+  }
+
+  // Anti-spoofing guardrail for image
+  if (body.photo_base64 && !value.image_verified) {
+    if (value.status === "PUBLISHED" || value.status === "AREA_ALERT") {
+      value.status = "NEED_INFO";
+    }
+    if (value.confidence_score > 0.35) {
+      value.confidence_score = 0.15;
+    }
   }
 
   const finished = Date.now();

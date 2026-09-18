@@ -82,7 +82,8 @@ Reported hazard category: ${category}
 Citizen description: ${description || "(none provided)"}
 
 Analyze the attached photo carefully:
-1. Is this a genuine photo of a real physical scene (not a screenshot, drawing, meme, or unrelated stock photo)?
+1. Is this a genuine photo of a real physical scene (not a screenshot, drawing, logo, meme, or unrelated stock photo)?
+   If it is a logo, graphic, meme, cartoon, or unrelated image, is_real_photo MUST BE FALSE and matches_category MUST BE FALSE!
 2. Does the photo plausibly show a scene consistent with the reported category (${category})?
 3. Visual Water Depth Telemetry:
    If flood water or ponding is visible, estimate the water depth in centimeters using real-world visual scale anchors:
@@ -91,18 +92,15 @@ Analyze the attached photo carefully:
    - Sedan door bottom / exhaust pipe: ~25 cm
    - Adult pedestrian ankle: ~10 cm, knee: ~50 cm, waist: ~90 cm
    - Boundary wall base / fence rails: ~20-60 cm
-   If dry or non-water hazard, set estimated_water_depth_cm to 0.
+   If dry, non-water hazard, or unverified photo, set estimated_water_depth_cm to 0.
 4. Road Passability Classification:
    - WALKABLE: <= 15 cm (safe for sedans, three-wheelers, pedestrians)
    - CAUTION_SUV_ONLY: 16-35 cm (high-clearance 4WD vehicles only; pedestrian danger)
    - IMPASSABLE: 36-60 cm (severe hydro-lock risk, closed to traffic)
    - EXTREME_BOAT_ONLY: > 60 cm (rapid flood, requires inflatable boat / dinghy extraction)
-   - NOT_APPLICABLE: non-water hazard (e.g. fallen tree alone)
+   - NOT_APPLICABLE: non-water hazard or unverified photo
 
 Respond only with JSON matching the schema.`;
-
-  const fallbackDepth = isWaterHazard ? 45 : 0;
-  const fallbackPassability: VehiclePassability = isWaterHazard ? "IMPASSABLE" : "NOT_APPLICABLE";
 
   const { value, source } = await callGeminiJsonSafe<{
     is_real_photo: boolean;
@@ -110,21 +108,19 @@ Respond only with JSON matching the schema.`;
     reason: string;
     estimated_water_depth_cm: number;
     depth_confidence: DepthConfidence;
-    depth_reference_anchor: string;
+    depth_reference_anchor: string | null;
     passability: VehiclePassability;
   }>(
     prompt,
     IMAGE_SCHEMA,
     () => ({
-      is_real_photo: true,
-      matches_category: true,
-      reason: "Fallback: photo verified, automated depth baseline applied.",
-      estimated_water_depth_cm: fallbackDepth,
-      depth_confidence: "MEDIUM" as DepthConfidence,
-      depth_reference_anchor: isWaterHazard
-        ? "Water level submerged above street curb and car wheel hubs."
-        : "No standing water detected.",
-      passability: fallbackPassability,
+      is_real_photo: false,
+      matches_category: false,
+      reason: "Automated vision check unavailable. Pending manual officer review.",
+      estimated_water_depth_cm: 0,
+      depth_confidence: "LOW" as DepthConfidence,
+      depth_reference_anchor: null,
+      passability: "NOT_APPLICABLE" as VehiclePassability,
     }),
     { photoBase64 },
   );
@@ -133,9 +129,9 @@ Respond only with JSON matching the schema.`;
     image_verified: value.is_real_photo && value.matches_category,
     reason: value.reason,
     source,
-    estimated_water_depth_cm: value.estimated_water_depth_cm ?? (isWaterHazard ? fallbackDepth : null),
+    estimated_water_depth_cm: value.estimated_water_depth_cm ?? (isWaterHazard ? 0 : null),
     depth_confidence: value.depth_confidence ?? "MEDIUM",
     depth_reference_anchor: value.depth_reference_anchor || null,
-    passability: value.passability ?? fallbackPassability,
+    passability: value.passability ?? (isWaterHazard ? "WALKABLE" : "NOT_APPLICABLE"),
   };
 }

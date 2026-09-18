@@ -25,6 +25,7 @@ const SOURCE_LABEL: Record<CheckSource, string> = {
   mock: "mock",
   fallback: "fallback",
   code: "sys",
+  "open-meteo": "meteo",
 };
 
 const DOT: Record<TraceStep["id"], string> = {

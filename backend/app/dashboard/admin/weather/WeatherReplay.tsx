@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, CloudRain, Play, RotateCcw, Server, Waves } from "lucide-react";
+import { ArrowLeft, CloudRain, Globe, Play, RotateCcw, Server, Waves } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
@@ -242,7 +242,32 @@ export function WeatherReplay({
                   onClick={() => post("/start", { ward_id: wardId })}
                 >
                   <Play className="h-4 w-4" />
-                  {busy === "start" ? "Starting…" : "Start Feed"}
+                  {busy === "start" ? "Starting…" : "Simulate Storm"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="rounded-xl border-cyan-200 bg-cyan-50/50 text-cyan-700 hover:bg-cyan-100/70"
+                  disabled={busy !== null}
+                  onClick={async () => {
+                    setBusy("reset");
+                    setError("");
+                    try {
+                      const res = await fetch("/api/weather/live", { method: "POST" });
+                      if (res.ok) {
+                        setError("Synced live telemetry with Open-Meteo API!");
+                      } else {
+                        setError("Failed to sync live weather");
+                      }
+                    } catch {
+                      setError("Network error syncing live weather");
+                    } finally {
+                      setBusy(null);
+                    }
+                  }}
+                  title="Sync live Open-Meteo telemetry"
+                >
+                  <Globe className="h-4 w-4 mr-1.5 text-cyan-600" />
+                  Sync Live
                 </Button>
                 <Button
                   variant="ghost"
@@ -254,7 +279,11 @@ export function WeatherReplay({
                   <RotateCcw className="h-4 w-4" />
                 </Button>
               </div>
-              {error ? <p className="mt-3 text-xs font-semibold text-status-crimson">{error}</p> : null}
+              {error ? (
+                <p className={cn("mt-3 text-xs font-semibold", error.includes("Synced") ? "text-status-emerald" : "text-status-crimson")}>
+                  {error}
+                </p>
+              ) : null}
             </div>
 
             <SectionLabel hint={<span className="font-mono text-[10px] text-slate-400">{target?.id}</span>}>
