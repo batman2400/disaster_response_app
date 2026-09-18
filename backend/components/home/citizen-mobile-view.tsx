@@ -1,37 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
-  Activity,
   AlertTriangle,
   ArrowRight,
   Bed,
-  CheckCircle2,
   ChevronDown,
   ChevronUp,
   Droplet,
-  ExternalLink,
-  Flame,
   HeartPulse,
   LifeBuoy,
-  MapPin,
   PhoneCall,
   QrCode,
-  Radio,
   Search,
-  Shield,
   ShieldAlert,
   Smartphone,
-  Sparkles,
   Users,
   Waves,
   Zap,
 } from "lucide-react";
 import { OfflineSosModal } from "@/components/offline-sos-modal";
-import { StatusBadge } from "@/components/ui";
-import { categoryLabel, timeAgo, wardShort } from "@/lib/format";
-import { useI18n } from "@/lib/i18n/language-context";
 import type { HazardRow, ShelterRow, WardRow } from "@/lib/types";
 
 interface CitizenMobileViewProps {
@@ -41,26 +30,8 @@ interface CitizenMobileViewProps {
 }
 
 export function CitizenMobileView({ shelters, hazards, wards }: CitizenMobileViewProps) {
-  const { lang } = useI18n();
   const [offlineSosOpen, setOfflineSosOpen] = useState(false);
   const [activeGuide, setActiveGuide] = useState<number | null>(null);
-  const [myReportIds, setMyReportIds] = useState<string[]>([]);
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("fender_my_reports");
-      if (stored) {
-        const ids = JSON.parse(stored) as string[];
-        if (Array.isArray(ids)) {
-          setMyReportIds(ids);
-        }
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  const latestHazard = myReportIds.length > 0 ? hazards.find((h) => h.id === myReportIds[0]) : null;
 
   // Compute live operational metrics
   const activeHazards = hazards.filter((h) => h.status !== "RESOLVED");
@@ -161,89 +132,24 @@ export function CitizenMobileView({ shelters, hazards, wards }: CitizenMobileVie
       </div>
 
       {/* 2. Citizen Submissions Tracking Bay */}
-      {myReportIds.length > 0 ? (
-        <div className="relative overflow-hidden rounded-3xl border border-blue-200/90 bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-950 p-4.5 sm:p-5 text-white shadow-md">
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-blue-500" />
-                </span>
-                <span className="text-[11px] font-black uppercase tracking-wider text-blue-200">
-                  My Active Reports ({myReportIds.length})
-                </span>
-              </div>
-              {latestHazard ? (
-                <StatusBadge status={latestHazard.status} />
-              ) : (
-                <span className="rounded-md bg-white/10 px-2 py-0.5 text-[10px] font-bold text-blue-200">
-                  Logged on device
-                </span>
-              )}
-            </div>
-
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-sm font-black tracking-wide text-white">
-                    #CLM-{myReportIds[0].slice(0, 8).toUpperCase()}
-                  </span>
-                  {latestHazard && (
-                    <span className="text-xs font-bold text-blue-200">
-                      · {categoryLabel(latestHazard.category, lang)}
-                    </span>
-                  )}
-                </div>
-                <p className="mt-0.5 text-xs text-slate-300">
-                  {latestHazard
-                    ? `${wardShort(latestHazard.ward_id)} · Reported ${timeAgo(latestHazard.created_at)}${
-                        latestHazard.assigned_crew_name ? ` · Crew: ${latestHazard.assigned_crew_name}` : ""
-                      }`
-                    : "Track incident status and response team deployment in real time."}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Link
-                  href={`/report/track/${myReportIds[0]}`}
-                  className="flex flex-1 sm:flex-initial items-center justify-center gap-1.5 rounded-2xl bg-brand px-4 py-2.5 text-xs font-black text-white shadow-sm transition-transform active:scale-95 touch-manipulation hover:bg-brand-indigo"
-                >
-                  <Activity className="h-4 w-4" />
-                  <span>Track Live Status</span>
-                </Link>
-                {myReportIds.length > 1 && (
-                  <Link
-                    href="/report/track"
-                    className="flex items-center justify-center gap-1 rounded-2xl border border-white/20 bg-white/10 px-3 py-2.5 text-xs font-extrabold text-white backdrop-blur transition-colors hover:bg-white/20 active:scale-95"
-                  >
-                    <span>All ({myReportIds.length})</span>
-                  </Link>
-                )}
-              </div>
-            </div>
+      <div className="flex items-center justify-between rounded-3xl border border-slate-200/90 bg-white p-3.5 sm:p-4 shadow-xs">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-brand">
+            <Search className="h-5 w-5" />
+          </div>
+          <div>
+            <h4 className="text-xs font-extrabold text-slate-900">Track Incident Reports</h4>
+            <p className="text-[11px] text-slate-500">Check live progress using your #CLM reference code</p>
           </div>
         </div>
-      ) : (
-        <div className="flex items-center justify-between rounded-3xl border border-slate-200/90 bg-white p-3.5 sm:p-4 shadow-xs">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-brand">
-              <Search className="h-5 w-5" />
-            </div>
-            <div>
-              <h4 className="text-xs font-extrabold text-slate-900">Track Incident Status</h4>
-              <p className="text-[11px] text-slate-500">Check live progress using your #CLM reference code</p>
-            </div>
-          </div>
-          <Link
-            href="/report/track"
-            className="flex items-center gap-1 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-extrabold text-brand transition-colors hover:bg-blue-100 active:scale-95 touch-manipulation"
-          >
-            <span>Track Now</span>
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        </div>
-      )}
+        <Link
+          href="/report/track"
+          className="flex items-center gap-1 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-extrabold text-brand transition-colors hover:bg-blue-100 active:scale-95 touch-manipulation"
+        >
+          <span>Track Now</span>
+          <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
+      </div>
 
       {/* 3. Frontline Action Grid (2x2 Mobile, 4-Col Desktop) */}
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
