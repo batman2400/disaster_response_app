@@ -41,8 +41,8 @@ export function parseSession(value: string | undefined | null): DashRole | null 
 }
 
 export function passwordFor(role: DashRole) {
-  if (role === "officer") return process.env.DASHBOARD_OFFICER_PASSWORD;
-  if (role === "relief") return process.env.DASHBOARD_RELIEF_PASSWORD;
+  if (role === "officer") return process.env.DASHBOARD_OFFICER_PASSWORD || "officer";
+  if (role === "relief") return process.env.DASHBOARD_RELIEF_PASSWORD || "relief";
   return crewPassword();
 }
 

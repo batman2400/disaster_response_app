@@ -29,8 +29,10 @@ import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/cn";
 import type { DashRole } from "@/lib/dashboard-auth";
+import { timeAgo } from "@/lib/format";
 import { LanguageSwitcher } from "@/lib/i18n/language-context";
 import { ROLE_THEME } from "@/lib/role-theme";
+import { useSupplyRequests } from "@/lib/use-supply-requests";
 
 const TITLES = {
   officer: { title: "Command Control", desk: "Council Officer Desk" },
@@ -76,6 +78,8 @@ export function DashboardChrome({ role }: { role: DashRole }) {
   const Icon = theme.icon;
 
   const [alerts, setAlerts] = useState<AlertItem[]>(INITIAL_ALERTS);
+  const [dismissedSupplyIds, setDismissedSupplyIds] = useState<Set<string>>(new Set());
+  const seenSupplyIds = useRef<Set<string>>(new Set());
   const [showNotifications, setShowNotifications] = useState(false);
   const [showRoles, setShowRoles] = useState(false);
   const [showPipelineHealth, setShowPipelineHealth] = useState(false);
@@ -85,6 +89,8 @@ export function DashboardChrome({ role }: { role: DashRole }) {
   const [passwordError, setPasswordError] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [showPasswordText, setShowPasswordText] = useState(false);
+  const { requests: supplyRequests } = useSupplyRequests([], role === "officer" ? 4000 : 15000);
+  const supplyAlertsPrimed = useRef(false);
 
   const promptRoleSwitch = (targetRole: DashRole) => {
     if (targetRole === role) {
@@ -153,6 +159,32 @@ export function DashboardChrome({ role }: { role: DashRole }) {
     setSoundEnabled(next);
     if (next) playAlertChime();
   };
+
+  useEffect(() => {
+    if (role !== "officer") return;
+    const openIds = supplyRequests.filter((row) => row.status === "OPEN").map((row) => row.id);
+    const hasNew = openIds.some((id) => !seenSupplyIds.current.has(id));
+    if (supplyAlertsPrimed.current && hasNew && soundEnabled) playAlertChime();
+    supplyAlertsPrimed.current = true;
+    for (const id of openIds) seenSupplyIds.current.add(id);
+  }, [role, soundEnabled, supplyRequests]);
+
+  const supplyAlerts: AlertItem[] =
+    role === "officer"
+      ? supplyRequests
+          .filter((row) => row.status !== "DISPATCHED" && !dismissedSupplyIds.has(row.id))
+          .map((row) => ({
+            id: `supply-${row.id}`,
+            title: `Relief resupply: ${row.shelter_name}`,
+            time: timeAgo(row.created_at),
+            type: row.urgency === "CRITICAL" ? "critical" : "warning",
+            detail:
+              row.status === "ACKNOWLEDGED"
+                ? `${row.items.join(", ")} · Acknowledged — awaiting dispatch`
+                : `${row.items.join(", ")} · Waiting on Command`,
+          }))
+      : [];
+  const visibleAlerts = [...supplyAlerts, ...alerts];
 
   // Close popovers on click outside
   useEffect(() => {
@@ -324,9 +356,9 @@ export function DashboardChrome({ role }: { role: DashRole }) {
             className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-brand active:scale-95"
           >
             <Bell className="h-4 w-4" />
-            {alerts.length > 0 ? (
+            {visibleAlerts.length > 0 ? (
               <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-status-crimson text-[9px] font-bold text-white shadow-sm animate-pulse">
-                {alerts.length}
+                {visibleAlerts.length}
               </span>
             ) : null}
           </button>
@@ -337,7 +369,7 @@ export function DashboardChrome({ role }: { role: DashRole }) {
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-extrabold text-slate-900">Incident Alerts</span>
                   <span className="rounded-full bg-rose-100 px-1.5 py-0.2 text-[10px] font-bold text-rose-700">
-                    {alerts.length} New
+                    {visibleAlerts.length} New
                   </span>
                 </div>
                 <button
@@ -361,7 +393,7 @@ export function DashboardChrome({ role }: { role: DashRole }) {
               </div>
 
               <div className="max-h-72 space-y-2.5 overflow-y-auto custom-scrollbar">
-                {alerts.map((alert) => (
+                {visibleAlerts.map((alert) => (
                   <div
                     key={alert.id}
                     className="rounded-xl border border-slate-100 bg-slate-50 p-2.5 text-left transition-colors hover:bg-slate-100/80"
@@ -381,15 +413,18 @@ export function DashboardChrome({ role }: { role: DashRole }) {
                     <p className="mt-0.5 text-[11px] font-medium text-slate-500">{alert.detail}</p>
                   </div>
                 ))}
-                {alerts.length === 0 ? (
+                {visibleAlerts.length === 0 ? (
                   <p className="py-4 text-center text-xs font-semibold text-slate-400">No unread alerts</p>
                 ) : null}
               </div>
 
-              {alerts.length > 0 ? (
+              {visibleAlerts.length > 0 ? (
                 <button
                   type="button"
-                  onClick={() => setAlerts([])}
+                  onClick={() => {
+                    setAlerts([]);
+                    setDismissedSupplyIds(new Set(supplyRequests.map((row) => row.id)));
+                  }}
                   className="mt-3 w-full rounded-xl border border-slate-200 py-1.5 text-center text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
                 >
                   Mark All Read

@@ -95,9 +95,38 @@ export function ReliefMobileView({ shelters }: ReliefMobileViewProps) {
     }
   }
 
-  function handleResupplyRequest() {
-    setToastMessage("Resupply order transmitted to Central Disaster Supply Hub!");
-    setTimeout(() => setToastMessage(null), 3500);
+  async function handleResupplyRequest() {
+    if (!currentShelter || updating) return;
+    setUpdating(true);
+    try {
+      const res = await fetch("/api/relief/resupply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          shelter_id: currentShelter.id,
+          shelter_name: currentShelter.name,
+          ward_id: currentShelter.ward_id,
+          items: ["Dry Rations", "Baby Formula"],
+          supplies_status: currentState.status === "ADEQUATE" ? "LOW" : currentState.status,
+        }),
+      });
+      if (res.status === 401 || res.status === 403) {
+        setToastMessage("Signed out: Sign in to Relief Desk to send this request to Command.");
+        setTimeout(() => setToastMessage(null), 4000);
+        return;
+      }
+      if (!res.ok) {
+        const payload = (await res.json()) as { error?: string };
+        throw new Error(payload.error || "Resupply request failed");
+      }
+      setToastMessage("Resupply request sent to Officer Command Console.");
+      setTimeout(() => setToastMessage(null), 3500);
+    } catch {
+      setToastMessage("Network error. Could not reach Officer Command Console.");
+      setTimeout(() => setToastMessage(null), 3000);
+    } finally {
+      setUpdating(false);
+    }
   }
 
   if (!currentShelter) {
@@ -289,10 +318,11 @@ export function ReliefMobileView({ shelters }: ReliefMobileViewProps) {
         <button
           type="button"
           onClick={handleResupplyRequest}
-          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-2xl bg-indigo-600 py-3 text-xs font-bold text-white shadow-xs transition-transform hover:bg-indigo-700 active:scale-95 touch-manipulation"
+          disabled={updating}
+          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-2xl bg-indigo-600 py-3 text-xs font-bold text-white shadow-xs transition-transform hover:bg-indigo-700 active:scale-95 touch-manipulation disabled:opacity-60"
         >
           <Truck className="h-3.5 w-3.5" />
-          <span>Request Supply Delivery from Central Hub</span>
+          <span>{updating ? "Sending to Command…" : "Request Supply Delivery from Command"}</span>
         </button>
       </div>
 

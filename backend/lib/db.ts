@@ -470,6 +470,13 @@ export async function saveBroadcastAlert(alert: BroadcastAlert): Promise<Broadca
   return inMemoryBroadcast;
 }
 
-export { listShelterNeeds, createShelterNeed, pledgeShelterNeed } from "./store";
+export {
+  listShelterNeeds,
+  createShelterNeed,
+  pledgeShelterNeed,
+  listSupplyRequests,
+  createSupplyRequest,
+  updateSupplyRequest,
+} from "./store";
 
 
