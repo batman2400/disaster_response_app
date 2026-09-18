@@ -207,6 +207,7 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
   const [isSyncingMules, setIsSyncingMules] = useState(false);
   const [muleToast, setMuleToast] = useState<string | null>(null);
   const [assignTicket, setAssignTicket] = useState<HazardRow | null>(null);
+  const [assignPickerOpen, setAssignPickerOpen] = useState(false);
   const [assignCrewId, setAssignCrewId] = useState<string>("");
   const [assignBusy, setAssignBusy] = useState(false);
   const [assignError, setAssignError] = useState("");
@@ -315,6 +316,28 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
     return sortCrewQueue(result, userLocation, sortMode);
   }, [tabFiltered, selectedWard, selectedCrewUnit, searchQuery, userLocation, sortMode, activeTab]);
 
+  const assignableTasks = useMemo(() => {
+    return sortCrewQueue(
+      openHazards.filter((row) => !row.parent_incident_id),
+      userLocation,
+      "priority",
+    );
+  }, [openHazards, userLocation]);
+
+  const closeAssign = () => {
+    if (assignBusy) return;
+    setAssignTicket(null);
+    setAssignPickerOpen(false);
+    setAssignError("");
+  };
+
+  const openAssignPicker = () => {
+    setAssignTicket(null);
+    setAssignError("");
+    setAssignCrewId(selectedCrewUnit !== "all" && getCrewTeam(selectedCrewUnit) ? selectedCrewUnit : "");
+    setAssignPickerOpen(true);
+  };
+
   const openAssign = (ticket: HazardRow) => {
     const preset =
       selectedCrewUnit !== "all" && getCrewTeam(selectedCrewUnit)
@@ -324,6 +347,7 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
           : "";
     setAssignCrewId(preset);
     setAssignError("");
+    setAssignPickerOpen(false);
     setAssignTicket(ticket);
   };
 
@@ -357,6 +381,7 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
       const data = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(data.error || "Assign failed");
       setAssignTicket(null);
+      setAssignPickerOpen(false);
       setMuleToast(`Assigned to ${unit.shortName} · ${etaNote}`);
       await refetch();
       router.refresh();
@@ -411,6 +436,16 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
 
           <div className="flex items-center gap-2">
             <LanguageSwitcher className="hidden sm:inline-flex" />
+
+            <button
+              type="button"
+              onClick={openAssignPicker}
+              title="Assign an open neighborhood report to a field unit"
+              className="flex h-10 items-center gap-1.5 rounded-2xl bg-indigo-600 px-3 text-xs font-bold text-white shadow-sm transition-all hover:bg-indigo-700 active:scale-95"
+            >
+              <Truck className="h-4 w-4" />
+              <span>Assign task</span>
+            </button>
 
             {/* Zero-Signal Data Mule SOS Scanner */}
             <button
@@ -765,6 +800,15 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
               <option value="nearest">Sort: Nearest to Me</option>
               <option value="newest">Sort: Most Recent</option>
             </select>
+
+            <button
+              type="button"
+              onClick={openAssignPicker}
+              className="flex h-10 items-center gap-1.5 rounded-2xl bg-indigo-600 px-3 text-xs font-extrabold text-white shadow-sm hover:bg-indigo-700 active:scale-95"
+            >
+              <Truck className="h-3.5 w-3.5" />
+              Assign task
+            </button>
           </div>
         </div>
       </div>
@@ -935,31 +979,93 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
             })}
 
             {displayedHazards.length === 0 && (
-              <div className="col-span-full flex flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-white p-12 text-center">
-                <CheckCircle2 className="h-10 w-10 text-slate-300 mb-2" />
-                <h4 className="text-sm font-extrabold text-slate-700">No tasks match your criteria</h4>
-                <p className="mt-1 text-xs font-medium text-slate-400 max-w-sm">
+              <div className="col-span-full flex flex-col items-center justify-center rounded-3xl border border-dashed border-indigo-200 bg-indigo-50/40 p-12 text-center">
+                <Truck className="h-10 w-10 text-indigo-400 mb-2" />
+                <h4 className="text-sm font-extrabold text-slate-700">No tasks in this view</h4>
+                <p className="mt-1 text-xs font-medium text-slate-500 max-w-sm">
                   {activeTab === "dispatched"
-                    ? "There are currently no active dispatches assigned to field crews. Check 'All Open Tasks' to view neighborhood reports."
-                    : "Try adjusting your search keywords, ward filter, or active triage tab."}
+                    ? "Dispatched Priority only shows jobs already sent to a crew. Use Assign task to claim an open neighborhood report for this unit."
+                    : "No reports match the current unit, ward, or search. Assign an open task or clear filters."}
                 </p>
-                {activeTab === "dispatched" && (
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setActiveTab("all")}
-                    className="mt-4 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-extrabold text-white hover:bg-indigo-700 shadow-sm"
+                    onClick={openAssignPicker}
+                    className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-extrabold text-white hover:bg-indigo-700 shadow-sm"
                   >
-                    View All Open Tasks ({openHazards.length})
+                    Assign a task ({assignableTasks.length} open)
                   </button>
-                )}
+                  {activeTab !== "all" ? (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("all")}
+                      className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-extrabold text-slate-700 hover:bg-slate-50 shadow-sm"
+                    >
+                      View All Open Tasks
+                    </button>
+                  ) : null}
+                </div>
               </div>
             )}
           </div>
         )}
       </div>
 
-      <Modal open={Boolean(assignTicket)} onClose={() => !assignBusy && setAssignTicket(null)}>
-        {assignTicket ? (
+      <Modal open={Boolean(assignTicket) || assignPickerOpen} onClose={closeAssign}>
+        {assignPickerOpen && !assignTicket ? (
+          <div className="flex max-h-[88vh] flex-col p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Truck className="h-5 w-5 text-indigo-600" />
+                <h3 className="text-base font-extrabold text-slate-900">Assign a task</h3>
+              </div>
+              <button
+                type="button"
+                onClick={closeAssign}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="mb-3 text-xs font-medium text-slate-500">
+              Choose an open report, then pick the field unit. ETA is calculated from your GPS.
+            </p>
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto custom-scrollbar pr-1">
+              {assignableTasks.length === 0 ? (
+                <p className="py-8 text-center text-xs font-semibold text-slate-400">No open tasks to assign.</p>
+              ) : (
+                assignableTasks.map((ticket) => {
+                  const assigned = Boolean(ticket.assigned_crew_name);
+                  return (
+                    <button
+                      key={ticket.id}
+                      type="button"
+                      onClick={() => openAssign(ticket)}
+                      className="w-full rounded-2xl border border-slate-200 bg-white p-3 text-left transition-colors hover:border-indigo-300 hover:bg-indigo-50/50"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-extrabold text-slate-900">{categoryLabel(ticket.category)}</span>
+                        <span className="text-[10px] font-bold text-slate-400">#{ticket.id.slice(0, 8).toUpperCase()}</span>
+                      </div>
+                      <p className="mt-1 text-[11px] font-semibold text-slate-500">
+                        {wardShort(ticket.ward_id)}
+                        {ticket.assigned_crew_name ? ` · ${ticket.assigned_crew_name}` : " · Unassigned"}
+                      </p>
+                      <span
+                        className={cn(
+                          "mt-2 inline-flex rounded-lg px-2 py-0.5 text-[10px] font-extrabold",
+                          assigned ? "bg-slate-100 text-slate-600" : "bg-indigo-100 text-indigo-800",
+                        )}
+                      >
+                        {assigned ? "Reassign" : "Assign"}
+                      </span>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        ) : assignTicket ? (
           <div className="p-6">
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -969,7 +1075,7 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
               <button
                 type="button"
                 disabled={assignBusy}
-                onClick={() => setAssignTicket(null)}
+                onClick={closeAssign}
                 className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600"
               >
                 <X className="h-4 w-4" />
@@ -1022,7 +1128,7 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
               <button
                 type="button"
                 disabled={assignBusy}
-                onClick={() => setAssignTicket(null)}
+                onClick={closeAssign}
                 className="flex-1 rounded-xl border border-slate-200 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50"
               >
                 Cancel
