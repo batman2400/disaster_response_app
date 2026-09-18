@@ -58,7 +58,6 @@ const FILTERS = [
   { id: "HIGH", label: "High priority" },
   { id: "LESS", label: "Less priority" },
   { id: "REJECTED", label: "Rejected" },
-  { id: "PENDING", label: "Pending AI" },
   { id: "PUBLISHED", label: "Published" },
   { id: "NEED_INFO", label: "Need info" },
   { id: "ALERT", label: "Alerts" },
@@ -200,7 +199,6 @@ export function OfficerBoard({
       HIGH: 0,
       LESS: 0,
       REJECTED: 0,
-      PENDING: 0,
       PUBLISHED: 0,
       NEED_INFO: 0,
       ALERT: 0,
@@ -210,7 +208,6 @@ export function OfficerBoard({
       if (t.status !== "RESOLVED" && (t.urgency === "CRITICAL" || t.urgency === "MEDIUM")) counts.HIGH += 1;
       if (t.status !== "RESOLVED" && t.urgency === "LOW") counts.LESS += 1;
       if (t.status === "COUNCIL_TICKET") counts.REJECTED += 1;
-      if (t.status === "PENDING") counts.PENDING += 1;
       if (t.status === "PUBLISHED") counts.PUBLISHED += 1;
       if (t.status === "NEED_INFO") counts.NEED_INFO += 1;
       if (t.status === "AREA_ALERT" || t.urgency === "CRITICAL") counts.ALERT += 1;
