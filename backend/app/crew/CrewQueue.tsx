@@ -317,8 +317,13 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
           <div className="flex items-center gap-3">
             <Link
               href="/"
+              prefetch={true}
+              onClick={(event) => {
+                event.preventDefault();
+                window.location.assign("/");
+              }}
               title="Return to Home Portal"
-              className="flex h-10 items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50 active:scale-95"
+              className="relative z-20 flex h-10 shrink-0 items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50 active:scale-95 touch-manipulation"
             >
               <ArrowLeft className="h-4 w-4" />
               <span className="hidden sm:inline">Home</span>

@@ -181,8 +181,13 @@ export function DashboardChrome({ role }: { role: DashRole }) {
       <div className="flex shrink-0 items-center gap-2 sm:gap-3">
         <Link
           href="/"
+          prefetch={true}
+          onClick={(event) => {
+            event.preventDefault();
+            window.location.assign("/");
+          }}
           title="Return to Home Portal"
-          className="flex h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-700 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 active:scale-95 sm:px-3"
+          className="relative z-20 flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-700 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 active:scale-95 touch-manipulation sm:px-3"
         >
           <ArrowLeft className="h-4 w-4" />
           <span className="hidden sm:inline">Home</span>
@@ -258,7 +263,7 @@ export function DashboardChrome({ role }: { role: DashRole }) {
               <div className="space-y-2 text-xs">
                 <div className="flex items-center justify-between text-slate-600">
                   <span>AI Inference Engine</span>
-                  <span className="font-mono font-bold text-slate-900">Gemini 2.5 Flash</span>
+                  <span className="font-mono font-bold text-slate-900">Gemini 3.5 Flash Lite</span>
                 </div>
                 <div className="flex items-center justify-between text-slate-600">
                   <span>Verification Latency</span>
