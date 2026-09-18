@@ -7,6 +7,7 @@ import {
   listHazards as memoryListHazards,
   getShelter as memoryGetShelter,
   shelters as memoryShelters,
+  resolveAssignedCrew,
   upsertHazard as memoryUpsert,
   upsertShelter as memoryUpsertShelter,
   wards as memoryWards,
@@ -47,6 +48,24 @@ function asHazard(row: Record<string, unknown>): HazardRow {
       rawTrace = JSON.parse(row.trace);
     } catch {}
   }
+  const officer = officerFieldsFromStored(row.officer_note, row.status as HazardRow["status"], {
+    officer_log: row.officer_log,
+    dispatched_at: row.dispatched_at,
+  });
+  const assigned = resolveAssignedCrew({
+    assigned_crew_id:
+      (row.assigned_crew_id as string | null) ??
+      officer.assigned_crew_id ??
+      memoryGetHazard(String(row.id))?.assigned_crew_id ??
+      null,
+    assigned_crew_name:
+      (row.assigned_crew_name as string | null) ??
+      officer.assigned_crew_name ??
+      memoryGetHazard(String(row.id))?.assigned_crew_name ??
+      null,
+    officer_note: officer.officer_note,
+    officer_log: officer.officer_log,
+  });
   return {
     id: String(row.id),
     lat: Number(row.lat),
@@ -70,20 +89,9 @@ function asHazard(row: Record<string, unknown>): HazardRow {
       memoryGetHazard(String(row.id))?.audio_url ??
       audioCache.get(String(row.id)) ??
       null,
-    ...officerFieldsFromStored(row.officer_note, row.status as HazardRow["status"], {
-      officer_log: row.officer_log,
-      dispatched_at: row.dispatched_at,
-    }),
-    assigned_crew_id:
-      (row.assigned_crew_id as string | null) ??
-      officerFieldsFromStored(row.officer_note, row.status as HazardRow["status"]).assigned_crew_id ??
-      memoryGetHazard(String(row.id))?.assigned_crew_id ??
-      null,
-    assigned_crew_name:
-      (row.assigned_crew_name as string | null) ??
-      officerFieldsFromStored(row.officer_note, row.status as HazardRow["status"]).assigned_crew_name ??
-      memoryGetHazard(String(row.id))?.assigned_crew_name ??
-      null,
+    ...officer,
+    assigned_crew_id: assigned?.id ?? null,
+    assigned_crew_name: assigned?.name ?? null,
     trace:
       parseTrace(row.trace) ??
       memoryGetHazard(String(row.id))?.trace ??

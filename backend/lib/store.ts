@@ -263,13 +263,41 @@ export function getCrewTeam(id: string): CrewTeam | undefined {
   return CREW_TEAMS.find((crew) => crew.id === id);
 }
 
-export function isHazardAssignedToCrew(
-  hazard: { assigned_crew_id?: string | null; assigned_crew_name?: string | null },
-  crewId: string,
-): boolean {
-  if (hazard.assigned_crew_id === crewId) return true;
-  const team = getCrewTeam(crewId);
-  return Boolean(team && hazard.assigned_crew_name === team.name);
+type CrewAssignmentSource = {
+  assigned_crew_id?: string | null;
+  assigned_crew_name?: string | null;
+  officer_note?: string | null;
+  officer_log?: { action?: string; note?: string }[] | null;
+};
+
+export function resolveAssignedCrew(hazard: CrewAssignmentSource): { id: string; name: string } | null {
+  if (hazard.assigned_crew_id) {
+    const team = getCrewTeam(hazard.assigned_crew_id);
+    if (team) return { id: team.id, name: hazard.assigned_crew_name || team.name };
+  }
+  if (hazard.assigned_crew_name) {
+    const named = CREW_TEAMS.find(
+      (team) => team.name === hazard.assigned_crew_name || team.shortName === hazard.assigned_crew_name,
+    );
+    if (named) return { id: named.id, name: named.name };
+  }
+
+  const texts = [
+    ...(hazard.officer_log ?? []).map((entry) => `${entry.action ?? ""} ${entry.note ?? ""}`),
+    hazard.officer_note ?? "",
+  ];
+  for (const text of texts) {
+    if (!/dispatched|assigned/i.test(text)) continue;
+    const team = CREW_TEAMS.find(
+      (unit) => text.includes(unit.name) || text.includes(unit.shortName),
+    );
+    if (team) return { id: team.id, name: team.name };
+  }
+  return null;
+}
+
+export function isHazardAssignedToCrew(hazard: CrewAssignmentSource, crewId: string): boolean {
+  return resolveAssignedCrew(hazard)?.id === crewId;
 }
 
 export const shelterNeeds: ShelterNeed[] = [

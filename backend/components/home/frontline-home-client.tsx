@@ -27,6 +27,7 @@ import { usePwa } from "@/components/pwa-provider";
 import type { BroadcastAlert } from "@/lib/db";
 import type { DashRole } from "@/lib/dashboard-auth";
 import type { HazardRow, ShelterRow, WardRow } from "@/lib/types";
+import { mapHazardRow, sortHazards, useLiveRows } from "@/lib/use-live";
 
 interface FrontlineHomeClientProps {
   hazards: HazardRow[];
@@ -44,6 +45,17 @@ export function FrontlineHomeClient({
   signedInRole,
 }: FrontlineHomeClientProps) {
   const { isOnline } = usePwa();
+  const { rows: liveHazards } = useLiveRows({
+    table: "hazards",
+    initial: hazards,
+    mapRow: mapHazardRow,
+    fallbackFetch: async () => {
+      const res = await fetch("/api/hazards", { cache: "no-store" });
+      if (!res.ok) return hazards;
+      return (await res.json()) as HazardRow[];
+    },
+    sort: sortHazards,
+  });
 
   // Role state: defaults to signedInRole or citizen
   const [activeRole, setActiveRole] = useState<FrontlineRole>(() => {
@@ -156,9 +168,9 @@ export function FrontlineHomeClient({
       {/* 5. Dynamic Role Cockpit */}
       <main className="flex-1">
         {activeRole === "citizen" ? (
-          <CitizenMobileView shelters={shelters} hazards={hazards} wards={wards} />
+          <CitizenMobileView shelters={shelters} hazards={liveHazards} wards={wards} />
         ) : activeRole === "crew" ? (
-          <CrewMobileView hazards={hazards} wards={wards} />
+          <CrewMobileView hazards={liveHazards} wards={wards} />
         ) : (
           <ReliefMobileView shelters={shelters} />
         )}

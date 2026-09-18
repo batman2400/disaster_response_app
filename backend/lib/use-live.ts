@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { officerFieldsFromStored } from "./officer-log";
+import { resolveAssignedCrew } from "./store";
 import { getBrowserSupabase } from "./supabase-browser";
 import { parseTrace } from "./trace";
 import type { HazardRow, ShelterRow, WardRow } from "./types";
@@ -106,10 +107,16 @@ export function mapHazardRow(row: Record<string, unknown>): HazardRow {
         officer_log: row.officer_log,
         dispatched_at: row.dispatched_at,
       });
-      return {
-        ...officer,
+      const assigned = resolveAssignedCrew({
         assigned_crew_id: (row.assigned_crew_id as string | null) ?? officer.assigned_crew_id ?? null,
         assigned_crew_name: (row.assigned_crew_name as string | null) ?? officer.assigned_crew_name ?? null,
+        officer_note: officer.officer_note,
+        officer_log: officer.officer_log,
+      });
+      return {
+        ...officer,
+        assigned_crew_id: assigned?.id ?? null,
+        assigned_crew_name: assigned?.name ?? null,
       };
     })(),
     trace: parseTrace(row.trace),

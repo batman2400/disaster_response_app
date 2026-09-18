@@ -2,6 +2,7 @@ import { json, options } from "@/lib/cors";
 import { findHazard, saveHazard } from "@/lib/db";
 import { appendOfficerNote, inferOfficerAction } from "@/lib/officer-log";
 import { nudgeThresholds } from "@/lib/pipeline";
+import { resolveAssignedCrew } from "@/lib/store";
 import type { OverrideRequest } from "@/lib/types";
 
 export function OPTIONS() {
@@ -55,8 +56,14 @@ export async function POST(request: Request) {
     body.action === "dispatch" || body.assigned_crew_id
       ? existing.dispatched_at ?? new Date().toISOString()
       : existing.dispatched_at;
-  const assigned_crew_id = body.assigned_crew_id !== undefined ? body.assigned_crew_id : existing.assigned_crew_id;
-  const assigned_crew_name = body.assigned_crew_name !== undefined ? body.assigned_crew_name : existing.assigned_crew_name;
+  const inferredCrew = resolveAssignedCrew({
+    assigned_crew_id: body.assigned_crew_id ?? existing.assigned_crew_id,
+    assigned_crew_name: body.assigned_crew_name ?? existing.assigned_crew_name,
+    officer_note: note || existing.officer_note,
+    officer_log: trail.officer_log ?? existing.officer_log,
+  });
+  const assigned_crew_id = inferredCrew?.id ?? existing.assigned_crew_id;
+  const assigned_crew_name = inferredCrew?.name ?? existing.assigned_crew_name;
 
   const updated = await saveHazard({
     ...existing,
