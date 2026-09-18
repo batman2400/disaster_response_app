@@ -144,10 +144,10 @@ export function EmergencySosModal({
   const [activeTab, setActiveTab] = useState<"hotlines" | "guide">("hotlines");
 
   return (
-    <Modal open={open} onClose={onClose}>
-      <div className="flex max-h-[88vh] flex-col overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+    <Modal open={open} onClose={onClose} className="sm:max-w-xl">
+      <div className="flex flex-col flex-1 min-h-0 w-full overflow-hidden">
+        {/* Header (shrink-0) */}
+        <div className="shrink-0 flex items-center justify-between border-b border-slate-100 px-4 py-3.5 sm:px-6 sm:py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-rose-500 text-white shadow-lg shadow-rose-500/30">
               <ShieldAlert className="h-5 w-5 animate-pulse" />
@@ -174,8 +174,8 @@ export function EmergencySosModal({
           </button>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="flex border-b border-slate-100 bg-slate-50/70 px-6 pt-2">
+        {/* Tab Switcher (shrink-0) */}
+        <div className="shrink-0 flex border-b border-slate-100 bg-slate-50/70 px-4 sm:px-6 pt-2">
           <button
             type="button"
             onClick={() => setActiveTab("hotlines")}
@@ -202,8 +202,8 @@ export function EmergencySosModal({
           </button>
         </div>
 
-        {/* Tab Content */}
-        <div className="flex-1 overflow-y-auto no-scrollbar p-6">
+        {/* Tab Content (flex-1 min-h-0) */}
+        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4 sm:p-6">
           {activeTab === "hotlines" ? (
             <div className="space-y-3">
               <div className="rounded-2xl border border-rose-200 bg-rose-50/70 p-3.5 text-xs font-semibold leading-relaxed text-rose-900">
@@ -281,8 +281,8 @@ export function EmergencySosModal({
           )}
         </div>
 
-        {/* Footer */}
-        <div className="border-t border-slate-100 bg-slate-50 px-6 py-3 text-center">
+        {/* Footer (shrink-0) */}
+        <div className="shrink-0 border-t border-slate-100 bg-slate-50 px-6 py-3 text-center">
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
             Colombo Disaster Management Centre · Act No. 13 of 2005
           </p>
