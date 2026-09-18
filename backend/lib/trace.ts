@@ -7,8 +7,17 @@ export async function timed<T>(fn: () => Promise<T>): Promise<{ value: T; latenc
 }
 
 export function parseTrace(value: unknown): PipelineTrace | null {
-  if (!value || typeof value !== "object") return null;
-  const row = value as Partial<PipelineTrace>;
+  if (!value) return null;
+  let parsed = value;
+  if (typeof parsed === "string") {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch {
+      return null;
+    }
+  }
+  if (!parsed || typeof parsed !== "object") return null;
+  const row = parsed as Partial<PipelineTrace>;
   if (!Array.isArray(row.steps) || typeof row.total_ms !== "number") return null;
   if (!row.started_at || !row.finished_at || !row.checks || !row.verdict) return null;
   return row as PipelineTrace;

@@ -38,7 +38,14 @@ function withCachedTrace(row: HazardRow): HazardRow {
 }
 
 function asHazard(row: Record<string, unknown>): HazardRow {
-  const rawTrace = row.trace && typeof row.trace === "object" ? (row.trace as Record<string, unknown>) : null;
+  let rawTrace: Record<string, unknown> | null = null;
+  if (row.trace && typeof row.trace === "object") {
+    rawTrace = row.trace as Record<string, unknown>;
+  } else if (typeof row.trace === "string") {
+    try {
+      rawTrace = JSON.parse(row.trace);
+    } catch {}
+  }
   return {
     id: String(row.id),
     lat: Number(row.lat),
@@ -109,6 +116,22 @@ function asHazard(row: Record<string, unknown>): HazardRow {
       (rawTrace?.corroborating_reports as HazardRow["corroborating_reports"]) ??
       memoryGetHazard(String(row.id))?.corroborating_reports ??
       [],
+    estimated_water_depth_cm:
+      (row.estimated_water_depth_cm as number | null) ??
+      (rawTrace?.estimated_water_depth_cm as number | null) ??
+      null,
+    depth_confidence:
+      (row.depth_confidence as HazardRow["depth_confidence"]) ??
+      (rawTrace?.depth_confidence as HazardRow["depth_confidence"]) ??
+      null,
+    depth_reference_anchor:
+      (row.depth_reference_anchor as string | null) ??
+      (rawTrace?.depth_reference_anchor as string | null) ??
+      null,
+    passability:
+      (row.passability as HazardRow["passability"]) ??
+      (rawTrace?.passability as HazardRow["passability"]) ??
+      null,
   };
 }
 
@@ -222,6 +245,18 @@ export async function saveHazard(row: HazardRow) {
   if (row.parent_incident_id) traceObj.parent_incident_id = row.parent_incident_id;
   if (row.corroborations_count) traceObj.corroborations_count = row.corroborations_count;
   if (row.corroborating_reports) traceObj.corroborating_reports = row.corroborating_reports;
+  if (row.estimated_water_depth_cm !== undefined && row.estimated_water_depth_cm !== null) {
+    traceObj.estimated_water_depth_cm = row.estimated_water_depth_cm;
+  }
+  if (row.depth_confidence !== undefined && row.depth_confidence !== null) {
+    traceObj.depth_confidence = row.depth_confidence;
+  }
+  if (row.depth_reference_anchor !== undefined && row.depth_reference_anchor !== null) {
+    traceObj.depth_reference_anchor = row.depth_reference_anchor;
+  }
+  if (row.passability !== undefined && row.passability !== null) {
+    traceObj.passability = row.passability;
+  }
   if (Object.keys(traceObj).length > 0) {
     payload.trace = traceObj;
   }

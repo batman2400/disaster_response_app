@@ -218,16 +218,69 @@ export function OfficerBoard({
     return list.sort((a, b) => {
       if (sortBy === "urgency") {
         const score = { CRITICAL: 3, MEDIUM: 2, LOW: 1 };
-        return score[b.urgency] - score[a.urgency];
+        const diff = score[b.urgency] - score[a.urgency];
+        if (diff !== 0) return diff;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       }
       if (sortBy === "confidence") {
-        return b.confidence_score - a.confidence_score;
+        const diff = b.confidence_score - a.confidence_score;
+        if (diff !== 0) return diff;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       }
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
   }, [tickets, filter, query, sortBy]);
 
   const selected = tickets.find((row) => row.id === selectedId) ?? visible[0] ?? null;
+
+  const initialSelected = useMemo(
+    () => (selected?.id ? initialHazards.find((h) => h.id === selected.id) : null),
+    [initialHazards, selected?.id],
+  );
+
+  const resolvedAudioUrl = useMemo(() => {
+    if (selected?.audio_url) return selected.audio_url;
+    const t = (selected?.trace ?? {}) as Record<string, unknown>;
+    if (typeof t.audio_url === "string" && t.audio_url) return t.audio_url;
+    const tExtra = (t.extra ?? {}) as Record<string, unknown>;
+    if (typeof tExtra.audio_url === "string" && tExtra.audio_url) return tExtra.audio_url;
+    if (initialSelected?.audio_url) return initialSelected.audio_url;
+    const initTrace = (initialSelected?.trace ?? {}) as Record<string, unknown>;
+    if (typeof initTrace.audio_url === "string" && initTrace.audio_url) return initTrace.audio_url;
+    return null;
+  }, [selected, initialSelected]);
+
+  const resolvedSummary = useMemo(() => {
+    if (selected?.summary) return selected.summary;
+    const t = (selected?.trace ?? {}) as Record<string, unknown>;
+    if (typeof t.summary === "string" && t.summary) return t.summary;
+    if (initialSelected?.summary) return initialSelected.summary;
+    const initTrace = (initialSelected?.trace ?? {}) as Record<string, unknown>;
+    if (typeof initTrace.summary === "string" && initTrace.summary) return initTrace.summary;
+    return null;
+  }, [selected, initialSelected]);
+
+  const resolvedDetectedLanguage = useMemo(() => {
+    if (selected?.detected_language) return selected.detected_language;
+    const t = (selected?.trace ?? {}) as Record<string, unknown>;
+    if (typeof t.detected_language === "string" && t.detected_language) return t.detected_language;
+    if (initialSelected?.detected_language) return initialSelected.detected_language;
+    const initTrace = (initialSelected?.trace ?? {}) as Record<string, unknown>;
+    if (typeof initTrace.detected_language === "string" && initTrace.detected_language) return initTrace.detected_language;
+    return null;
+  }, [selected, initialSelected]);
+
+  const hasAudioRecording = Boolean(resolvedAudioUrl) || (selected ? demoAudioId === selected.id : false);
+
+  // Auto-scroll sidebar to the selected ticket
+  useEffect(() => {
+    if (selected?.id) {
+      const el = document.getElementById(`ticket-${selected.id}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    }
+  }, [selected?.id]);
   const ward = selected ? wards.find((row) => row.id === selected.ward_id) : undefined;
   const selectedTrace = selected
     ? parseTrace(selected.trace) ?? parseTrace(initialHazards.find((row) => row.id === selected.id)?.trace)
@@ -424,6 +477,7 @@ export function OfficerBoard({
             return (
               <button
                 key={ticket.id}
+                id={`ticket-${ticket.id}`}
                 type="button"
                 onClick={() => setSelectedId(ticket.id)}
                 className={cn(
@@ -652,14 +706,14 @@ export function OfficerBoard({
                           onClick={() => setShowVoiceModal(true)}
                           className={cn(
                             "flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-bold transition-all",
-                            selected.audio_url || demoAudioId === selected.id
+                            hasAudioRecording
                               ? "bg-cyan-50 text-cyan-700 hover:bg-cyan-100 border border-cyan-200"
                               : "text-slate-500 hover:text-brand hover:bg-slate-100 border border-transparent",
                           )}
                           title="Open Voice Intelligence Console"
                         >
                           <Headphones className="h-3 w-3 text-cyan-600" />
-                          <span>{selected.audio_url || demoAudioId === selected.id ? "View Voice Note" : "Voice Console"}</span>
+                          <span>{hasAudioRecording ? "View Voice Note" : "Voice Console"}</span>
                         </button>
                       </div>
                     </div>
@@ -702,7 +756,7 @@ export function OfficerBoard({
                     )}
 
                     {/* Citizen Voice Recording Review */}
-                    {selected.audio_url || demoAudioId === selected.id ? (
+                    {hasAudioRecording ? (
                       <div className="mt-4 pt-3 border-t border-slate-100">
                         <div className="mb-2 flex items-center justify-between">
                           <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
@@ -710,9 +764,9 @@ export function OfficerBoard({
                             Citizen Voice Recording
                           </span>
                           <div className="flex items-center gap-1.5">
-                            {selected.detected_language && (
+                            {resolvedDetectedLanguage && (
                               <span className="rounded-full bg-brand-light px-2 py-0.5 text-[10px] font-extrabold text-brand">
-                                {selected.detected_language}
+                                {resolvedDetectedLanguage}
                               </span>
                             )}
                             <button
@@ -725,11 +779,11 @@ export function OfficerBoard({
                           </div>
                         </div>
                         <AudioPlayer
-                          src={selected.audio_url || DEMO_SAMPLE_AUDIO_URL}
+                          src={resolvedAudioUrl || DEMO_SAMPLE_AUDIO_URL}
                           title={`Citizen Audio Memo #${selected.id.slice(0, 8).toUpperCase()}`}
-                          language={selected.detected_language}
+                          language={resolvedDetectedLanguage}
                         />
-                        {selected.summary && (
+                        {resolvedSummary && (
                           <div className="mt-2 rounded-xl bg-slate-50 p-2.5 border border-slate-200/70 text-xs text-slate-700">
                             <div className="flex items-center justify-between text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-0.5">
                               <span>Spoken Transcript / Summary</span>
@@ -741,7 +795,7 @@ export function OfficerBoard({
                                 View Intelligence ↗
                               </button>
                             </div>
-                            <p className="italic font-medium leading-relaxed">"{selected.summary}"</p>
+                            <p className="italic font-medium leading-relaxed">&quot;{resolvedSummary}&quot;</p>
                           </div>
                         )}
                       </div>
@@ -890,13 +944,13 @@ export function OfficerBoard({
                         <h3 className="mb-1 flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-widest text-slate-400">
                           <Bot className="h-3.5 w-3.5 text-brand-light" /> System Aggregator Verdict
                         </h3>
-                        {selected.summary ? (
+                        {resolvedSummary ? (
                           <div className="my-2 max-w-xl rounded-xl border border-brand/40 bg-brand/15 p-2.5">
                             <div className="flex items-center justify-between mb-1">
                               <span className="text-[10px] font-extrabold uppercase tracking-wider text-brand-light">
-                                AI Operational Summary · {selected.detected_language || "Multilingual"}
+                                AI Operational Summary · {resolvedDetectedLanguage || "Multilingual"}
                               </span>
-                              {(selected.audio_url || demoAudioId === selected.id) ? (
+                              {hasAudioRecording ? (
                                 <button
                                   type="button"
                                   onClick={() => setShowVoiceModal(true)}
@@ -915,14 +969,14 @@ export function OfficerBoard({
                                 </button>
                               )}
                             </div>
-                            <p className="mt-0.5 text-xs font-bold text-white leading-relaxed">{selected.summary}</p>
-                            {(selected.audio_url || demoAudioId === selected.id) && (
+                            <p className="mt-0.5 text-xs font-bold text-white leading-relaxed">{resolvedSummary}</p>
+                            {hasAudioRecording && (
                               <div className="mt-2.5">
                                 <AudioPlayer
                                   compact
-                                  src={selected.audio_url || DEMO_SAMPLE_AUDIO_URL}
+                                  src={resolvedAudioUrl || DEMO_SAMPLE_AUDIO_URL}
                                   title="Listen Original Voice Note"
-                                  language={selected.detected_language}
+                                  language={resolvedDetectedLanguage}
                                 />
                               </div>
                             )}
@@ -1802,7 +1856,12 @@ export function OfficerBoard({
         <VoiceModal
           open={showVoiceModal}
           onClose={() => setShowVoiceModal(false)}
-          hazard={selected}
+          hazard={{
+            ...selected,
+            audio_url: resolvedAudioUrl,
+            summary: resolvedSummary,
+            detected_language: resolvedDetectedLanguage,
+          }}
           onAttachAudio={(audioUrl) => {
             selected.audio_url = audioUrl;
           }}

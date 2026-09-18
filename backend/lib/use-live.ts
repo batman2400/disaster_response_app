@@ -10,6 +10,18 @@ import type { HazardRow, ShelterRow, WardRow } from "./types";
 type Identified = { id: string };
 type LiveTable = "hazards" | "wards" | "shelters";
 
+function mergeIdentified<T extends Identified>(existing: T, next: T): T {
+  const merged: any = { ...existing, ...next };
+  for (const key of Object.keys(existing as any)) {
+    if ((next as any)[key] === undefined || (next as any)[key] === null) {
+      if ((existing as any)[key] !== undefined && (existing as any)[key] !== null) {
+        merged[key] = (existing as any)[key];
+      }
+    }
+  }
+  return merged;
+}
+
 function applyChange<T extends Identified>(
   prev: T[],
   eventType: string,
@@ -21,11 +33,20 @@ function applyChange<T extends Identified>(
     return id ? prev.filter((row) => row.id !== id) : prev;
   }
   if (!next) return prev;
-  return [next, ...prev.filter((row) => row.id !== next.id)];
+  const existing = prev.find((row) => row.id === next.id);
+  const merged = existing ? mergeIdentified(existing, next) : next;
+  return [merged, ...prev.filter((row) => row.id !== next.id)];
 }
 
 export function mapHazardRow(row: Record<string, unknown>): HazardRow {
-  const rawTrace = row.trace && typeof row.trace === "object" ? (row.trace as Record<string, unknown>) : null;
+  let rawTrace: Record<string, unknown> | null = null;
+  if (row.trace && typeof row.trace === "object") {
+    rawTrace = row.trace as Record<string, unknown>;
+  } else if (typeof row.trace === "string") {
+    try {
+      rawTrace = JSON.parse(row.trace);
+    } catch {}
+  }
   return {
     id: String(row.id),
     lat: Number(row.lat),
@@ -42,11 +63,44 @@ export function mapHazardRow(row: Record<string, unknown>): HazardRow {
     created_at: String(row.created_at),
     resolved_at: (row.resolved_at as string | null) ?? null,
     closure_photo_url: (row.closure_photo_url as string | null) ?? null,
-    audio_url: (row.audio_url as string | null) ?? (rawTrace?.audio_url as string | null) ?? null,
-    summary: (row.summary as string | null) ?? (rawTrace?.summary as string | null) ?? null,
-    detected_language: (row.detected_language as string | null) ?? (rawTrace?.detected_language as string | null) ?? null,
-    parent_incident_id: (row.parent_incident_id as string | null) ?? (rawTrace?.parent_incident_id as string | null) ?? null,
+    audio_url:
+      (row.audio_url as string | null) ??
+      (rawTrace?.audio_url as string | null) ??
+      ((rawTrace?.extra as Record<string, unknown> | undefined)?.audio_url as string | null) ??
+      null,
+    summary:
+      (row.summary as string | null) ??
+      (rawTrace?.summary as string | null) ??
+      null,
+    detected_language:
+      (row.detected_language as string | null) ??
+      (rawTrace?.detected_language as string | null) ??
+      null,
+    parent_incident_id:
+      (row.parent_incident_id as string | null) ??
+      (rawTrace?.parent_incident_id as string | null) ??
+      null,
     corroborations_count: Number(row.corroborations_count ?? rawTrace?.corroborations_count ?? 0),
+    corroborating_reports:
+      (row.corroborating_reports as HazardRow["corroborating_reports"]) ??
+      (rawTrace?.corroborating_reports as HazardRow["corroborating_reports"]) ??
+      [],
+    estimated_water_depth_cm:
+      (row.estimated_water_depth_cm as number | null) ??
+      (rawTrace?.estimated_water_depth_cm as number | null) ??
+      null,
+    depth_confidence:
+      (row.depth_confidence as HazardRow["depth_confidence"]) ??
+      (rawTrace?.depth_confidence as HazardRow["depth_confidence"]) ??
+      null,
+    depth_reference_anchor:
+      (row.depth_reference_anchor as string | null) ??
+      (rawTrace?.depth_reference_anchor as string | null) ??
+      null,
+    passability:
+      (row.passability as HazardRow["passability"]) ??
+      (rawTrace?.passability as HazardRow["passability"]) ??
+      null,
     ...officerFieldsFromStored(row.officer_note, row.status as HazardRow["status"], {
       officer_log: row.officer_log,
       dispatched_at: row.dispatched_at,
@@ -103,9 +157,26 @@ export function useLiveRows<T extends Identified>(options: {
   sortRef.current = sort;
 
   const commit = useCallback((next: T[]) => {
-    setRows(sortRef.current ? sortRef.current(next) : next);
+    setRows((prev) => {
+      const map = new Map<string, T>();
+      for (const r of prev) map.set(r.id, r);
+      for (const r of initial) {
+        if (!map.has(r.id)) map.set(r.id, r);
+        else map.set(r.id, mergeIdentified(r, map.get(r.id)!));
+      }
+      for (const r of next) {
+        const prevRow = map.get(r.id);
+        if (!prevRow) {
+          map.set(r.id, r);
+        } else {
+          map.set(r.id, mergeIdentified(prevRow, r));
+        }
+      }
+      const merged = Array.from(map.values());
+      return sortRef.current ? sortRef.current(merged) : merged;
+    });
     setUpdatedAt(new Date());
-  }, []);
+  }, [initial]);
 
   useEffect(() => {
     if (initial && initial.length > 0) {
@@ -114,7 +185,7 @@ export function useLiveRows<T extends Identified>(options: {
         for (const r of prev) map.set(r.id, r);
         for (const r of initial) {
           if (!map.has(r.id)) map.set(r.id, r);
-          else map.set(r.id, { ...map.get(r.id)!, ...r });
+          else map.set(r.id, mergeIdentified(r, map.get(r.id)!));
         }
         const merged = Array.from(map.values());
         return sortRef.current ? sortRef.current(merged) : merged;
@@ -148,15 +219,17 @@ export function useLiveRows<T extends Identified>(options: {
     };
 
     async function seed() {
+      if (fallbackRef.current) {
+        try {
+          const fresh = await fallbackRef.current();
+          safeCommit(fresh);
+        } catch {}
+      }
       if (client) {
         const { data, error } = await client.from(table).select("*");
         if (!error && data) {
           safeCommit(data.map((row) => mapRef.current(row as Record<string, unknown>)));
-          return;
         }
-      }
-      if (fallbackRef.current) {
-        safeCommit(await fallbackRef.current());
       }
     }
 
