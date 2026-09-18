@@ -80,11 +80,13 @@ export function CrewMap({
   userLocation,
   selectedId,
   onSelectTicket,
+  onAssignTicket,
 }: {
   hazards: HazardRow[];
   userLocation: [number, number] | null;
   selectedId: string | null;
   onSelectTicket?: (id: string) => void;
+  onAssignTicket?: (ticket: HazardRow) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
@@ -264,6 +266,16 @@ export function CrewMap({
               <Navigation className="h-3.5 w-3.5 text-blue-600" />
               Navigate
             </a>
+            {activeTicket.status !== "RESOLVED" && onAssignTicket ? (
+              <button
+                type="button"
+                onClick={() => onAssignTicket(activeTicket)}
+                className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 py-2 text-xs font-bold text-indigo-800 hover:bg-indigo-100 shadow-sm"
+              >
+                <Truck className="h-3.5 w-3.5" />
+                {activeTicket.assigned_crew_name ? "Reassign" : "Assign"}
+              </button>
+            ) : null}
             <Link
               href={`/crew/${activeTicket.id}`}
               className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-slate-900 py-2 text-xs font-bold text-white hover:bg-slate-800 shadow-sm"

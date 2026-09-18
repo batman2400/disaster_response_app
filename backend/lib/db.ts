@@ -74,6 +74,16 @@ function asHazard(row: Record<string, unknown>): HazardRow {
       officer_log: row.officer_log,
       dispatched_at: row.dispatched_at,
     }),
+    assigned_crew_id:
+      (row.assigned_crew_id as string | null) ??
+      officerFieldsFromStored(row.officer_note, row.status as HazardRow["status"]).assigned_crew_id ??
+      memoryGetHazard(String(row.id))?.assigned_crew_id ??
+      null,
+    assigned_crew_name:
+      (row.assigned_crew_name as string | null) ??
+      officerFieldsFromStored(row.officer_note, row.status as HazardRow["status"]).assigned_crew_name ??
+      memoryGetHazard(String(row.id))?.assigned_crew_name ??
+      null,
     trace:
       parseTrace(row.trace) ??
       memoryGetHazard(String(row.id))?.trace ??
@@ -96,14 +106,6 @@ function asHazard(row: Record<string, unknown>): HazardRow {
     resolution_notes:
       (row.resolution_notes as string | null) ??
       memoryGetHazard(String(row.id))?.resolution_notes ??
-      null,
-    assigned_crew_id:
-      (row.assigned_crew_id as string | null) ??
-      memoryGetHazard(String(row.id))?.assigned_crew_id ??
-      null,
-    assigned_crew_name:
-      (row.assigned_crew_name as string | null) ??
-      memoryGetHazard(String(row.id))?.assigned_crew_name ??
       null,
     parent_incident_id:
       (row.parent_incident_id as string | null) ??
@@ -258,6 +260,12 @@ export async function saveHazard(row: HazardRow) {
   if (row.passability !== undefined && row.passability !== null) {
     traceObj.passability = row.passability;
   }
+  if (row.assigned_crew_id !== undefined) {
+    payload.assigned_crew_id = row.assigned_crew_id;
+  }
+  if (row.assigned_crew_name !== undefined) {
+    payload.assigned_crew_name = row.assigned_crew_name;
+  }
   if (Object.keys(traceObj).length > 0) {
     payload.trace = traceObj;
   }
@@ -270,6 +278,11 @@ export async function saveHazard(row: HazardRow) {
     }
     if (/trace/i.test(error.message) && payload.trace !== undefined) {
       delete payload.trace;
+      retried = true;
+    }
+    if (/assigned_crew/i.test(error.message)) {
+      delete payload.assigned_crew_id;
+      delete payload.assigned_crew_name;
       retried = true;
     }
     if (retried) {

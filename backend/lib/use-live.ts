@@ -101,10 +101,17 @@ export function mapHazardRow(row: Record<string, unknown>): HazardRow {
       (row.passability as HazardRow["passability"]) ??
       (rawTrace?.passability as HazardRow["passability"]) ??
       null,
-    ...officerFieldsFromStored(row.officer_note, row.status as HazardRow["status"], {
-      officer_log: row.officer_log,
-      dispatched_at: row.dispatched_at,
-    }),
+    ...(() => {
+      const officer = officerFieldsFromStored(row.officer_note, row.status as HazardRow["status"], {
+        officer_log: row.officer_log,
+        dispatched_at: row.dispatched_at,
+      });
+      return {
+        ...officer,
+        assigned_crew_id: (row.assigned_crew_id as string | null) ?? officer.assigned_crew_id ?? null,
+        assigned_crew_name: (row.assigned_crew_name as string | null) ?? officer.assigned_crew_name ?? null,
+      };
+    })(),
     trace: parseTrace(row.trace),
   };
 }

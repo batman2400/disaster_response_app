@@ -13,6 +13,22 @@ export const WARD_CENTERS: Record<WardId, [number, number]> = {
 
 export const DEMO_GPS = { lat: 6.9535, lng: 79.8732 };
 
+/** Typical flooded-city response speed used for crew ETAs. */
+const FLOOD_RESPONSE_KMH = 18;
+
+export function estimateResponseEta(
+  from: [number, number] | null | undefined,
+  to: [number, number],
+  fallbackLabel = "—",
+): { label: string; minutes: number | null; km: number | null; fromGps: boolean } {
+  if (!from) {
+    return { label: fallbackLabel, minutes: null, km: null, fromGps: false };
+  }
+  const km = haversineKm(from, to);
+  const minutes = Math.max(5, Math.round((km / FLOOD_RESPONSE_KMH) * 60));
+  return { label: `${minutes} min`, minutes, km, fromGps: true };
+}
+
 export function haversineKm(a: [number, number], b: [number, number]) {
   const toRad = (deg: number) => (deg * Math.PI) / 180;
   const dLat = toRad(b[0] - a[0]);

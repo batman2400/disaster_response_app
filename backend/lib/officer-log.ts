@@ -4,6 +4,8 @@ export interface OfficerLog {
   v: 1;
   log: OfficerLogEntry[];
   dispatched_at: string | null;
+  assigned_crew_id?: string | null;
+  assigned_crew_name?: string | null;
 }
 
 const ACTIONS: OfficerAction[] = [
@@ -73,6 +75,8 @@ export function parseOfficerStored(stored: unknown, fallbackStatus: HazardStatus
           },
         ],
         dispatched_at: null,
+        assigned_crew_id: null,
+        assigned_crew_name: null,
       };
     }
   }
@@ -88,33 +92,50 @@ export function parseOfficerStored(stored: unknown, fallbackStatus: HazardStatus
     const log = rawLog.map(asEntry).filter((entry): entry is OfficerLogEntry => Boolean(entry));
     const dispatched_at =
       typeof row.dispatched_at === "string" && row.dispatched_at ? row.dispatched_at : dispatchedFrom(log);
-    return { v: 1, log, dispatched_at };
+    return {
+      v: 1,
+      log,
+      dispatched_at,
+      assigned_crew_id: typeof row.assigned_crew_id === "string" ? row.assigned_crew_id : null,
+      assigned_crew_name: typeof row.assigned_crew_name === "string" ? row.assigned_crew_name : null,
+    };
   }
 
-  return { v: 1, log: [], dispatched_at: null };
+  return { v: 1, log: [], dispatched_at: null, assigned_crew_id: null, assigned_crew_name: null };
 }
 
 export function officerFieldsFromStored(
   stored: unknown,
   fallbackStatus?: HazardStatus,
   extras?: { officer_log?: unknown; dispatched_at?: unknown },
-): Pick<HazardRow, "officer_note" | "officer_log" | "dispatched_at"> {
+): Pick<HazardRow, "officer_note" | "officer_log" | "dispatched_at" | "assigned_crew_id" | "assigned_crew_name"> {
+  const fromStored = parseOfficerStored(stored, fallbackStatus);
   const parsed = extras?.officer_log
     ? parseOfficerStored(
-        { log: extras.officer_log, dispatched_at: extras.dispatched_at },
+        {
+          log: extras.officer_log,
+          dispatched_at: extras.dispatched_at,
+          assigned_crew_id: fromStored.assigned_crew_id,
+          assigned_crew_name: fromStored.assigned_crew_name,
+        },
         fallbackStatus,
       )
-    : parseOfficerStored(stored, fallbackStatus);
+    : fromStored;
   const latest = parsed.log.at(-1)?.note;
   return {
     officer_note: latest,
     officer_log: parsed.log,
     dispatched_at: parsed.dispatched_at,
+    assigned_crew_id: parsed.assigned_crew_id ?? null,
+    assigned_crew_name: parsed.assigned_crew_name ?? null,
   };
 }
 
 export function serializeOfficerRow(
-  row: Pick<HazardRow, "officer_note" | "officer_log" | "dispatched_at" | "status">,
+  row: Pick<
+    HazardRow,
+    "officer_note" | "officer_log" | "dispatched_at" | "status" | "assigned_crew_id" | "assigned_crew_name"
+  >,
 ): string {
   const seeded =
     row.officer_log && row.officer_log.length > 0
@@ -133,6 +154,8 @@ export function serializeOfficerRow(
     v: 1,
     log: seeded,
     dispatched_at: row.dispatched_at ?? dispatchedFrom(seeded),
+    assigned_crew_id: row.assigned_crew_id ?? null,
+    assigned_crew_name: row.assigned_crew_name ?? null,
   };
   return JSON.stringify(payload);
 }
