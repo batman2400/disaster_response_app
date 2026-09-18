@@ -97,7 +97,7 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
     fallbackFetch: () => fetch("/api/hazards").then((res) => res.json() as Promise<HazardRow[]>),
   });
 
-  const [activeTab, setActiveTab] = useState<FilterTab>("dispatched");
+  const [activeTab, setActiveTab] = useState<FilterTab>("all");
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedWard, setSelectedWard] = useState<string>("all");
@@ -400,7 +400,7 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
     <PublicShell>
       {/* Top Banner & Navigation Header */}
       <div className={cn("border-t-4 px-5 pb-3 pt-6 lg:px-8 lg:pt-8", theme.accent)}>
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <Link
               href="/"
@@ -434,7 +434,7 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <LanguageSwitcher className="hidden sm:inline-flex" />
 
             <button
@@ -815,6 +815,17 @@ export function CrewQueue({ initialHazards }: { initialHazards: HazardRow[] }) {
 
       {/* Main Content Area: List View or Map View */}
       <div className="flex-1 overflow-y-auto no-scrollbar px-5 pb-12 pt-3 lg:px-8">
+        <button
+          type="button"
+          onClick={openAssignPicker}
+          className="mb-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-extrabold text-white shadow-md hover:bg-indigo-700 active:scale-[0.99]"
+        >
+          <Truck className="h-4 w-4" />
+          Assign a task
+          <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold">
+            {assignableTasks.length} open
+          </span>
+        </button>
         {viewMode === "map" ? (
           <div className="h-[600px] w-full">
             <CrewMap
