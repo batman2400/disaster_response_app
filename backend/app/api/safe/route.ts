@@ -1,95 +1,12 @@
 import { json, options } from "@/lib/cors";
+import { getStoredCheckIns, persistCheckIn } from "@/lib/safe-registry";
 import type { SafeCheckIn, SafeStatus, VulnerabilityFlag, WardId } from "@/lib/types";
+
+export const dynamic = "force-dynamic";
 
 export function OPTIONS() {
   return options();
 }
-
-// In-memory persistent store with realistic Colombo seed records
-const SEED_CHECK_INS: SafeCheckIn[] = [
-  {
-    id: "safe_clm_01",
-    full_name: "Sunil Jayawardena",
-    contact_masked: "077 *** 4821",
-    nic_masked: "721****90V",
-    status: "IN_SHELTER",
-    shelter_id: "peliyagoda_cc",
-    shelter_name: "Peliyagoda Community Centre",
-    ward_id: "ward_01",
-    location_detail: "Nagalagam Street evacuation bay, Hall B",
-    family_count: 4,
-    vulnerabilities: ["ELDERLY"],
-    message: "Family is safe at Peliyagoda shelter. Grandmother received her heart medication from the mobile clinic.",
-    created_at: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
-    verified_by_shelter: true,
-  },
-  {
-    id: "safe_clm_02",
-    full_name: "Fathima Rameez",
-    contact_masked: "071 *** 9033",
-    nic_masked: "885****12V",
-    status: "IN_SHELTER",
-    shelter_id: "town_hall",
-    shelter_name: "Town Hall Relief Bay",
-    ward_id: "ward_02",
-    location_detail: "Family Medical Tent 03",
-    family_count: 3,
-    vulnerabilities: ["INFANT", "MEDICAL_INSULIN"],
-    message: "Safe at Town Hall with 8-month infant. Red Cross provided baby formula and diaper rations.",
-    created_at: new Date(Date.now() - 70 * 60 * 1000).toISOString(),
-    verified_by_shelter: true,
-  },
-  {
-    id: "safe_clm_03",
-    full_name: "Kavinda De Silva",
-    contact_masked: "076 *** 2219",
-    nic_masked: "951****44V",
-    status: "WITH_RELATIVES",
-    shelter_id: null,
-    shelter_name: null,
-    ward_id: "ward_03",
-    location_detail: "Evacuated from Pettah to cousin's house in Nugegoda high ground",
-    family_count: 2,
-    vulnerabilities: [],
-    message: "Water entered ground floor of shop, but we evacuated safely. Phone battery 15%, do not worry.",
-    created_at: new Date(Date.now() - 110 * 60 * 1000).toISOString(),
-    verified_by_shelter: false,
-  },
-  {
-    id: "safe_clm_04",
-    full_name: "Sithy Marikkar",
-    contact_masked: "075 *** 1184",
-    nic_masked: "602****88V",
-    status: "IN_SHELTER",
-    shelter_id: "kelaniya_temple",
-    shelter_name: "Kelaniya Temple Hall",
-    ward_id: "ward_01",
-    location_detail: "Main hall perimeter",
-    family_count: 5,
-    vulnerabilities: ["ELDERLY", "WHEELCHAIR"],
-    message: "Boat rescue unit extracted my father in wheelchair. Both dry and safe at Kelaniya temple.",
-    created_at: new Date(Date.now() - 145 * 60 * 1000).toISOString(),
-    verified_by_shelter: true,
-  },
-  {
-    id: "safe_clm_05",
-    full_name: "Ravi Chandrasekaran",
-    contact_masked: "072 *** 6542",
-    nic_masked: "830****21V",
-    status: "IN_SHELTER",
-    shelter_id: "fort_railway",
-    shelter_name: "Fort Railway Waiting Hall",
-    ward_id: "ward_03",
-    location_detail: "Platform 2 waiting room",
-    family_count: 1,
-    vulnerabilities: [],
-    message: "Stranded commuter, staying overnight at railway shelter until tracks are cleared. All good.",
-    created_at: new Date(Date.now() - 180 * 60 * 1000).toISOString(),
-    verified_by_shelter: true,
-  },
-];
-
-let checkInsStore: SafeCheckIn[] = [...SEED_CHECK_INS];
 
 function maskPhone(phone: string): string {
   const clean = phone.replace(/[^0-9]/g, "");
@@ -113,7 +30,8 @@ export async function GET(request: Request) {
   const shelter = searchParams.get("shelter") || "ALL";
   const vulnerableOnly = searchParams.get("vulnerable") === "true";
 
-  let results = [...checkInsStore];
+  const allRecords = await getStoredCheckIns();
+  let results = [...allRecords];
 
   if (q) {
     results = results.filter((item) => {
@@ -137,7 +55,7 @@ export async function GET(request: Request) {
   results.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   return json({
-    total: checkInsStore.length,
+    total: allRecords.length,
     matched: results.length,
     check_ins: results,
   });
@@ -189,7 +107,7 @@ export async function POST(request: Request) {
     verified_by_shelter: Boolean(body.shelter_id),
   };
 
-  checkInsStore = [newRecord, ...checkInsStore];
+  await persistCheckIn(newRecord);
 
   return json({
     success: true,

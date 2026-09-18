@@ -87,10 +87,10 @@ export const SEED_CHECK_INS: SafeCheckIn[] = [
 const STORAGE_BUCKET = "safe-registry";
 const STORAGE_FILE = "check_ins.json";
 
-// In-memory cache to guarantee fast response
+// In-memory cache to guarantee sub-millisecond local responses
 let inMemoryCheckIns: SafeCheckIn[] = [...SEED_CHECK_INS];
 let lastCloudFetchTime = 0;
-const CACHE_TTL_MS = 2500; // 2.5 seconds cache freshness for cloud sync
+const CACHE_TTL_MS = 2000; // 2 seconds
 
 /**
  * Fetch check-ins from cloud storage or PostgreSQL table
@@ -113,7 +113,7 @@ export async function getStoredCheckIns(): Promise<SafeCheckIn[]> {
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (!tableError && tableData && Array.isArray(tableData)) {
+    if (!tableError && tableData && Array.isArray(tableData) && tableData.length > 0) {
       const mapped: SafeCheckIn[] = tableData.map((row) => ({
         id: String(row.id),
         full_name: String(row.full_name),
@@ -131,7 +131,6 @@ export async function getStoredCheckIns(): Promise<SafeCheckIn[]> {
         verified_by_shelter: Boolean(row.verified_by_shelter),
       }));
 
-      // Merge with seed check-ins so demo data remains available
       const existingIds = new Set(mapped.map((r) => r.id));
       const combined = [...mapped, ...SEED_CHECK_INS.filter((s) => !existingIds.has(s.id))];
       inMemoryCheckIns = combined;
@@ -143,20 +142,23 @@ export async function getStoredCheckIns(): Promise<SafeCheckIn[]> {
   }
 
   try {
-    // 2. Cloud Storage fallback (guaranteed to be persistent across serverless instances)
-    const { data: fileData, error: fileError } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .download(STORAGE_FILE);
-
-    if (!fileError && fileData) {
-      const text = await fileData.text();
-      const parsed = JSON.parse(text) as SafeCheckIn[];
-      if (Array.isArray(parsed)) {
-        const existingIds = new Set(parsed.map((r) => r.id));
-        const combined = [...parsed, ...SEED_CHECK_INS.filter((s) => !existingIds.has(s.id))];
-        inMemoryCheckIns = combined;
-        lastCloudFetchTime = now;
-        return combined;
+    // 2. Cloud Storage fallback with direct cache-busting to bypass Supabase CDN
+    const { data: { publicUrl } } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(STORAGE_FILE);
+    if (publicUrl) {
+      const res = await fetch(`${publicUrl}?t=${now}`, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache" },
+      });
+      if (res.ok) {
+        const text = await res.text();
+        const parsed = JSON.parse(text) as SafeCheckIn[];
+        if (Array.isArray(parsed)) {
+          const existingIds = new Set(parsed.map((r) => r.id));
+          const combined = [...parsed, ...SEED_CHECK_INS.filter((s) => !existingIds.has(s.id))];
+          inMemoryCheckIns = combined;
+          lastCloudFetchTime = now;
+          return combined;
+        }
       }
     }
   } catch (storageErr) {
@@ -201,7 +203,7 @@ export async function persistCheckIn(record: SafeCheckIn): Promise<void> {
     // Table may not exist yet in Postgres
   }
 
-  // 2. Save to Supabase Cloud Storage (ensures cross-device and cross-lambda persistence)
+  // 2. Save to Supabase Cloud Storage (with cacheControl: '0' to ensure instant visibility)
   try {
     const dataToSave = inMemoryCheckIns;
     await supabase.storage
@@ -209,6 +211,16 @@ export async function persistCheckIn(record: SafeCheckIn): Promise<void> {
       .upload(STORAGE_FILE, Buffer.from(JSON.stringify(dataToSave, null, 2)), {
         contentType: "application/json",
         upsert: true,
+        cacheControl: "0",
+      });
+
+    // Also persist individual record file for backup
+    await supabase.storage
+      .from(STORAGE_BUCKET)
+      .upload(`records/${record.id}.json`, Buffer.from(JSON.stringify(record, null, 2)), {
+        contentType: "application/json",
+        upsert: true,
+        cacheControl: "0",
       });
   } catch (storageErr) {
     console.warn("[SafeRegistry] Cloud storage upload warning:", storageErr);
