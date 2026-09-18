@@ -245,8 +245,8 @@ export function CitizenMobileView({ shelters, hazards, wards }: CitizenMobileVie
         </div>
       )}
 
-      {/* 3. Frontline Action Grid (2x2 Mobile, 5-Col Desktop) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+      {/* 3. Frontline Action Grid (2x2 Mobile, 4-Col Desktop) */}
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Card 1: Report Hazard */}
         <Link
           href="/report"
@@ -343,31 +343,6 @@ export function CitizenMobileView({ shelters, hazards, wards }: CitizenMobileVie
           </div>
           <div className="mt-4 flex items-center gap-1 text-xs font-extrabold text-sky-700">
             <span>Check In</span>
-            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
-          </div>
-        </Link>
-
-        {/* Card 5: View & Track Reports */}
-        <Link
-          href="/report/track"
-          className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-indigo-200/90 bg-gradient-to-br from-indigo-50 via-white to-blue-50 p-4.5 shadow-xs transition-transform hover:border-indigo-400 active:scale-[0.98] sm:p-5"
-        >
-          <div>
-            <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-700">
-              <Activity className="h-6 w-6" />
-            </div>
-            <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-indigo-800">
-              {myReportIds.length > 0 ? `${myReportIds.length} Saved` : "Public Tracking"}
-            </span>
-            <h3 className="mt-1.5 text-base font-black tracking-tight text-slate-900 sm:text-lg">
-              Track Reports
-            </h3>
-            <p className="mt-0.5 text-xs text-slate-500 leading-snug">
-              Live status, #CLM token lookup & dispatch.
-            </p>
-          </div>
-          <div className="mt-4 flex items-center gap-1 text-xs font-extrabold text-indigo-700">
-            <span>View Reports</span>
             <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
           </div>
         </Link>
