@@ -26,8 +26,9 @@ import { Badge, Button, Card, Chip, StatCard, StatusBadge, UrgencyBadge } from "
 import { cn } from "@/lib/cn";
 import { timeAgo, wardName, wardShort } from "@/lib/format";
 import { attachShelterCoords, type ShelterWithCoords } from "@/lib/safe-routes";
-import type { HazardRow, ShelterRow, SuppliesStatus, WardId, WardRow } from "@/lib/types";
+import type { HazardRow, ShelterRow, SuppliesStatus, SupplyRequest, WardId, WardRow } from "@/lib/types";
 import { mapHazardRow, mapShelterRow, mapWardRow, sortHazards, sortWards, useLiveRows } from "@/lib/use-live";
+import { useSupplyRequests } from "@/lib/use-supply-requests";
 
 type ShelterOption = ShelterRow & { free: number };
 
@@ -176,6 +177,8 @@ export function ReliefBoard({
     fallbackFetch: () => fetch("/api/wards").then((res) => res.json() as Promise<WardRow[]>),
   });
 
+  const { requests: supplyRequests, refresh: refreshSupplyRequests } = useSupplyRequests();
+
   const rawShelters = useMemo(() => uniqueShelters(liveShelters), [liveShelters]);
   const sheltersWithCoords = useMemo(() => attachShelterCoords(rawShelters), [rawShelters]);
 
@@ -308,6 +311,37 @@ export function ReliefBoard({
     await updateShelter(target.id, newOccupied, target.supplies_status);
     setWalkinOpen(false);
     showToast(`Registered ${walkinCount} walk-in evacuees at ${target.name}`);
+  }
+
+  async function requestResupply(
+    shelter: ShelterRow,
+    items: string[],
+    supplies_status: SuppliesStatus,
+  ) {
+    setBusyKey(`resupply:${shelter.id}`);
+    setError("");
+    try {
+      const response = await fetch("/api/relief/resupply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          shelter_id: shelter.id,
+          shelter_name: shelter.name,
+          ward_id: shelter.ward_id,
+          items,
+          supplies_status,
+        }),
+      });
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Resupply request failed");
+      await refreshSupplyRequests();
+      showToast(`Resupply request sent to Officer Command Console for ${shelter.name}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Resupply request failed");
+      throw err;
+    } finally {
+      setBusyKey("");
+    }
   }
 
   function handleFocusShelter(shelter: ShelterWithCoords) {
@@ -677,7 +711,8 @@ export function ReliefBoard({
             busy={busyKey === `edit:${shelter.id}`}
             onSave={(occupied, supplies) => void updateShelter(shelter.id, occupied, supplies)}
             onFocusMap={() => handleFocusShelter(shelter)}
-            onDispatchedSupply={() => showToast(`Emergency supply truck dispatched to ${shelter.name}`)}
+            latestRequest={supplyRequests.find((row) => row.shelter_id === shelter.id)}
+            onRequestSupply={(items, supplies) => requestResupply(shelter, items, supplies)}
           />
         ))}
         {filteredShelters.length === 0 ? (
@@ -893,19 +928,22 @@ function ShelterRegistryCard({
   busy,
   onSave,
   onFocusMap,
-  onDispatchedSupply,
+  onRequestSupply,
+  latestRequest,
 }: {
   shelter: ShelterWithCoords;
   busy: boolean;
   onSave: (occupied: number, supplies: SuppliesStatus) => void;
   onFocusMap: () => void;
-  onDispatchedSupply: () => void;
+  onRequestSupply: (items: string[], supplies: SuppliesStatus) => Promise<void>;
+  latestRequest?: SupplyRequest;
 }) {
   const meta = SHELTER_META[shelter.name] ?? DEFAULT_META;
   const [occupied, setOccupied] = useState(shelter.occupied_beds);
   const [supplies, setSupplies] = useState(shelter.supplies_status);
   const [items, setItems] = useState(meta.supplies);
   const [supplyDispatched, setSupplyDispatched] = useState(false);
+  const [requesting, setRequesting] = useState(false);
 
   const free = Math.max(0, shelter.total_beds - occupied);
   const fill = shelter.total_beds > 0 ? Math.min(100, (occupied / shelter.total_beds) * 100) : 0;
@@ -955,9 +993,16 @@ function ShelterRegistryCard({
     );
   }
 
+  const commandStatus = latestRequest?.status;
+  const awaitingCommand =
+    supplyDispatched || commandStatus === "OPEN" || commandStatus === "ACKNOWLEDGED";
+
   function handleDispatchSupply() {
-    setSupplyDispatched(true);
-    onDispatchedSupply();
+    const needed = items.filter((item) => item.status !== "good").map((item) => item.name);
+    setRequesting(true);
+    void onRequestSupply(needed, supplies)
+      .then(() => setSupplyDispatched(true))
+      .finally(() => setRequesting(false));
   }
 
   function handleRestocked() {
@@ -1199,7 +1244,7 @@ function ShelterRegistryCard({
               {supplies === "CRITICAL" ? "Critical supply shortage reported" : "Restock recommended"}
             </span>
             <div className="flex items-center gap-2">
-              {supplyDispatched ? (
+              {awaitingCommand || commandStatus === "DISPATCHED" ? (
                 <button
                   type="button"
                   onClick={handleRestocked}
@@ -1211,16 +1256,24 @@ function ShelterRegistryCard({
               <button
                 type="button"
                 onClick={handleDispatchSupply}
-                disabled={supplyDispatched}
+                disabled={requesting || awaitingCommand}
                 className={cn(
                   "flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide transition-colors",
-                  supplyDispatched
+                  awaitingCommand || commandStatus
                     ? "bg-slate-700 text-slate-200 cursor-default"
                     : "bg-amber-600 text-white hover:bg-amber-700 shadow-xs",
                 )}
               >
                 <Truck className="h-3 w-3" />
-                <span>{supplyDispatched ? "Truck Dispatched ✓" : "Dispatch Supplies"}</span>
+                <span>
+                  {requesting
+                    ? "Sending to Command…"
+                    : commandStatus === "ACKNOWLEDGED"
+                      ? "Officer acknowledged"
+                      : awaitingCommand
+                        ? "Awaiting Command"
+                        : "Request from Command"}
+                </span>
               </button>
             </div>
           </div>

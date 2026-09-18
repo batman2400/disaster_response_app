@@ -275,6 +275,24 @@ export interface ShelterNeed {
   created_at: string;
 }
 
+export type SupplyRequestStatus = "OPEN" | "ACKNOWLEDGED" | "DISPATCHED";
+
+/** Relief-center resupply ticket sent to the officer command console. */
+export interface SupplyRequest {
+  id: string;
+  shelter_id: string;
+  shelter_name: string;
+  ward_id: WardId;
+  items: string[];
+  supplies_status: SuppliesStatus;
+  urgency: Urgency;
+  note?: string;
+  status: SupplyRequestStatus;
+  created_at: string;
+  updated_at: string;
+  officer_note?: string;
+}
+
 export interface AiSettings {
   confirm_threshold: number;
   reject_threshold: number;

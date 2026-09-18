@@ -5,6 +5,8 @@ import type {
   ShelterNeed,
   ShelterPledge,
   ShelterRow,
+  SupplyRequest,
+  SupplyRequestStatus,
   WardRow,
 } from "./types";
 
@@ -348,5 +350,56 @@ export function pledgeShelterNeed(needId: string, pledge: ShelterPledge) {
   if (!found) return null;
   found.pledges.push(pledge);
   found.status = "PARTIALLY_PLEDGED";
+  return found;
+}
+
+const supplyRequests: SupplyRequest[] = [];
+
+export function listSupplyRequests() {
+  return [...supplyRequests];
+}
+
+export function createSupplyRequest(
+  input: Omit<SupplyRequest, "id" | "created_at" | "updated_at" | "status"> & {
+    status?: SupplyRequestStatus;
+  },
+) {
+  const existing = supplyRequests.find((row) => row.shelter_id === input.shelter_id && row.status === "OPEN");
+  if (existing) {
+    existing.items = Array.from(new Set([...existing.items, ...input.items]));
+    existing.supplies_status = input.supplies_status;
+    existing.urgency = input.urgency === "CRITICAL" || existing.urgency === "CRITICAL" ? "CRITICAL" : input.urgency;
+    existing.note = input.note || existing.note;
+    existing.updated_at = new Date().toISOString();
+    return existing;
+  }
+
+  const now = new Date().toISOString();
+  const created: SupplyRequest = {
+    id: `resupply-${Date.now()}`,
+    shelter_id: input.shelter_id,
+    shelter_name: input.shelter_name,
+    ward_id: input.ward_id,
+    items: input.items,
+    supplies_status: input.supplies_status,
+    urgency: input.urgency,
+    note: input.note,
+    status: input.status ?? "OPEN",
+    created_at: now,
+    updated_at: now,
+  };
+  supplyRequests.unshift(created);
+  return created;
+}
+
+export function updateSupplyRequest(
+  requestId: string,
+  patch: { status: SupplyRequestStatus; officer_note?: string },
+) {
+  const found = supplyRequests.find((row) => row.id === requestId);
+  if (!found) return null;
+  found.status = patch.status;
+  if (patch.officer_note !== undefined) found.officer_note = patch.officer_note;
+  found.updated_at = new Date().toISOString();
   return found;
 }

@@ -38,6 +38,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AudioPlayer } from "@/components/audio-player";
 import { BroadcastEditorModal } from "@/components/broadcast-editor-modal";
 import { SitRepExportModal } from "@/components/sitrep-export-modal";
+import { SupplyRequestInbox } from "@/components/supply-request-inbox";
 import { VoiceModal } from "@/components/voice-modal";
 import { WaterDepthGauge } from "@/components/water-depth-gauge";
 import { DEMO_SAMPLE_AUDIO_URL } from "@/lib/demo-audio";
@@ -49,8 +50,9 @@ import { cn } from "@/lib/cn";
 import { categoryLabel, timeAgo, wardShort } from "@/lib/format";
 import { OFFICER_ACTION_LABEL } from "@/lib/officer-log";
 import { parseTrace } from "@/lib/trace";
-import type { HazardRow, HazardStatus, OfficerAction, WardRow } from "@/lib/types";
+import type { HazardRow, HazardStatus, OfficerAction, SupplyRequest, WardRow } from "@/lib/types";
 import { mapHazardRow, mapWardRow, sortHazards, sortWards, useLiveRows } from "@/lib/use-live";
+import { useSupplyRequests } from "@/lib/use-supply-requests";
 import { OfficerMap } from "./OfficerMap";
 
 const FILTERS = [
@@ -115,9 +117,11 @@ function checkTiles(ticket: HazardRow, trace: ReturnType<typeof parseTrace>) {
 export function OfficerBoard({
   initialHazards,
   initialWards,
+  initialSupplyRequests = [],
 }: {
   initialHazards: HazardRow[];
   initialWards: WardRow[];
+  initialSupplyRequests?: SupplyRequest[];
 }) {
   const [note, setNote] = useState("");
   const [filter, setFilter] = useState<FilterId>("OPEN");
@@ -125,6 +129,8 @@ export function OfficerBoard({
   const [sortBy, setSortBy] = useState<"newest" | "urgency" | "confidence">("urgency");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [supplyBusyId, setSupplyBusyId] = useState("");
+  const [supplyError, setSupplyError] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(initialHazards[0]?.id ?? null);
   const [copied, setCopied] = useState(false);
   const [demoAudioId, setDemoAudioId] = useState<string | null>(null);
@@ -183,6 +189,10 @@ export function OfficerBoard({
     sort: sortWards,
     fallbackFetch: () => fetch("/api/wards").then((res) => res.json() as Promise<WardRow[]>),
   });
+
+  const { requests: supplyRequests, updateStatus: updateSupplyStatus } = useSupplyRequests(
+    initialSupplyRequests,
+  );
 
   // Calculate filter counts
   const filterCounts = useMemo(() => {
@@ -327,6 +337,22 @@ export function OfficerBoard({
     }
   }
 
+  async function handleSupplyAction(request_id: string, status: "ACKNOWLEDGED" | "DISPATCHED") {
+    setSupplyBusyId(request_id);
+    setSupplyError("");
+    try {
+      await updateSupplyStatus(
+        request_id,
+        status,
+        status === "DISPATCHED" ? "Supply truck dispatched from municipal store" : "Request acknowledged by Command",
+      );
+    } catch (err) {
+      setSupplyError(err instanceof Error ? err.message : "Could not update supply request");
+    } finally {
+      setSupplyBusyId("");
+    }
+  }
+
   const copyIncidentId = () => {
     if (!selected) return;
     navigator.clipboard.writeText(selected.id);
@@ -339,7 +365,15 @@ export function OfficerBoard({
   };
 
   return (
-    <div className="flex min-h-0 flex-1 overflow-hidden">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <SupplyRequestInbox
+        requests={supplyRequests}
+        busyId={supplyBusyId}
+        error={supplyError}
+        onAcknowledge={(id) => void handleSupplyAction(id, "ACKNOWLEDGED")}
+        onDispatch={(id) => void handleSupplyAction(id, "DISPATCHED")}
+      />
+      <div className="flex min-h-0 flex-1 overflow-hidden">
       {/* Left Sidebar: Incident Queue */}
       <aside className="flex w-80 shrink-0 flex-col border-r border-slate-200 bg-white xl:w-[340px] 2xl:w-96">
         <div className="border-b border-slate-100 p-5">
@@ -1133,6 +1167,7 @@ export function OfficerBoard({
           </div>
         )}
       </section>
+      </div>
 
       {/* 1. Slide-over Pipeline Audit Drawer */}
       {showAuditDrawer && selected ? (
