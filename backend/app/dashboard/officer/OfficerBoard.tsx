@@ -341,7 +341,7 @@ export function OfficerBoard({
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
       {/* Left Sidebar: Incident Queue */}
-      <aside className="flex w-96 shrink-0 flex-col border-r border-slate-200 bg-white">
+      <aside className="flex w-80 shrink-0 flex-col border-r border-slate-200 bg-white xl:w-[340px] 2xl:w-96">
         <div className="border-b border-slate-100 p-5">
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -510,63 +510,71 @@ export function OfficerBoard({
         {selected ? (
           <>
             {/* Header / Case Details Bar */}
-            <div className="flex h-20 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-8 shadow-sm">
-              <div>
-                <div className="mb-1 flex items-center gap-3">
-                  <h2 className="text-2xl font-extrabold tracking-tight text-slate-900">
-                    Case #{selected.id.slice(0, 8).toUpperCase()}
-                  </h2>
-                  <button
-                    type="button"
-                    onClick={copyIncidentId}
-                    title="Copy full incident UUID"
-                    className="flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-                  >
-                    {copied ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
-                    <span>{copied ? "Copied" : "Copy ID"}</span>
-                  </button>
-                  <StatusBadge status={selected.status} />
-                  {selected.assigned_crew_name ? (
-                    <Badge className="bg-blue-50 text-blue-800 border border-blue-200">
-                      <Truck className="mr-1 h-3 w-3 text-blue-600" />
-                      Assigned: {selected.assigned_crew_name}
-                    </Badge>
-                  ) : selected.dispatched_at ? (
-                    <Badge className="bg-indigo-50 text-brand-indigo">
-                      <Truck className="mr-1 h-3 w-3" />
-                      Dispatched
-                    </Badge>
-                  ) : null}
-                  {(selected.corroborations_count ?? 0) > 0 ? (
-                    <Badge className="bg-amber-50 text-amber-800 border border-amber-200">
-                      <Link2 className="mr-1 h-3 w-3 text-amber-600" />
-                      {selected.corroborations_count} Corroborated Reports
-                    </Badge>
-                  ) : null}
-                  {selected.is_road_blocked ? (
-                    <Badge className="bg-rose-50 text-status-crimson">
-                      <Route className="mr-1 h-3 w-3" />
-                      Road Blocked
-                    </Badge>
-                  ) : null}
+            <div className="flex shrink-0 flex-col justify-between gap-3.5 border-b border-slate-200 bg-white px-6 py-3.5 shadow-sm min-h-[4.5rem] xl:flex-row xl:items-center xl:gap-4 xl:px-8">
+              {/* Left: Case Identity, Badges & Live Status */}
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <h2 className="text-xl font-black tracking-tight text-slate-900 whitespace-nowrap sm:text-2xl">
+                      Case #{selected.id.slice(0, 8).toUpperCase()}
+                    </h2>
+                    <button
+                      type="button"
+                      onClick={copyIncidentId}
+                      title="Copy full incident UUID"
+                      className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-900 whitespace-nowrap transition-colors"
+                    >
+                      {copied ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3 text-slate-400" />}
+                      <span>{copied ? "Copied" : "Copy ID"}</span>
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <StatusBadge status={selected.status} />
+                    {selected.assigned_crew_name ? (
+                      <Badge className="bg-blue-50 text-blue-800 border border-blue-200 whitespace-nowrap shrink-0">
+                        <Truck className="mr-1 h-3 w-3 text-blue-600 shrink-0" />
+                        Assigned: {selected.assigned_crew_name}
+                      </Badge>
+                    ) : selected.dispatched_at ? (
+                      <Badge className="bg-indigo-50 text-brand-indigo whitespace-nowrap shrink-0">
+                        <Truck className="mr-1 h-3 w-3 shrink-0" />
+                        Dispatched
+                      </Badge>
+                    ) : null}
+                    {(selected.corroborations_count ?? 0) > 0 ? (
+                      <Badge className="bg-amber-50 text-amber-800 border border-amber-200 whitespace-nowrap shrink-0">
+                        <Link2 className="mr-1 h-3 w-3 text-amber-600 shrink-0" />
+                        {selected.corroborations_count} Corroborated Reports
+                      </Badge>
+                    ) : null}
+                    {selected.is_road_blocked ? (
+                      <Badge className="bg-rose-50 text-status-crimson border border-rose-200/60 whitespace-nowrap shrink-0">
+                        <Route className="mr-1 h-3 w-3 shrink-0" />
+                        Road Blocked
+                      </Badge>
+                    ) : null}
+                  </div>
                 </div>
-                <p className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-                  <Clock className="h-3.5 w-3.5" />
-                  {live ? "Live WebSockets" : "Polling"} · reported {timeAgo(selected.created_at)}
-                  {selected.resolved_at ? ` · resolved ${timeAgo(selected.resolved_at)}` : ""}
+
+                <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 whitespace-nowrap">
+                  <Clock className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                  <span>{live ? "Live WebSockets" : "Polling"} · reported {timeAgo(selected.created_at)}</span>
+                  {selected.resolved_at ? <span> · resolved {timeAgo(selected.resolved_at)}</span> : null}
                 </p>
               </div>
 
-              <div className="flex items-center gap-2.5">
+              {/* Right: Action Buttons Group */}
+              <div className="flex flex-wrap items-center justify-start xl:justify-end gap-2 shrink-0">
                 {/* Emergency Public Broadcast Trigger */}
                 <button
                   type="button"
                   onClick={() => setShowBroadcastModal(true)}
                   title="Publish live emergency alert banner to all citizen screens"
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 shadow-xs transition-all hover:bg-rose-100 hover:border-rose-300 active:scale-95"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 shadow-xs transition-all hover:bg-rose-100 hover:border-rose-300 active:scale-95 whitespace-nowrap"
                 >
-                  <Megaphone className="h-3.5 w-3.5 text-rose-600 animate-pulse" />
-                  <span className="hidden sm:inline">Broadcast</span>
+                  <Megaphone className="h-3.5 w-3.5 text-rose-600 animate-pulse shrink-0" />
+                  <span>Broadcast</span>
                 </button>
 
                 {/* SitRep Situation Report Export Trigger */}
@@ -574,9 +582,9 @@ export function OfficerBoard({
                   type="button"
                   onClick={() => setShowSitRepModal(true)}
                   title="Export official Situation Report (CSV / PDF)"
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-xs transition-all hover:border-emerald-500 hover:bg-emerald-50/60 hover:text-emerald-800 active:scale-95"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-xs transition-all hover:border-emerald-500 hover:bg-emerald-50/60 hover:text-emerald-800 active:scale-95 whitespace-nowrap"
                 >
-                  <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+                  <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
                   <span>SitRep</span>
                 </button>
 
@@ -585,32 +593,32 @@ export function OfficerBoard({
                   type="button"
                   onClick={() => setShowAuditDrawer(true)}
                   title="Inspect AI prompt and PostGIS execution trace in drawer"
-                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-sm transition-all hover:border-brand hover:bg-slate-50 hover:text-brand active:scale-95"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-sm transition-all hover:border-brand hover:bg-slate-50 hover:text-brand active:scale-95 whitespace-nowrap"
                 >
-                  <Bug className="h-3.5 w-3.5 text-brand" />
-                  <span className="hidden md:inline">Pipeline audit</span>
+                  <Bug className="h-3.5 w-3.5 text-brand shrink-0" />
+                  <span>Pipeline audit</span>
                 </button>
 
                 {/* Suggest Detour Dialog Trigger */}
                 <Button
                   type="button"
                   variant="ghost"
-                  className="rounded-xl px-3.5 py-2 text-xs font-bold shadow-sm active:scale-95"
+                  className="h-9 rounded-xl px-3.5 py-2 text-xs font-bold shadow-sm active:scale-95 whitespace-nowrap shrink-0"
                   disabled={busy}
                   onClick={() => setShowDetourModal(true)}
                 >
-                  <Route className="h-3.5 w-3.5 text-indigo-600" />
+                  <Route className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
                   <span>Suggest Detour</span>
                 </Button>
 
                 {/* Dispatch Crew Dialog Trigger */}
                 <Button
                   type="button"
-                  className="rounded-xl px-4 py-2 text-xs font-bold shadow-sm active:scale-95"
+                  className="h-9 rounded-xl px-4 py-2 text-xs font-bold shadow-sm active:scale-95 whitespace-nowrap shrink-0"
                   disabled={busy}
                   onClick={() => setShowDispatchModal(true)}
                 >
-                  <Truck className="h-3.5 w-3.5" />
+                  <Truck className="h-3.5 w-3.5 shrink-0" />
                   <span>{selected.dispatched_at ? "Update dispatch" : "Dispatch Crew"}</span>
                 </Button>
               </div>

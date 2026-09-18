@@ -178,7 +178,7 @@ export function DashboardChrome({ role }: { role: DashRole }) {
         theme.accent,
       )}
     >
-      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-3">
         <Link
           href="/"
           title="Return to Home Portal"
@@ -197,8 +197,8 @@ export function DashboardChrome({ role }: { role: DashRole }) {
           <Icon className="h-5 w-5" />
         </div>
         <div className="min-w-0">
-          <div className="flex min-w-0 items-center gap-2">
-            <h1 className="truncate text-base font-extrabold leading-tight text-slate-900 sm:text-lg">{copy.title}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="whitespace-nowrap text-base font-extrabold leading-tight text-slate-900 sm:text-lg">{copy.title}</h1>
             <span
               className={cn(
                 "hidden shrink-0 items-center rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide sm:inline-flex",
@@ -293,7 +293,7 @@ export function DashboardChrome({ role }: { role: DashRole }) {
               className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-600 shadow-sm transition hover:bg-purple-50 hover:text-purple-700 sm:px-3"
             >
               <ShieldAlert className="h-4 w-4 text-purple-600" />
-              <span className="hidden lg:inline">System admin</span>
+              <span className="hidden xl:inline">System admin</span>
             </Link>
             <Link
               href="/dashboard/admin/weather"
@@ -312,7 +312,7 @@ export function DashboardChrome({ role }: { role: DashRole }) {
           className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-600 shadow-sm transition hover:bg-sky-50 hover:text-sky-700 sm:px-3"
         >
           <Users className="h-4 w-4 text-sky-600" />
-          <span className="hidden lg:inline">Family safety</span>
+          <span className="hidden xl:inline">Family safety</span>
         </Link>
 
         {/* Interactive Notification Bell Popover */}
