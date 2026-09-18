@@ -1300,16 +1300,36 @@ export function OfficerBoard({
       {/* 2. Dispatch Crew Modal */}
       {showDispatchModal && selected ? (
         <Modal open={showDispatchModal} onClose={() => setShowDispatchModal(false)} className="sm:max-w-2xl">
-          <div className="flex max-h-[88vh] flex-col">
-            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-4">
-              <div className="flex items-center gap-2">
-                <Truck className="h-5 w-5 text-brand" />
-                <h3 className="text-base font-extrabold text-slate-900">Assign Field Crew</h3>
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-5 py-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <Truck className="h-5 w-5 shrink-0 text-brand" />
+                  <h3 className="truncate text-base font-extrabold text-slate-900">Assign Field Crew</h3>
+                </div>
+                <p className="mt-0.5 pl-7 text-[11px] font-bold text-slate-400">
+                  #{selected.id.slice(0, 8).toUpperCase()}
+                </p>
               </div>
-              <span className="text-xs font-bold text-slate-400">#{selected.id.slice(0, 8).toUpperCase()}</span>
+              <Button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  const unit = CREW_TEAMS.find((u) => u.id === selectedCrew) || CREW_TEAMS[0];
+                  const dispatchNote = `Dispatched ${unit.name} (${selectedPriority} priority, ETA: ${customEta}). Gear: ${selectedGear.join(", ")}. ${note}`.trim();
+                  void override(selected.id, selected.status, dispatchNote, "dispatch", {
+                    assigned_crew_id: unit.id,
+                    assigned_crew_name: unit.name,
+                  });
+                  setShowDispatchModal(false);
+                }}
+                className="shrink-0 rounded-xl px-3 py-2 text-xs font-bold"
+              >
+                <Truck className="h-4 w-4" /> Assign
+              </Button>
             </div>
 
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-4">
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-3">
               <div>
                 <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
                   Select Unit / Squad
@@ -1406,7 +1426,7 @@ export function OfficerBoard({
               </div>
             </div>
 
-            <div className="flex shrink-0 items-center justify-end gap-3 border-t border-slate-100 bg-white px-6 py-4">
+            <div className="sticky bottom-0 flex shrink-0 items-center justify-end gap-3 border-t border-slate-100 bg-white px-5 py-3">
               <Button
                 type="button"
                 variant="ghost"
