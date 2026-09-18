@@ -1,5 +1,5 @@
 // Fender Disaster Response PWA Service Worker
-const CACHE_NAME = "fender-pwa-v1.1";
+const CACHE_NAME = "fender-pwa-v1.3";
 
 const PRECACHE_ASSETS = [
   "/",

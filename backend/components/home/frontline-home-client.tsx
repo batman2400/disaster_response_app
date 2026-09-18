@@ -111,6 +111,16 @@ export function FrontlineHomeClient({
           {/* Language Switcher & Emergency SOS */}
           <HomeQuickActions />
 
+          {/* Track Reports Link */}
+          <Link
+            href="/report/track"
+            title="Track Disaster Incidents & My Reports"
+            className="flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-2.5 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 hover:text-indigo-900 transition-colors shadow-2xs"
+          >
+            <Activity className="h-3.5 w-3.5 text-indigo-600" />
+            <span>Track Reports</span>
+          </Link>
+
           {/* Pitch Deck presentation link */}
           <Link
             href="/pitch"
