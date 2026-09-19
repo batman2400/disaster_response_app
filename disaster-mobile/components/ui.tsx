@@ -119,16 +119,18 @@ export function GhostButton({
   label,
   onPress,
   disabled,
+  style,
 }: {
   label: string;
   onPress: () => void;
   disabled?: boolean;
+  style?: StyleProp<ViewStyle>;
 }) {
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={[styles.ghost, { opacity: disabled ? 0.5 : 1 }]}
+      style={[styles.ghost, { opacity: disabled ? 0.5 : 1 }, style]}
     >
       <Text style={styles.ghostText}>{label}</Text>
     </Pressable>

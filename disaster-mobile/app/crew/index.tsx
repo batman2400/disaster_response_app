@@ -1,6 +1,6 @@
 import * as ImagePicker from "expo-image-picker";
 import { useMemo, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Alert, StyleSheet, Text, View } from "react-native";
 
 import {
   EmptyState,
@@ -43,7 +43,7 @@ export default function CrewScreen() {
   const blocked = tickets.filter((ticket) => ticket.is_road_blocked).length;
   const critical = tickets.filter((ticket) => ticket.urgency === "CRITICAL").length;
 
-  async function closeTicket(incident_id: string) {
+  async function closeWithCamera(incident_id: string) {
     setError("");
     setNotice("");
     setBusyId(incident_id);
@@ -68,6 +68,49 @@ export default function CrewScreen() {
     } finally {
       setBusyId(null);
     }
+  }
+
+  async function closeWithGallery(incident_id: string) {
+    setError("");
+    setNotice("");
+    setBusyId(incident_id);
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        setError("Gallery permission is required.");
+        return;
+      }
+      const photo = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        quality: 0.5,
+        base64: true,
+      });
+      if (photo.canceled || !photo.assets[0].base64) return;
+      const res = await postResolve({
+        incident_id,
+        closure_photo_base64: `data:image/jpeg;base64,${photo.assets[0].base64}`,
+      });
+      if (res.resolution_notes) {
+        setNotice(`AI Resolution Verified: ${res.resolution_notes}`);
+        setTimeout(() => setNotice(""), 6000);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Resolve failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  function chooseAndClose(incident_id: string) {
+    Alert.alert(
+      "After-fix photo",
+      "How would you like to add the photo?",
+      [
+        { text: "📷 Camera", onPress: () => void closeWithCamera(incident_id) },
+        { text: "🖼️ Gallery", onPress: () => void closeWithGallery(incident_id) },
+        { text: "Cancel", style: "cancel" },
+      ],
+    );
   }
 
   if (!ready || session?.role !== "FIELD_CREW") {
@@ -115,7 +158,7 @@ export default function CrewScreen() {
                 color={colors.green}
                 textColor={colors.ink}
                 loading={busyId === ticket.id}
-                onPress={() => void closeTicket(ticket.id)}
+                onPress={() => chooseAndClose(ticket.id)}
               />
             </View>
           </HazardSummaryCard>

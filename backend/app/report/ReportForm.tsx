@@ -14,6 +14,7 @@ import {
   Cpu,
   Droplets,
   Globe,
+  Image as ImageIcon,
   LifeBuoy,
   LoaderCircle,
   LocateFixed,
@@ -162,6 +163,7 @@ function detailsFromVerdict(verdict: ReportResponse): string[] {
 export function ReportForm() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const { lang, t } = useI18n();
   const [photo, setPhoto] = useState("");
   const [photoCompressing, setPhotoCompressing] = useState(false);
@@ -717,11 +719,10 @@ export function ReportForm() {
           <SectionLabel hint={<span className="rounded-md bg-slate-200/50 px-2 py-1 text-[10px] font-bold text-slate-400">{lang === "si" ? "අනිවාර්යයි" : lang === "ta" ? "கட்டாயம்" : "Required"}</span>}>
             {lang === "si" ? "1. සාක්ෂි / ඡායාරූපය" : lang === "ta" ? "1. ஆதாரம் / புகைப்படம்" : "1. Evidence"}
           </SectionLabel>
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
+          {/* Photo preview area */}
+          <div
             className={cn(
-              "group relative mb-6 flex h-56 w-full flex-col items-center justify-center overflow-hidden rounded-3xl border-2 border-dashed border-slate-300 bg-slate-100 shadow-soft transition-all active:scale-[0.98]",
+              "group relative mb-3 flex h-56 w-full flex-col items-center justify-center overflow-hidden rounded-3xl border-2 border-dashed border-slate-300 bg-slate-100 shadow-soft transition-all",
               photo && "border-solid border-brand ring-4 ring-blue-500/20",
             )}
           >
@@ -741,7 +742,7 @@ export function ReportForm() {
               <>
                 <img src={photo} alt="Captured hazard" className="absolute inset-0 h-full w-full object-cover" />
                 <span className="absolute top-4 right-4 flex items-center gap-2 rounded-xl bg-slate-900/60 px-3 py-2 text-xs font-bold text-white backdrop-blur-md">
-                  <RotateCw className="h-3 w-3" /> {lang === "si" ? "නැවත ගන්න" : lang === "ta" ? "மீண்டும் எடுக்க" : "Retake"}
+                  <RotateCw className="h-3 w-3" /> {lang === "si" ? "නැවත ගන්න" : lang === "ta" ? "மீண்டும் எடுக்க" : "Change"}
                 </span>
               </>
             ) : (
@@ -750,19 +751,48 @@ export function ReportForm() {
                   <Camera className="h-6 w-6" />
                 </div>
                 <p className="text-sm font-extrabold text-slate-700">
-                  {lang === "si" ? "ඡායාරූපයක් ගැනීමට හෝ තේරීමට ඔබන්න" : lang === "ta" ? "புகைப்படம் எடுக்க அல்லது பதிவேற்ற தட்டவும்" : "Tap to scan or upload area"}
+                  {lang === "si" ? "ඡායාරූපයක් ගැනීමට හෝ තේරීමට ඔබන්න" : lang === "ta" ? "புகைப்படம் எடுக்க அல்லது பதிவேற்ற தட்டவும்" : "Capture or upload hazard photo"}
                 </p>
                 <p className="mt-1 text-xs font-medium text-slate-400">
-                  {lang === "si" ? "AI පරීක්ෂාව සඳහා ඡායාරූපය ලබාගන්න" : lang === "ta" ? "AI பகுப்பாய்விற்கு புகைப்படம் எடுக்கவும்" : "Capture hazard for AI vision triage"}
+                  {lang === "si" ? "AI පරීක්ෂාව සඳහා ඡායාරූපය ලබාගන්න" : lang === "ta" ? "AI பகுப்பாய்விற்கு புகைப்படம் எடுக்கவும்" : "Required for AI vision triage"}
                 </p>
               </div>
             )}
-          </button>
+          </div>
+
+          {/* Camera / Gallery action buttons */}
+          <div className="mb-6 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 active:scale-[0.97]"
+            >
+              <Camera className="h-4 w-4 text-brand" />
+              <span>{photo ? (lang === "si" ? "නැවත ගන්න" : lang === "ta" ? "மீண்டும் எடுக்க" : "Retake (Camera)") : (lang === "si" ? "ඡායාරූපයක් ගන්න" : lang === "ta" ? "புகைப்படம் எடுக்க" : "Take Photo")}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => galleryInputRef.current?.click()}
+              className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 active:scale-[0.97]"
+            >
+              <ImageIcon className="h-4 w-4 text-indigo-500" />
+              <span>{photo ? (lang === "si" ? "වෙනස් කරන්න" : lang === "ta" ? "மாற்று" : "Change (Gallery)") : (lang === "si" ? "ගැලරියෙන් තෝරන්න" : lang === "ta" ? "கேலரியிலிருந்து" : "Upload from Gallery")}</span>
+            </button>
+          </div>
+
+          {/* Hidden file inputs */}
           <input
             ref={inputRef}
             type="file"
             accept="image/*"
             capture="environment"
+            className="hidden"
+            onChange={(event) => void onPickPhoto(event.target.files?.[0])}
+          />
+          <input
+            ref={galleryInputRef}
+            type="file"
+            accept="image/*"
             className="hidden"
             onChange={(event) => void onPickPhoto(event.target.files?.[0])}
           />

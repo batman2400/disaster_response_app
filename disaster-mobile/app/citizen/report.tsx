@@ -64,6 +64,21 @@ export default function ReportScreen() {
     setPhoto(`data:image/jpeg;base64,${result.assets[0].base64}`);
   }
 
+  async function pickFromGallery() {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setError("Gallery permission is required.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      quality: 0.5,
+      base64: true,
+    });
+    if (result.canceled || !result.assets[0].base64) return;
+    setPhoto(`data:image/jpeg;base64,${result.assets[0].base64}`);
+  }
+
   function toggleVoiceMemo() {
     if (audioBase64) {
       setAudioBase64("");
@@ -211,12 +226,23 @@ export default function ReportScreen() {
             <Text style={styles.meta}>Required for vision verification</Text>
           </View>
         )}
-        <View style={styles.actions}>
+        <View style={[styles.actions, { flexDirection: "row", gap: 8 }]}>
           <GhostButton
-            label={photo ? "Retake photo" : "Take photo"}
+            label={photo ? "📷 Retake" : "📷 Take photo"}
             onPress={() => void takePhoto()}
+            style={{ flex: 1 }}
+          />
+          <GhostButton
+            label={photo ? "🖼️ Change" : "🖼️ Gallery"}
+            onPress={() => void pickFromGallery()}
+            style={{ flex: 1 }}
           />
         </View>
+        {photo ? (
+          <View style={{ marginTop: 8 }}>
+            <GhostButton label="Remove photo" onPress={() => setPhoto("")} />
+          </View>
+        ) : null}
       </Card>
 
       <Card style={styles.tight}>

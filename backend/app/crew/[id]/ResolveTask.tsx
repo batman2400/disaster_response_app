@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Clock,
   ExternalLink,
+  Image as ImageIcon,
   LocateFixed,
   MapPin,
   Navigation,
@@ -36,6 +37,7 @@ type CrewMilestone = "ASSIGNED" | "EN_ROUTE" | "ON_SITE" | "WORKING";
 export function ResolveTask({ hazard }: { hazard: HazardRow }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const [milestone, setMilestone] = useState<CrewMilestone>(
     hazard.dispatched_at ? "EN_ROUTE" : "ASSIGNED"
@@ -337,9 +339,8 @@ export function ResolveTask({ hazard }: { hazard: HazardRow }) {
               </div>
             ) : null}
 
-            <button
-              type="button"
-              onClick={() => inputRef.current?.click()}
+            {/* Photo preview area */}
+            <div
               className={cn(
                 "relative flex h-56 w-full flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/50 transition-all",
                 photo && "border-solid",
@@ -354,7 +355,7 @@ export function ResolveTask({ hazard }: { hazard: HazardRow }) {
                   <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 shadow-sm">
                     <Camera className="h-6 w-6" />
                   </div>
-                  <p className="text-sm font-extrabold text-slate-800">Tap to photograph cleared site</p>
+                  <p className="text-sm font-extrabold text-slate-800">Photograph or upload cleared site</p>
                   <p className="mt-1 text-xs font-medium text-slate-400">
                     Capture clear roadway, unblocked drains, and receding water.
                   </p>
@@ -375,19 +376,41 @@ export function ResolveTask({ hazard }: { hazard: HazardRow }) {
                   <Sparkles className="h-3.5 w-3.5" /> AI Verified Clear
                 </span>
               )}
+            </div>
 
-              {photo && (
-                <span className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-xl bg-slate-900/80 px-3 py-1.5 text-xs font-bold text-white backdrop-blur-md hover:bg-slate-900">
-                  <RotateCw className="h-3.5 w-3.5" /> Retake Photo
-                </span>
-              )}
-            </button>
+            {/* Camera / Gallery action buttons */}
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 active:scale-95"
+              >
+                <Camera className="h-4 w-4 text-indigo-600" />
+                <span>{photo ? "Retake (Camera)" : "Take Photo"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => galleryInputRef.current?.click()}
+                className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 active:scale-95"
+              >
+                <ImageIcon className="h-4 w-4 text-indigo-600" />
+                <span>{photo ? "Change (Gallery)" : "Upload from Gallery"}</span>
+              </button>
+            </div>
 
+            {/* Hidden file inputs */}
             <input
               ref={inputRef}
               type="file"
               accept="image/*"
               capture="environment"
+              className="hidden"
+              onChange={(e) => void onPick(e.target.files?.[0])}
+            />
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/*"
               className="hidden"
               onChange={(e) => void onPick(e.target.files?.[0])}
             />
