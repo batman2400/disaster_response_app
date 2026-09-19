@@ -25,6 +25,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { Modal } from "@/components/ui/modal";
 import type { ShelterNeedCategory, ShelterRow, SuppliesStatus, Urgency } from "@/lib/types";
 import { wardShort } from "@/lib/format";
 
@@ -717,193 +718,201 @@ export function ReliefMobileView({ shelters }: ReliefMobileViewProps) {
       </div>
 
       {/* 5. Central Hub Logistics Requisition Modal */}
-      {isModalOpen ? (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl animate-in zoom-in-95">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 bg-indigo-50/60 px-5 py-4">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm">
-                  <Truck className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-slate-900">Central Hub Supply Requisition</h3>
-                  <p className="text-[11px] font-bold text-indigo-700">
-                    Depot 01 (Orugodawatta) ➔ {currentShelter.name}
-                  </p>
-                </div>
+      <Modal
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        className="sm:max-w-2xl overflow-hidden"
+      >
+        <form onSubmit={handleSubmitRequisition} className="flex min-h-0 max-h-[90vh] flex-col overflow-hidden">
+          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 bg-indigo-50/70 px-5 py-4 sm:px-6">
+            <div className="flex min-w-0 flex-1 items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm">
+                <Truck className="h-5 w-5" />
               </div>
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-base font-extrabold leading-snug tracking-normal text-slate-900">
+                  Central Hub Supply Requisition
+                </h3>
+                <p className="mt-0.5 text-xs font-semibold leading-relaxed text-indigo-700">
+                  Depot 01 (Orugodawatta) → {currentShelter.name}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(false)}
+              aria-label="Close requisition"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-white hover:text-slate-600"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-6">
+            <div className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-3.5 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                  Origin
+                </p>
+                <p className="mt-0.5 text-sm font-extrabold leading-snug text-indigo-700">
+                  Central Logistics Bay #1
+                </p>
+                <p className="text-xs font-medium text-slate-500">Central Logistics Hub</p>
+              </div>
+              <span className="hidden text-slate-300 sm:block" aria-hidden>
+                →
+              </span>
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                  Destination · {wardShort(currentShelter.ward_id)}
+                </p>
+                <p className="mt-0.5 text-sm font-extrabold leading-snug text-slate-800">
+                  {currentShelter.name}
+                </p>
+              </div>
             </div>
 
-            <form onSubmit={handleSubmitRequisition} className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
-              {/* Delivery Routing Card */}
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 text-xs">
-                <div className="flex items-center justify-between text-slate-500 font-bold text-[11px]">
-                  <span>Origin: Central Logistics Hub</span>
-                  <span>Destination: {wardShort(currentShelter.ward_id)}</span>
-                </div>
-                <div className="mt-1 flex items-center gap-2 font-black text-slate-800 text-xs">
-                  <span className="text-indigo-600">Central Logistics Bay #1</span>
-                  <span>➔</span>
-                  <span className="truncate">{currentShelter.name}</span>
-                </div>
-              </div>
-
-              {/* Items Selection Checklist */}
-              <div>
-                <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-2">
-                  Select Supplies to Dispatch:
-                </label>
-                <div className="space-y-2">
-                  {SUPPLY_CATALOG.map((item) => {
-                    const isChecked = Boolean(selectedItems[item.id]);
-                    const currentStatus = currentInventory[item.id] || "good";
-                    return (
-                      <div
-                        key={item.id}
-                        className={`flex flex-col gap-2 rounded-xl border p-3 transition-colors ${
-                          isChecked ? "border-indigo-300 bg-indigo-50/30" : "border-slate-200 bg-white opacity-70"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={(e) =>
-                                setSelectedItems((prev) => ({
-                                  ...prev,
-                                  [item.id]: e.target.checked,
-                                }))
-                              }
-                              className="h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                            />
-                            <span className="font-extrabold text-xs text-slate-800 flex items-center gap-1.5">
-                              <span>{item.icon}</span>
-                              <span>{item.name}</span>
-                            </span>
-                          </label>
-
-                          <span
-                            className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
-                              currentStatus === "critical"
-                                ? "bg-rose-100 text-rose-700"
-                                : currentStatus === "low"
-                                ? "bg-amber-100 text-amber-700"
-                                : "bg-slate-100 text-slate-600"
-                            }`}
-                          >
-                            {currentStatus}
+            <div>
+              <p className="mb-2 text-[11px] font-extrabold uppercase tracking-wide text-slate-500">
+                Select supplies to dispatch
+              </p>
+              <div className="space-y-2.5">
+                {SUPPLY_CATALOG.map((item) => {
+                  const isChecked = Boolean(selectedItems[item.id]);
+                  const currentStatus = currentInventory[item.id] || "good";
+                  return (
+                    <div
+                      key={item.id}
+                      className={`flex flex-col gap-2 rounded-xl border p-3.5 transition-colors ${
+                        isChecked ? "border-indigo-300 bg-indigo-50/40" : "border-slate-200 bg-white"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <label className="flex min-w-0 cursor-pointer items-center gap-2.5 select-none">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) =>
+                              setSelectedItems((prev) => ({
+                                ...prev,
+                                [item.id]: e.target.checked,
+                              }))
+                            }
+                            className="h-4 w-4 shrink-0 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                          />
+                          <span className="flex min-w-0 items-center gap-1.5 text-sm font-bold text-slate-800">
+                            <span className="shrink-0">{item.icon}</span>
+                            <span>{item.name}</span>
                           </span>
-                        </div>
+                        </label>
 
-                        {isChecked ? (
-                          <div className="pl-6.5">
-                            <input
-                              type="text"
-                              value={itemQuantities[item.id] || item.defaultQty}
-                              onChange={(e) =>
-                                setItemQuantities((prev) => ({
-                                  ...prev,
-                                  [item.id]: e.target.value,
-                                }))
-                              }
-                              placeholder="Enter quantity needed"
-                              className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs focus:border-indigo-500 focus:outline-none"
-                            />
-                          </div>
-                        ) : null}
+                        <span
+                          className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide ${
+                            currentStatus === "critical"
+                              ? "bg-rose-100 text-rose-700"
+                              : currentStatus === "low"
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-slate-100 text-slate-600"
+                          }`}
+                        >
+                          {currentStatus}
+                        </span>
                       </div>
-                    );
-                  })}
-                </div>
+
+                      {isChecked ? (
+                        <input
+                          type="text"
+                          value={itemQuantities[item.id] || item.defaultQty}
+                          onChange={(e) =>
+                            setItemQuantities((prev) => ({
+                              ...prev,
+                              [item.id]: e.target.value,
+                            }))
+                          }
+                          placeholder="Enter quantity needed"
+                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium leading-normal text-slate-700 shadow-2xs focus:border-indigo-500 focus:outline-none"
+                        />
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
+            </div>
 
-              {/* Urgency & Vehicle Options */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
-                    Delivery Urgency:
-                  </label>
-                  <select
-                    value={requisitionUrgency}
-                    onChange={(e) => setRequisitionUrgency(e.target.value as Urgency)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-extrabold text-slate-800 shadow-2xs focus:border-indigo-500 focus:outline-none"
-                  >
-                    <option value="CRITICAL">Code Red Convoy (~20 mins)</option>
-                    <option value="MEDIUM">High Priority (~35 mins)</option>
-                    <option value="LOW">Standard Dispatch (~60 mins)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
-                    Transport Vehicle:
-                  </label>
-                  <select
-                    value={transportType}
-                    onChange={(e) => setTransportType(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-extrabold text-slate-800 shadow-2xs focus:border-indigo-500 focus:outline-none"
-                  >
-                    <option value="High-Clearance 4x4 Truck">High-Clearance 4x4 Truck (Flooded access)</option>
-                    <option value="Fast Response Logistics Van">Fast Response Logistics Van</option>
-                    <option value="Rescue Boat Carrier">Rescue Boat Carrier (Waterlogged cut-off)</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Special Access Notes */}
-              <div>
-                <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1.5">
-                  Coordinator Delivery Instructions (Optional):
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="min-w-0">
+                <label className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wide text-slate-500">
+                  Delivery urgency
                 </label>
-                <input
-                  type="text"
-                  value={requisitionNotes}
-                  onChange={(e) => setRequisitionNotes(e.target.value)}
-                  placeholder="e.g. Access via North gate; ground level flooded 15cm"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-2xs focus:border-indigo-500 focus:outline-none"
-                />
+                <select
+                  value={requisitionUrgency}
+                  onChange={(e) => setRequisitionUrgency(e.target.value as Urgency)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 shadow-2xs focus:border-indigo-500 focus:outline-none"
+                >
+                  <option value="CRITICAL">Code Red Convoy (~20 mins)</option>
+                  <option value="MEDIUM">High Priority (~35 mins)</option>
+                  <option value="LOW">Standard Dispatch (~60 mins)</option>
+                </select>
               </div>
 
-              {/* Modal Actions */}
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="rounded-xl px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100"
+              <div className="min-w-0">
+                <label className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wide text-slate-500">
+                  Transport vehicle
+                </label>
+                <select
+                  value={transportType}
+                  onChange={(e) => setTransportType(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 shadow-2xs focus:border-indigo-500 focus:outline-none"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmittingRequisition}
-                  className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-black text-white shadow-sm hover:bg-indigo-700 active:scale-95 disabled:opacity-50"
-                >
-                  {isSubmittingRequisition ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Transmitting...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Truck className="h-4 w-4" />
-                      <span>Transmit Dispatch Order</span>
-                    </>
-                  )}
-                </button>
+                  <option value="High-Clearance 4x4 Truck">High-Clearance 4x4 Truck (Flooded access)</option>
+                  <option value="Fast Response Logistics Van">Fast Response Logistics Van</option>
+                  <option value="Rescue Boat Carrier">Rescue Boat Carrier (Waterlogged cut-off)</option>
+                </select>
               </div>
-            </form>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wide text-slate-500">
+                Coordinator delivery instructions (optional)
+              </label>
+              <input
+                type="text"
+                value={requisitionNotes}
+                onChange={(e) => setRequisitionNotes(e.target.value)}
+                placeholder="e.g. Access via North gate; ground level flooded 15cm"
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 shadow-2xs focus:border-indigo-500 focus:outline-none"
+              />
+            </div>
           </div>
-        </div>
-      ) : null}
+
+          <div className="flex shrink-0 items-center justify-end gap-2.5 border-t border-slate-100 bg-white px-5 py-4 sm:px-6">
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(false)}
+              className="rounded-xl px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmittingRequisition}
+              className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-extrabold text-white shadow-sm hover:bg-indigo-700 active:scale-95 disabled:opacity-50"
+            >
+              {isSubmittingRequisition ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Transmitting...</span>
+                </>
+              ) : (
+                <>
+                  <Truck className="h-4 w-4" />
+                  <span>Transmit Dispatch Order</span>
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
