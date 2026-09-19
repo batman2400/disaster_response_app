@@ -720,9 +720,11 @@ export function ReportForm() {
             {lang === "si" ? "1. සාක්ෂි / ඡායාරූපය" : lang === "ta" ? "1. ஆதாரம் / புகைப்படம்" : "1. Evidence"}
           </SectionLabel>
           {/* Photo preview area */}
-          <div
+          <button
+            type="button"
+            onClick={() => galleryInputRef.current?.click()}
             className={cn(
-              "group relative mb-3 flex h-56 w-full flex-col items-center justify-center overflow-hidden rounded-3xl border-2 border-dashed border-slate-300 bg-slate-100 shadow-soft transition-all",
+              "group relative mb-3 flex h-56 w-full flex-col items-center justify-center overflow-hidden rounded-3xl border-2 border-dashed border-slate-300 bg-slate-100 shadow-soft transition-all active:scale-[0.98]",
               photo && "border-solid border-brand ring-4 ring-blue-500/20",
             )}
           >
@@ -758,7 +760,7 @@ export function ReportForm() {
                 </p>
               </div>
             )}
-          </div>
+          </button>
 
           {/* Camera / Gallery action buttons */}
           <div className="mb-6 grid grid-cols-2 gap-2">

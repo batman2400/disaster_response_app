@@ -340,9 +340,11 @@ export function ResolveTask({ hazard }: { hazard: HazardRow }) {
             ) : null}
 
             {/* Photo preview area */}
-            <div
+            <button
+              type="button"
+              onClick={() => galleryInputRef.current?.click()}
               className={cn(
-                "relative flex h-56 w-full flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/50 transition-all",
+                "relative flex h-56 w-full flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/50 transition-all active:scale-[0.98]",
                 photo && "border-solid",
                 verified && "border-emerald-500 ring-4 ring-emerald-500/15",
                 photo && !verified && "border-indigo-500"
@@ -376,7 +378,7 @@ export function ResolveTask({ hazard }: { hazard: HazardRow }) {
                   <Sparkles className="h-3.5 w-3.5" /> AI Verified Clear
                 </span>
               )}
-            </div>
+            </button>
 
             {/* Camera / Gallery action buttons */}
             <div className="mt-2 grid grid-cols-2 gap-2">
