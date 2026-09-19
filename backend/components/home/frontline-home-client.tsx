@@ -94,8 +94,8 @@ export function FrontlineHomeClient({
       <EmergencyBroadcastBanner initialAlert={broadcastAlert} />
 
       {/* 2. Top Minimalist App Header */}
-      <header className="mb-4 flex items-center justify-between gap-2 rounded-3xl border border-slate-200/80 bg-white/95 p-3 sm:p-4 shadow-xs backdrop-blur-md">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+      <header className="mb-4 flex items-center justify-between gap-1.5 sm:gap-3 rounded-3xl border border-slate-200/80 bg-white/95 p-2.5 sm:p-4 shadow-xs backdrop-blur-md">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0">
           <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-2xl bg-brand text-white shadow-md shadow-blue-500/20">
             <img
               src="/logo.png"
@@ -103,7 +103,7 @@ export function FrontlineHomeClient({
               className="h-5 w-5 sm:h-6 sm:w-6 rounded-lg bg-white object-contain"
             />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 shrink-0">
             <div className="flex items-center gap-1.5">
               <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-brand truncate">
                 NDRRMS · CMC
@@ -114,13 +114,16 @@ export function FrontlineHomeClient({
                 }`}
               />
             </div>
-            <h1 className="text-sm font-black tracking-tight text-slate-900 sm:text-lg truncate">
-              {t("brand_name")}
+            <h1 className="text-sm font-black tracking-tight text-slate-900 sm:text-lg flex items-center gap-1 whitespace-nowrap">
+              <span>{t("brand_short")}</span>
+              <span className="hidden min-[480px]:inline text-xs sm:text-sm font-extrabold text-slate-500">
+                {t("brand_sub")}
+              </span>
             </h1>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {/* Language Switcher & Emergency SOS */}
           <HomeQuickActions />
 
@@ -128,10 +131,10 @@ export function FrontlineHomeClient({
           <Link
             href="/report/track"
             title={t("track_reports")}
-            className="flex shrink-0 items-center gap-1 rounded-xl border border-indigo-200 bg-indigo-50 px-2 py-2 sm:px-2.5 sm:py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 hover:text-indigo-900 transition-colors shadow-2xs"
+            className="flex shrink-0 items-center gap-1 rounded-xl border border-indigo-200 bg-indigo-50 px-2 py-1.5 sm:px-2.5 sm:py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 hover:text-indigo-900 transition-colors shadow-2xs"
           >
             <Activity className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
-            <span className="hidden min-[400px]:inline">{t("track_reports")}</span>
+            <span className="hidden sm:inline">{t("track_reports")}</span>
           </Link>
 
           {/* Council Desk Link (Desktop discrete link) */}

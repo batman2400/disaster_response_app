@@ -3,6 +3,8 @@ export type SupportedLanguage = "en" | "si" | "ta";
 export interface TranslationDictionary {
   // Navigation & Branding
   brand_name: string;
+  brand_short: string;
+  brand_sub: string;
   sub_brand: string;
   system_live: string;
   live_map: string;
@@ -79,6 +81,8 @@ export interface TranslationDictionary {
 export const TRANSLATIONS: Record<SupportedLanguage, TranslationDictionary> = {
   en: {
     brand_name: "Fender Response",
+    brand_short: "Fender",
+    brand_sub: "Response",
     sub_brand: "NDRRMS · Colombo Municipal Council",
     system_live: "System Live · Kelani Basin Active",
     live_map: "Live Map",
@@ -147,6 +151,8 @@ export const TRANSLATIONS: Record<SupportedLanguage, TranslationDictionary> = {
 
   si: {
     brand_name: "ෆෙන්ඩර් ආපදා සහන",
+    brand_short: "ෆෙන්ඩර්",
+    brand_sub: "ආපදා සහන",
     sub_brand: "NDRRMS · කොළඹ මහ නගර සභාව",
     system_live: "පද්ධතිය සක්‍රියයි · කැලණි නිම්නය",
     live_map: "සජීවී සිතියම",
@@ -215,6 +221,8 @@ export const TRANSLATIONS: Record<SupportedLanguage, TranslationDictionary> = {
 
   ta: {
     brand_name: "ஃபெண்டர் பேரிடர் உதவி",
+    brand_short: "ஃபெண்டர்",
+    brand_sub: "பேரிடர் உதவி",
     sub_brand: "NDRRMS · கொழும்பு மாநகர சபை",
     system_live: "அமைப்பு இயங்குகிறது · களனிப் படுக்கை",
     live_map: "நேரலை வரைபடம்",
