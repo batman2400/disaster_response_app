@@ -511,10 +511,10 @@ export function PublicMap({
       />
 
       {/* Unified Floating Top Controls Container (Natural Column Flow - Eliminates Overlaps) */}
-      <div className="pointer-events-none absolute top-3 left-3 right-3 z-40 flex flex-col gap-2 pt-safe lg:top-4 lg:left-4 lg:right-auto lg:w-[min(44rem,calc(100vw-24rem))]">
+      <div className="pointer-events-none absolute top-3 left-3 right-3 z-40 flex flex-col gap-2 pt-safe pl-safe pr-safe lg:top-4 lg:left-4 lg:right-auto lg:w-[min(44rem,calc(100vw-24rem))]">
         {/* Row 1: Back to Home + Live Map Badge + Language + SOS */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
             {/* Back to Home button with guaranteed fallback */}
             <Link
               href="/"
@@ -526,32 +526,32 @@ export function PublicMap({
                 }, 250);
               }}
               title="Return to Home"
-              className="pointer-events-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/60 bg-white/95 text-slate-700 shadow-soft backdrop-blur-md transition-transform active:scale-90 touch-manipulation"
+              className="pointer-events-auto flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-2xl border border-white/60 bg-white/95 text-slate-700 shadow-soft backdrop-blur-md transition-transform active:scale-90 touch-manipulation"
             >
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
             </Link>
 
             {/* Safe Map Pill */}
-            <div className="pointer-events-auto flex h-11 items-center gap-1.5 rounded-2xl border border-white/60 bg-white/95 px-3.5 shadow-soft backdrop-blur-md">
-              <MapIcon className="h-4 w-4 text-brand" />
-              <span className="text-xs font-black text-slate-800">
+            <div className="pointer-events-auto flex h-10 sm:h-11 items-center gap-1.5 rounded-2xl border border-white/60 bg-white/95 px-2.5 sm:px-3.5 shadow-soft backdrop-blur-md min-w-0">
+              <MapIcon className="h-4 w-4 text-brand shrink-0" />
+              <span className="text-xs font-black text-slate-800 truncate">
                 {t("live_map") || "Safe Map"}
               </span>
-              <span className="hidden sm:inline-flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="hidden sm:inline-flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
             </div>
           </div>
 
           {/* Right: Language + SOS */}
-          <div className="pointer-events-auto flex items-center gap-1.5">
+          <div className="pointer-events-auto flex items-center gap-1 sm:gap-1.5 shrink-0">
             <LanguageSwitcher />
 
             <button
               type="button"
               onClick={() => setSosModalOpen(true)}
-              className="flex h-11 shrink-0 items-center gap-1.5 rounded-2xl border border-rose-200 bg-rose-500 px-3 text-xs font-extrabold text-white shadow-md shadow-rose-500/25 transition-transform active:scale-95 touch-manipulation"
+              className="flex h-10 sm:h-11 shrink-0 items-center gap-1 sm:gap-1.5 rounded-2xl border border-rose-200 bg-rose-500 px-2.5 sm:px-3 text-xs font-extrabold text-white shadow-md shadow-rose-500/25 transition-transform active:scale-95 touch-manipulation"
             >
-              <ShieldAlert className="h-4 w-4 animate-pulse" />
-              <span className="font-black">SOS 117</span>
+              <ShieldAlert className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-pulse shrink-0" />
+              <span className="font-black whitespace-nowrap">SOS 117</span>
             </button>
           </div>
         </div>

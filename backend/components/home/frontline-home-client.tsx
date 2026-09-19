@@ -92,54 +92,55 @@ export function FrontlineHomeClient({
       <EmergencyBroadcastBanner initialAlert={broadcastAlert} />
 
       {/* 2. Top Minimalist App Header */}
-      <header className="mb-4 flex items-center justify-between rounded-3xl border border-slate-200/80 bg-white/95 p-3.5 shadow-xs backdrop-blur-md sm:p-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand text-white shadow-md shadow-blue-500/20">
+      <header className="mb-4 flex items-center justify-between gap-2 rounded-3xl border border-slate-200/80 bg-white/95 p-3 sm:p-4 shadow-xs backdrop-blur-md">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-2xl bg-brand text-white shadow-md shadow-blue-500/20">
             <img
               src="/logo.png"
               alt="Fender"
-              className="h-6 w-6 rounded-lg bg-white object-contain"
+              className="h-5 w-5 sm:h-6 sm:w-6 rounded-lg bg-white object-contain"
             />
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-black uppercase tracking-widest text-brand">
+              <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-brand truncate">
                 NDRRMS · CMC
               </span>
               <span
-                className={`flex h-1.5 w-1.5 rounded-full ${
+                className={`flex h-1.5 w-1.5 shrink-0 rounded-full ${
                   isOnline ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
                 }`}
               />
             </div>
-            <h1 className="text-base font-black tracking-tight text-slate-900 sm:text-lg">
-              Fender Response
+            <h1 className="text-sm font-black tracking-tight text-slate-900 sm:text-lg truncate">
+              <span className="inline sm:hidden">Fender</span>
+              <span className="hidden sm:inline">Fender Response</span>
             </h1>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {/* Language Switcher & Emergency SOS */}
           <HomeQuickActions />
 
-          {/* Track Reports Link */}
+          {/* Track Reports Link - responsive text & padding to prevent curved screen cropping */}
           <Link
             href="/report/track"
             title="Track Disaster Incidents & My Reports"
-            className="flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-2.5 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 hover:text-indigo-900 transition-colors shadow-2xs"
+            className="flex shrink-0 items-center gap-1 rounded-xl border border-indigo-200 bg-indigo-50 px-2 py-2 sm:px-2.5 sm:py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 hover:text-indigo-900 transition-colors shadow-2xs"
           >
-            <Activity className="h-3.5 w-3.5 text-indigo-600" />
-            <span>Track Reports</span>
+            <Activity className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+            <span className="hidden min-[400px]:inline sm:hidden">Track</span>
+            <span className="hidden sm:inline">Track Reports</span>
           </Link>
-
 
           {/* Council Desk Link (Desktop discrete link) */}
           <Link
             href="/dashboard/login?role=officer"
             title="Open Officer Command Console"
-            className="hidden sm:flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+            className="hidden sm:flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 shrink-0"
           >
-            <Laptop className="h-3.5 w-3.5 text-slate-500" />
+            <Laptop className="h-3.5 w-3.5 text-slate-500 shrink-0" />
             <span className="hidden md:inline">Command Console</span>
           </Link>
         </div>

@@ -599,41 +599,41 @@ export function ReportForm() {
   return (
     <PublicShell>
       {/* Top Header with Citizen Navigation Switcher and SOS Button */}
-      <div className="sticky top-0 z-20 flex items-center justify-between border-b border-white/20 bg-white/80 px-6 py-3.5 backdrop-blur-lg lg:px-10">
+      <div className="sticky top-0 z-20 flex items-center justify-between gap-1.5 border-b border-white/20 bg-white/80 px-3 py-2.5 sm:px-6 sm:py-3.5 pl-safe pr-safe backdrop-blur-lg lg:px-10">
         <Link
           href="/"
           title="Return to Home"
-          className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-100 bg-white text-slate-600 shadow-sm active:scale-90"
+          className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-100 bg-white text-slate-600 shadow-sm active:scale-90"
         >
           <ArrowLeft className="h-4 w-4" />
         </Link>
 
         {/* Navigation Switcher: Map vs Report */}
-        <div className="flex items-center rounded-2xl border border-slate-200/80 bg-slate-100/80 p-1 shadow-inner">
+        <div className="flex items-center rounded-2xl border border-slate-200/80 bg-slate-100/80 p-0.5 sm:p-1 shadow-inner min-w-0">
           <Link
             href="/map"
-            className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:text-brand"
+            className="flex items-center gap-1 sm:gap-1.5 rounded-xl px-2 sm:px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:text-brand"
           >
-            <MapIcon className="h-3.5 w-3.5" />
+            <MapIcon className="h-3.5 w-3.5 shrink-0" />
             <span className="hidden sm:inline">{t("live_map")}</span>
           </Link>
-          <div className="flex items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 text-xs font-extrabold text-brand shadow-sm">
-            <Cpu className="h-3.5 w-3.5" />
-            {t("report_hazard")}
+          <div className="flex items-center gap-1 sm:gap-1.5 rounded-xl bg-white px-2 sm:px-3 py-1.5 text-xs font-extrabold text-brand shadow-sm truncate">
+            <Cpu className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">{t("report_hazard")}</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {offlineCount > 0 && (
             <button
               type="button"
               onClick={handleManualSync}
               disabled={syncingOffline}
-              className="flex h-10 items-center gap-1.5 rounded-2xl border border-amber-300 bg-amber-50 px-3 text-xs font-extrabold text-amber-900 shadow-sm animate-pulse"
+              className="flex h-9 sm:h-10 shrink-0 items-center gap-1 sm:gap-1.5 rounded-2xl border border-amber-300 bg-amber-50 px-2 sm:px-3 text-xs font-extrabold text-amber-900 shadow-sm animate-pulse"
               title="Reports queued locally while offline. Click to sync."
             >
-              <CloudOff className="h-4 w-4 text-amber-600" />
-              <span>{syncingOffline ? "Syncing…" : `${offlineCount} Offline`}</span>
+              <CloudOff className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-600 shrink-0" />
+              <span>{syncingOffline ? "…" : `${offlineCount}`}</span>
             </button>
           )}
 
@@ -643,10 +643,10 @@ export function ReportForm() {
           <button
             type="button"
             onClick={() => setSosModalOpen(true)}
-            className="flex h-10 items-center gap-1.5 rounded-2xl border border-rose-200 bg-rose-500 px-3 text-xs font-extrabold text-white shadow-md shadow-rose-500/20 active:scale-95"
+            className="flex h-9 sm:h-10 shrink-0 items-center gap-1 sm:gap-1.5 rounded-2xl border border-rose-200 bg-rose-500 px-2.5 sm:px-3 text-xs font-extrabold text-white shadow-md shadow-rose-500/20 active:scale-95 whitespace-nowrap"
           >
-            <ShieldAlert className="h-4 w-4 animate-pulse" />
-            <span className="hidden sm:inline">SOS</span> 117
+            <ShieldAlert className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 animate-pulse" />
+            <span className="hidden sm:inline">SOS </span>117
           </button>
         </div>
       </div>

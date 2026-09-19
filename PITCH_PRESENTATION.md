@@ -45,7 +45,7 @@
 |---|---|---|
 | **0:00 - 0:25** | **Slide 1: Title & Hook**<br/>*(Show Fender Logo)* | "Judges, every monsoon season, Colombo’s Kelani River breaches its banks in Nagalagam Street, Sedawatta, and Kolonnawa. Thousands of families are marooned. But the real tragedy isn't just the water—it's the **information void**. Municipal dispatchers are inundated with thousands of chaotic phone calls, taking up to 45 minutes to verify a single incident while critical ambulances navigate into submerged dead ends." |
 | **0:25 - 0:55** | **Slide 2: The Problem**<br/>*(Highlight 4 Bottlenecks)* | "Traditional response breaks down on four fronts: **1.** Dispatchers waste hours sifting fake news from real drownings. **2.** Fifty people call about the same fallen tree, paralyzing the lines. **3.** Field units verbally radio that a road is clear without proof. And **4.** Displaced families cannot find their elderly parents or children across 20 disconnected shelters." |
-| **0:55 - 1:35** | **Slide 3 & 4: The 5-Check AI Engine**<br/>*(Point to the 5 checks)* | "We created **FENDER**—a closed-loop crisis ecosystem. When a citizen snaps a photo on our trilingual PWA, our **5-Check AI Pipeline** takes over in under 3 seconds: <br/>• **Check 1:** Vernacular translation (Sinhala/Tamil/English). <br/>• **Check 2:** **Gemini 2.5 Computer Vision** estimates water depth and detects fallen live wires. <br/>• **Check 3:** Real-time **Kelani River & rainfall telemetry** checks hydrological feasibility. <br/>• **Check 4:** **PostGIS spatial clustering** groups reports within 150m, collapsing duplicate spam by 90%. <br/>• **Check 5:** Ward topology risk scoring. If confidence is above 0.75, it auto-publishes to the city map instantly." |
+| **0:55 - 1:35** | **Slide 3 & 4: The 5-Check AI Engine**<br/>*(Point to the 5 checks)* | "We created **FENDER**—a closed-loop crisis ecosystem. When a citizen snaps a photo on our trilingual PWA, our **5-Check AI Pipeline** takes over in under 3 seconds: <br/>• **Check 1:** Vernacular translation (Sinhala/Tamil/English). <br/>• **Check 2:** **Gemini 3.5 Flash Lite Computer Vision** estimates water depth and detects fallen live wires. <br/>• **Check 3:** Real-time **Kelani River & rainfall telemetry** checks hydrological feasibility. <br/>• **Check 4:** **PostGIS spatial clustering** groups reports within 150m, collapsing duplicate spam by 90%. <br/>• **Check 5:** Ward topology risk scoring. If confidence is above 0.75, it auto-publishes to the city map instantly." |
 | **1:35 - 2:20** | **Slide 5, 7, 8: The Closed Loop**<br/>*(Show screens: Officer, Crew, Safe Registry)* | "Fender connects all four crisis stakeholders in real time: <br/>• **Municipal Officers** get an interactive command console with live incident queues and autonomous river gauge alerts. <br/>• **Field Crews (Navy & CMC)** receive dispatch tickets with GPS navigation—and must submit a **mandatory live after-fix photo** before the system unblocks the public road. Zero ghost clearances. <br/>• **Relief Centers** access live bed telemetry and our **'I'm Safe' Registry**, allowing families worldwide to search for missing loved ones in seconds." |
 | **2:20 - 2:45** | **Slide 9: Impact & Stack**<br/>*(Show Metrics & Architecture)* | "Fender is not a prototype mockup. It is live right now on Vercel, powered by Next.js 16, Supabase PostGIS, Google Gemini, and Expo React Native. We deliver a **90% reduction in triage delay**, **zero ghost clearances**, and **100% trilingual inclusivity**." |
 | **2:45 - 3:00** | **Slide 10: Conclusion & Call to Action** | "Flash floods are inevitable; blind disaster response is not. Fender gives our city the intelligence to save lives before the waters rise. Thank you, and let’s explore the live software!" |
@@ -105,7 +105,7 @@
 - **Visuals:** Visual pipeline cards for Check 01 to Check 05, with aggregator formula and threshold badges.
 - **Check Breakdown:**
   1. **Check 1: Input & Vernacular AI (15%):** Strips noise, translates Sinhala/Tamil/English, flags urgent distress terms.
-  2. **Check 2: Gemini 2.5 Vision AI (35%):** Analyzes photo for water depth, submerged vehicles, downed power lines, rejects stock photos.
+  2. **Check 2: Gemini 3.5 Flash Lite Vision AI (35%):** Analyzes photo for water depth, submerged vehicles, downed power lines, rejects stock photos.
   3. **Check 3: Hydrological & Weather Telemetry (20%):** Validates against live Kelani River gauges & 24h rainfall radar.
   4. **Check 4: PostGIS Spatial Clustering (20%):** Runs `ST_DWithin` (150m-200m) to group duplicate reports into 1 master incident.
   5. **Check 5: Ward Topology Risk (10%):** Factors elevation, drainage blockages, and arterial road obstruction.
@@ -187,10 +187,10 @@
 - **Technical Architecture:**
   - **Frontend:** Next.js 16.3 App Router, React 19, Tailwind CSS v4, Leaflet.
   - **Database & Spatial:** Supabase PostgreSQL with PostGIS and Realtime WebSockets.
-  - **AI Model:** Google Gemini 2.5 Flash Multimodal with structured JSON schemas.
+  - **AI Model:** Google Gemini 3.5 Flash Lite Multimodal with structured JSON schemas.
   - **Mobile:** Expo SDK 57 React Native client with offline fallback.
 - **Speaker Script:**
-  > *"Fender delivers immediate, measurable impact: a 90% reduction in dispatcher triage time, 90% duplicate elimination, and zero ghost clearances. Our architecture is built for production: Next.js 16.3 on Vercel Edge, Supabase PostGIS with Row Level Security, and Google Gemini 2.5 multimodal vision."*
+  > *"Fender delivers immediate, measurable impact: a 90% reduction in dispatcher triage time, 90% duplicate elimination, and zero ghost clearances. Our architecture is built for production: Next.js 16.3 on Vercel Edge, Supabase PostGIS with Row Level Security, and Google Gemini 3.5 Flash Lite multimodal vision."*
 
 ---
 
@@ -296,7 +296,7 @@ Be prepared for these common judge questions:
 |---|---|---|---|
 | **Average Triage Time** | 30 – 45 Minutes | Inconsistent / Hours | **< 3 Seconds (Autonomous AI)** |
 | **Duplicate Spam Handling** | Manual dispatcher sorting | No deduplication | **PostGIS Spatial Clustering (`ST_DWithin`)** |
-| **Visual Hazard Verification** | None (Verbal only) | Unverified user uploads | **Gemini 2.5 Vision + Weather Cross-Check** |
+| **Visual Hazard Verification** | None (Verbal only) | Unverified user uploads | **Gemini 3.5 Flash Lite Vision + Weather Cross-Check** |
 | **Road Clearance Verification** | Radio confirmation (Ghost prone) | None | **Mandatory Post-Repair Photographic Proof** |
 | **Language Support** | Dependent on dispatcher | User generated | **Trilingual Parity (English, Sinhala, Tamil)** |
 | **Family Reunification** | Physical inquiry at shelters | Fragmented Facebook/WhatsApp posts | **Centralized "I'm Safe" Public Registry** |

@@ -203,7 +203,7 @@ def slide_cover(prs):
         Inches(6.05),
         Inches(12.3),
         Inches(0.28),
-        "LIVE ON VERCEL   ·   Next.js 16.3  +  Supabase PostGIS  +  Google Gemini 2.5  +  Expo SDK 57",
+        "LIVE ON VERCEL   ·   Next.js 16.3  +  Supabase PostGIS  +  Google Gemini 3.5 Flash Lite  +  Expo SDK 57",
         12,
         True,
         CYAN,
@@ -357,7 +357,7 @@ def slide_ai(prs):
 
     checks = [
         (BLUE, "01", "Input & Multilingual AI", "15%", "Sanitizes Sinhala / Tamil / English. Flags distress terms like “elderly trapped” and “water rising fast”."),
-        (CYAN, "02", "Gemini 2.5 Vision", "35%", "Estimates flood depth, detects live wires and submerged vehicles, rejects stock or fake photos."),
+        (CYAN, "02", "Gemini 3.5 Flash Lite Vision", "35%", "Estimates flood depth, detects live wires and submerged vehicles, rejects stock or fake photos."),
         (RGBColor(0x81, 0x8C, 0xF8), "03", "Weather & River Telemetry", "20%", "Cross-checks Kelani gauges at Nagalagam Street and 24h ward rainfall radar."),
         (AMBER, "04", "PostGIS Cluster Check", "20%", "ST_DWithin 150–200m groups 50 duplicate calls into 1 master incident."),
         (EMERALD, "05", "Topology & Risk Score", "10%", "Ward elevation, drainage risk, and arterial-road blockage set the final urgency badge."),
@@ -529,7 +529,7 @@ def slide_impact(prs):
         slide,
         "Fender delivers immediate, measurable impact: a 90% reduction in dispatcher triage time, 90% duplicate "
         "elimination, and zero ghost clearances. Our architecture is built for production: Next.js 16.3 on Vercel "
-        "Edge, Supabase PostGIS with Row Level Security, and Google Gemini 2.5 multimodal vision.",
+        "Edge, Supabase PostGIS with Row Level Security, and Google Gemini 3.5 Flash Lite multimodal vision.",
     )
 
     metrics = [
@@ -549,7 +549,7 @@ def slide_impact(prs):
     stack = [
         (BLUE, "Frontend & PWA", "Next.js 16.3 App Router\nReact 19 · Tailwind v4 · Leaflet"),
         (CYAN, "Spatial & Database", "Supabase PostgreSQL\nPostGIS · Realtime WebSockets"),
-        (AMBER, "Intelligence", "Gemini 2.5 Flash Vision\nStructured JSON + fallback rules"),
+        (AMBER, "Intelligence", "Gemini 3.5 Flash Lite Vision\nStructured JSON + fallback rules"),
         (EMERALD, "Mobile Native", "Expo SDK 57\nReact Native 0.86 · offline cache"),
     ]
     for i, (color, title, body) in enumerate(stack):

@@ -151,12 +151,12 @@ export default function SuppliesPage() {
   return (
     <PublicShell>
       {/* Header Bar with Navigation & SOS */}
-      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-white/20 bg-white/85 px-6 py-3.5 backdrop-blur-lg lg:px-10">
-        <div className="flex items-center gap-3">
+      <div className="sticky top-0 z-30 flex items-center justify-between gap-1.5 border-b border-white/20 bg-white/85 px-3 py-2.5 sm:px-6 sm:py-3.5 pl-safe pr-safe backdrop-blur-lg lg:px-10">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <Link
             href="/"
             title="Return to Home"
-            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-100 bg-white text-slate-600 shadow-sm transition-transform active:scale-90"
+            className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-100 bg-white text-slate-600 shadow-sm transition-transform active:scale-90"
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
@@ -168,29 +168,29 @@ export default function SuppliesPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 rounded-2xl border border-slate-200/80 bg-slate-100/80 p-1 shadow-inner">
+        <div className="flex items-center gap-1 sm:gap-1.5 rounded-2xl border border-slate-200/80 bg-slate-100/80 p-0.5 sm:p-1 shadow-inner min-w-0">
           <Link
             href="/map"
-            className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:text-brand"
+            className="flex items-center gap-1 sm:gap-1.5 rounded-xl px-2 sm:px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:text-brand"
           >
-            <MapIcon className="h-3.5 w-3.5" />
+            <MapIcon className="h-3.5 w-3.5 shrink-0" />
             <span className="hidden sm:inline">{t("live_map")}</span>
           </Link>
-          <div className="flex items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 text-xs font-extrabold text-brand shadow-sm">
-            <HeartHandshake className="h-3.5 w-3.5" />
-            <span>{lang === "si" ? "සැපයුම්" : lang === "ta" ? "விநியோகம்" : "Supplies"}</span>
+          <div className="flex items-center gap-1 sm:gap-1.5 rounded-xl bg-white px-2 sm:px-3 py-1.5 text-xs font-extrabold text-brand shadow-sm truncate">
+            <HeartHandshake className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">{lang === "si" ? "සැපයුම්" : lang === "ta" ? "விநியோகம்" : "Supplies"}</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           <LanguageSwitcher />
           <button
             type="button"
             onClick={() => setSosModalOpen(true)}
-            className="flex h-10 items-center gap-1.5 rounded-2xl border border-rose-200 bg-rose-500 px-3 text-xs font-extrabold text-white shadow-md shadow-rose-500/20 active:scale-95"
+            className="flex h-9 sm:h-10 shrink-0 items-center gap-1 sm:gap-1.5 rounded-2xl border border-rose-200 bg-rose-500 px-2.5 sm:px-3 text-xs font-extrabold text-white shadow-md shadow-rose-500/20 active:scale-95 whitespace-nowrap"
           >
-            <ShieldAlert className="h-4 w-4 animate-pulse" />
-            <span>SOS 117</span>
+            <ShieldAlert className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 animate-pulse" />
+            <span className="hidden sm:inline">SOS </span>117
           </button>
         </div>
       </div>

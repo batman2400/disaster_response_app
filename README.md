@@ -244,7 +244,7 @@ Disasters frequently disrupt external network connectivity. If the Google Gemini
                ▼                        ▼                     ▼
 ┌─────────────────────────┐  ┌─────────────────────┐  ┌──────────────────┐
 │     GOOGLE GEMINI       │  │  SUPABASE POSTGIS   │  │ SUPABASE STORAGE │
-│  - Gemini Vision 2.5    │  │  - PostgreSQL DB    │  │  - Incident Photo│
+│  - Gemini 3.5 Flash Lite│  │  - PostgreSQL DB    │  │  - Incident Photo│
 │  - Structured JSON Mode │  │  - Spatial ST_DWithin│ │    Bucket        │
 │  - Multi-Modal Analysis │  │  - Realtime WS Pub  │  │  - After-Fix     │
 │                         │  │  - Row Level Security│ │    Evidence      │
@@ -370,7 +370,7 @@ SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>
 
 # Google Gemini API
 GEMINI_API_KEY=<your-gemini-key>
-GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL=gemini-3.5-flash-lite
 
 # Dashboard Authentication
 DASHBOARD_OFFICER_PASSWORD=officer

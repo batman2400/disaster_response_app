@@ -16,7 +16,7 @@ export default async function Home() {
 
   return (
     <PublicShell variant="wide">
-      <div className="flex-1 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
+      <div className="flex-1 px-3 py-3 sm:px-6 lg:px-8 lg:py-6 pl-safe pr-safe">
         <FrontlineHomeClient
           hazards={hazards}
           wards={wards}

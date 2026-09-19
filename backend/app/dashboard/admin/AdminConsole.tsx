@@ -747,7 +747,7 @@ export function AdminConsole({
                 </div>
 
                 <div className="rounded-xl border border-purple-200/80 bg-purple-100/40 p-3 text-[11px] text-purple-800">
-                  <strong>Current Model:</strong> Gemini 2.5 Flash + Deterministic PostGIS Spatial Corroboration.
+                  <strong>Current Model:</strong> Gemini 3.5 Flash Lite + Deterministic PostGIS Spatial Corroboration.
                 </div>
               </Card>
             </div>

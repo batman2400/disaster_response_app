@@ -1,12 +1,34 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { HOME_COPY, type HomeCopyKey } from "./home-copy";
 import { TRANSLATIONS, type SupportedLanguage, type TranslationDictionary } from "./translations";
+
+export type I18nKey = keyof TranslationDictionary | HomeCopyKey;
+
+function interpolate(template: string, vars?: Record<string, string | number>) {
+  if (!vars) return template;
+  return template.replace(/\{(\w+)\}/g, (_, name: string) =>
+    vars[name] !== undefined ? String(vars[name]) : `{${name}}`,
+  );
+}
+
+function lookup(lang: SupportedLanguage, key: I18nKey): string {
+  const home = HOME_COPY[lang] as Record<string, string> | undefined;
+  const core = TRANSLATIONS[lang] as Record<string, string> | undefined;
+  return (
+    home?.[key] ||
+    core?.[key] ||
+    HOME_COPY.en[key as HomeCopyKey] ||
+    TRANSLATIONS.en[key as keyof TranslationDictionary] ||
+    String(key)
+  );
+}
 
 interface LanguageContextValue {
   lang: SupportedLanguage;
   setLang: (lang: SupportedLanguage) => void;
-  t: (key: keyof TranslationDictionary) => string;
+  t: (key: I18nKey, vars?: Record<string, string | number>) => string;
 }
 
 const LanguageContext = createContext<LanguageContextValue | undefined>(undefined);
@@ -36,9 +58,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const t = (key: keyof TranslationDictionary): string => {
-    const dict = TRANSLATIONS[lang] || TRANSLATIONS.en;
-    return dict[key] || TRANSLATIONS.en[key] || String(key);
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
+
+  const t = (key: I18nKey, vars?: Record<string, string | number>): string => {
+    return interpolate(lookup(lang, key), vars);
   };
 
   return (
@@ -55,14 +80,14 @@ export function useI18n() {
     return {
       lang: "en" as SupportedLanguage,
       setLang: () => {},
-      t: (key: keyof TranslationDictionary) => TRANSLATIONS.en[key] || String(key),
+      t: (key: I18nKey, vars?: Record<string, string | number>) => interpolate(lookup("en", key), vars),
     };
   }
   return ctx;
 }
 
 export function LanguageSwitcher({ className = "" }: { className?: string }) {
-  const { lang, setLang } = useI18n();
+  const { lang, setLang, t } = useI18n();
 
   const options: { id: SupportedLanguage; label: string; full: string }[] = [
     { id: "en", label: "EN", full: "English" },
@@ -72,9 +97,9 @@ export function LanguageSwitcher({ className = "" }: { className?: string }) {
 
   return (
     <div
-      className={`inline-flex items-center rounded-xl border border-slate-200 bg-white/90 p-0.5 shadow-sm backdrop-blur-md ${className}`}
+      className={`inline-flex shrink-0 items-center rounded-xl border border-slate-200 bg-white/90 p-0.5 shadow-sm backdrop-blur-md ${className}`}
       role="group"
-      aria-label="Select Language"
+      aria-label={t("language_selector")}
     >
       {options.map((opt) => {
         const active = lang === opt.id;
@@ -84,7 +109,7 @@ export function LanguageSwitcher({ className = "" }: { className?: string }) {
             type="button"
             onClick={() => setLang(opt.id)}
             title={opt.full}
-            className={`rounded-lg px-2 py-1 text-[11px] font-bold transition-all sm:px-2.5 sm:text-xs ${
+            className={`rounded-lg px-1.5 py-1 text-[10px] font-bold transition-all sm:px-2.5 sm:text-xs ${
               active
                 ? "bg-brand text-white shadow-xs"
                 : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"

@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: var(--font-plus-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-plus-jakarta), "Nirmala UI", "Iskoola Pota", "Latha", "Noto Sans Sinhala", "Noto Sans Tamil", ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   --color-brand: #2563eb;
@@ -258,6 +258,25 @@ body {
 
 .pb-safe-nav {
   padding-bottom: calc(max(env(safe-area-inset-bottom, 0px), 16px) + 72px);
+}
+
+/* Curved display & landscape notch edge safe insets */
+.px-safe {
+  padding-left: max(env(safe-area-inset-left, 0px), 12px);
+  padding-right: max(env(safe-area-inset-right, 0px), 12px);
+}
+
+.pl-safe {
+  padding-left: max(env(safe-area-inset-left, 0px), 12px);
+}
+
+.pr-safe {
+  padding-right: max(env(safe-area-inset-right, 0px), 12px);
+}
+
+.mx-safe {
+  margin-left: max(env(safe-area-inset-left, 0px), 0px);
+  margin-right: max(env(safe-area-inset-right, 0px), 0px);
 }
 
 @media (min-width: 768px) {

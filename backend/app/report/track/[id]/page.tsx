@@ -122,36 +122,37 @@ export default function IncidentTrackPage({ params }: { params: Promise<{ id: st
   return (
     <PublicShell>
       {/* Header Bar */}
-      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-white/20 bg-white/85 px-6 py-3.5 backdrop-blur-lg lg:px-10">
-        <div className="flex items-center gap-3">
+      <div className="sticky top-0 z-30 flex items-center justify-between gap-1.5 border-b border-white/20 bg-white/85 px-3 py-2.5 sm:px-6 sm:py-3.5 pl-safe pr-safe backdrop-blur-lg lg:px-10">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <Link
             href="/report/track"
             title="Back to search"
-            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-100 bg-white text-slate-600 shadow-sm transition-transform active:scale-90"
+            className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-100 bg-white text-slate-600 shadow-sm transition-transform active:scale-90"
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-xs font-black text-slate-900">
+              <span className="font-mono text-xs font-black text-slate-900 truncate">
                 #CLM-{hazard.id.slice(0, 8).toUpperCase()}
               </span>
               <StatusBadge status={hazard.status} />
             </div>
-            <p className="text-[11px] font-semibold text-slate-400">
+            <p className="text-[11px] font-semibold text-slate-400 truncate">
               {wardShort(hazard.ward_id)} · Reported {timeAgo(hazard.created_at)}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           <button
             type="button"
             onClick={copyLink}
-            className="flex h-10 items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3.5 text-xs font-extrabold text-slate-700 shadow-sm hover:bg-slate-50 active:scale-95"
+            className="flex h-9 sm:h-10 shrink-0 items-center gap-1 sm:gap-1.5 rounded-2xl border border-slate-200 bg-white px-2.5 sm:px-3.5 text-xs font-extrabold text-slate-700 shadow-sm hover:bg-slate-50 active:scale-95"
           >
-            {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-            <span>{copied ? "Copied!" : "Share Link"}</span>
+            {copied ? <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" /> : <Copy className="h-3.5 w-3.5 shrink-0" />}
+            <span className="hidden sm:inline">{copied ? "Copied!" : "Share Link"}</span>
+            <span className="inline sm:hidden">{copied ? "Copied" : "Share"}</span>
           </button>
           <LanguageSwitcher />
         </div>

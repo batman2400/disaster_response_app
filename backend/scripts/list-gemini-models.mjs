@@ -25,7 +25,7 @@ try {
   console.error("list failed", err?.message ?? err);
   try {
     const res = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.5-flash-lite",
       contents: "Reply with the single word pong",
     });
     console.log("flash probe", res.text);

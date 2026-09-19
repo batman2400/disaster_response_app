@@ -352,7 +352,7 @@ def build():
         Inches(6.4),
         Inches(8.8),
         Inches(0.35),
-        [{"text": "Next.js 16  ·  Supabase PostGIS  ·  Gemini 2.5  ·  Expo SDK 57", "size": 12, "color": MUTED, "space_after": 0}],
+        [{"text": "Next.js 16  ·  Supabase PostGIS  ·  Gemini 3.5 Flash Lite  ·  Expo SDK 57", "size": 12, "color": MUTED, "space_after": 0}],
     )
 
     textbox(
@@ -783,7 +783,7 @@ def build():
     stack = [
         ("Web & PWA", "Next.js 16.3  ·  React 19  ·  Tailwind v4  ·  Leaflet"),
         ("Spatial DB", "Supabase Postgres  ·  PostGIS  ·  Realtime  ·  RLS"),
-        ("Intelligence", "Gemini 2.5 Flash  ·  structured JSON  ·  fallback engine"),
+        ("Intelligence", "Gemini 3.5 Flash Lite  ·  structured JSON  ·  fallback engine"),
         ("Native", "Expo SDK 57  ·  React Native  ·  offline cache"),
     ]
     for i, (title, body) in enumerate(stack):
