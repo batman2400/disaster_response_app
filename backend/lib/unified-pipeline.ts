@@ -118,6 +118,61 @@ export async function runUnifiedPipeline(
   const started = Date.now();
   const started_at = new Date(started).toISOString();
 
+  if (body.help_request || body.category === "HELP_REQUEST") {
+    const settings = await getAiSettings();
+    const checks: ReportChecks = {
+      image_verified: Boolean(body.photo_base64),
+      weather_supported: false,
+      cluster_count: 0,
+      location_matched: body.lat >= 6.8 && body.lat <= 7.05,
+      risk_level: "MEDIUM",
+      input_verified: true,
+    };
+    const agg = deterministicAggregate(body, checks, settings);
+    const total_ms = Date.now() - started;
+    const summary = body.description?.trim() || "Citizen requested dry shelter / rescue assistance.";
+    return {
+      status: agg.status,
+      urgency: agg.urgency,
+      confidence_score: agg.confidence_score,
+      is_road_blocked: false,
+      checks,
+      reasoning: agg.reasoning,
+      summary,
+      detected_language: /[\u0B80-\u0BFF]/.test(body.description || "")
+        ? "Tamil"
+        : /[\u0D80-\u0DFF]/.test(body.description || "")
+          ? "Sinhala"
+          : "English",
+      trace: {
+        started_at,
+        finished_at: new Date().toISOString(),
+        total_ms,
+        steps: [
+          {
+            id: "aggregator",
+            name: "Relief Triage",
+            passed: true,
+            detail: agg.reasoning,
+            latency_ms: total_ms,
+            source: "code",
+            confidence: agg.confidence_score,
+          },
+        ],
+        checks,
+        verdict: {
+          status: agg.status,
+          urgency: agg.urgency,
+          confidence_score: agg.confidence_score,
+          is_road_blocked: false,
+          reasoning: agg.reasoning,
+          source: "code",
+          latency_ms: total_ms,
+        },
+      },
+    };
+  }
+
   // Run deterministic weather and cluster checks in parallel instantly (< 5ms)
   const [weather, cluster, settings] = await Promise.all([
     checkWeather(body.ward_id),

@@ -25,6 +25,7 @@ import { ReliefMap } from "./ReliefMap";
 import { Badge, Button, Card, Chip, StatCard, StatusBadge, UrgencyBadge } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { timeAgo, wardName, wardShort } from "@/lib/format";
+import { bedsForParty, parsePartySize } from "@/lib/party-size";
 import { attachShelterCoords, type ShelterWithCoords } from "@/lib/safe-routes";
 import type { HazardRow, ShelterRow, SuppliesStatus, WardId, WardRow } from "@/lib/types";
 import { mapHazardRow, mapShelterRow, mapWardRow, sortHazards, sortWards, useLiveRows } from "@/lib/use-live";
@@ -152,8 +153,9 @@ export function ReliefBoard({
   const [walkinShelterId, setWalkinShelterId] = useState("");
   const [walkinCount, setWalkinCount] = useState(1);
   const [showSitRepModal, setShowSitRepModal] = useState(false);
+  const [placedIds, setPlacedIds] = useState<Set<string>>(new Set());
 
-  const { rows: hazards, live, updatedAt } = useLiveRows<HazardRow>({
+  const { rows: hazards, live, updatedAt, refetch } = useLiveRows<HazardRow>({
     table: "hazards",
     initial: initialHazards,
     mapRow: mapHazardRow,
@@ -161,7 +163,7 @@ export function ReliefBoard({
     fallbackFetch: () => fetch("/api/hazards").then((res) => res.json() as Promise<HazardRow[]>),
   });
 
-  const { rows: liveShelters } = useLiveRows<ShelterRow>({
+  const { rows: liveShelters, refetch: refetchShelters } = useLiveRows<ShelterRow>({
     table: "shelters",
     initial: initialShelters,
     mapRow: mapShelterRow,
@@ -179,14 +181,26 @@ export function ReliefBoard({
   const rawShelters = useMemo(() => uniqueShelters(liveShelters), [liveShelters]);
   const sheltersWithCoords = useMemo(() => attachShelterCoords(rawShelters), [rawShelters]);
 
-  const requests = useMemo(
-    () => hazards.filter((row) => row.category === "HELP_REQUEST" && row.status !== "RESOLVED"),
-    [hazards],
-  );
+  const requests = useMemo(() => {
+    const urgencyRank: Record<HazardRow["urgency"], number> = { CRITICAL: 0, MEDIUM: 1, LOW: 2 };
+    return hazards
+      .filter(
+        (row) =>
+          row.category === "HELP_REQUEST" &&
+          row.status !== "RESOLVED" &&
+          !placedIds.has(row.id),
+      )
+      .sort((a, b) => {
+        const urgencyDelta = urgencyRank[a.urgency] - urgencyRank[b.urgency];
+        if (urgencyDelta !== 0) return urgencyDelta;
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      });
+  }, [hazards, placedIds]);
 
-  // Smart matching: analyzes citizen text/summary for medical, infant, or power needs, scoring shelters with matching supplies
+  // Smart matching: party size first, then ward, then special supply needs
   const matches = useMemo(() => {
     return requests.map((request) => {
+      const partySize = parsePartySize(request.description, request.summary);
       const allOptions = sheltersWithCoords.map((shelter) => ({
         ...shelter,
         free: shelter.total_beds - shelter.occupied_beds,
@@ -199,6 +213,8 @@ export function ReliefBoard({
 
       const scoreShelter = (s: (typeof allOptions)[number]) => {
         let score = s.free;
+        if (s.free >= partySize) score += 100;
+        else score -= 80;
         const meta = SHELTER_META[s.name];
         if (meta) {
           const supplyNames = meta.supplies.map((item) => item.name.toLowerCase());
@@ -214,7 +230,7 @@ export function ReliefBoard({
         .sort((a, b) => scoreShelter(b) - scoreShelter(a));
 
       const overflow = allOptions
-        .filter((shelter) => shelter.ward_id !== request.ward_id && shelter.free > 0)
+        .filter((shelter) => shelter.ward_id !== request.ward_id && shelter.free >= partySize)
         .sort((a, b) => scoreShelter(b) - scoreShelter(a));
 
       const identifiedNeeds = [
@@ -223,7 +239,7 @@ export function ReliefBoard({
         needsPower ? "Generator/Power" : null,
       ].filter(Boolean) as string[];
 
-      return { request, primary, overflow, identifiedNeeds };
+      return { request, partySize, primary, overflow, identifiedNeeds };
     });
   }, [requests, sheltersWithCoords]);
 
@@ -270,9 +286,17 @@ export function ReliefBoard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ incident_id, shelter_id, beds }),
       });
-      const payload = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(payload.error || "Assign failed");
-      showToast(`Successfully assigned ${beds} bed${beds > 1 ? "s" : ""} to shelter.`);
+      const payload = (await response.json()) as { error?: string; shelter?: ShelterRow };
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error("Sign in as Relief Desk first. The family was not placed.");
+        }
+        throw new Error(payload.error || "Assign failed");
+      }
+      setPlacedIds((prev) => new Set(prev).add(incident_id));
+      const shelterName = payload.shelter?.name || "shelter";
+      showToast(`Placed ${beds} bed${beds > 1 ? "s" : ""} at ${shelterName}. Ticket closed.`);
+      await Promise.all([refetch(), refetchShelters()]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Assign failed");
     } finally {
@@ -557,12 +581,18 @@ export function ReliefBoard({
           ) : (
             /* Active Matches List */
             <div className="flex h-80 flex-col gap-3 overflow-y-auto custom-scrollbar pr-1">
-              {matches.map(({ request, primary, overflow, identifiedNeeds }) => (
+              {matches.map(({ request, partySize, primary, overflow, identifiedNeeds }) => {
+                const localFits = primary.filter((s) => s.free >= partySize);
+                const requestBusy = busyKey.startsWith(`${request.id}:`);
+                return (
                 <Card key={request.id} className="p-4 border-l-4 border-l-amber-500">
                   <div className="mb-2 flex flex-wrap items-center gap-2">
                     <StatusBadge status={request.status} />
                     <UrgencyBadge urgency={request.urgency} />
                     <span className="text-xs font-bold text-slate-400">{wardShort(request.ward_id)}</span>
+                    <span className="rounded-md bg-slate-900 px-1.5 py-0.5 text-[10px] font-extrabold text-white">
+                      {partySize} {partySize === 1 ? "person" : "people"}
+                    </span>
                     <span className="ml-auto text-[10px] font-bold text-slate-400">
                       {timeAgo(request.created_at)}
                     </span>
@@ -594,13 +624,15 @@ export function ReliefBoard({
                   {/* Primary Ward Options */}
                   <div className="mt-3 flex flex-col gap-2">
                     {primary.length > 0 ? (
-                      primary.map((shelter, idx) => (
+                      primary.map((shelter) => (
                         <ShelterAssignOption
                           key={shelter.id}
                           shelter={shelter}
-                          recommended={idx === 0}
+                          recommended={shelter.id === localFits[0]?.id}
+                          partySize={partySize}
                           incidentId={request.id}
                           busy={busyKey === `${request.id}:${shelter.id}`}
+                          locked={requestBusy}
                           onAssign={(beds) => void assign(request.id, shelter.id, beds)}
                         />
                       ))
@@ -610,11 +642,10 @@ export function ReliefBoard({
                       </div>
                     )}
 
-                    {/* Overflow Options when local is limited */}
-                    {primary.every((s) => s.free <= 2) && overflow.length > 0 ? (
+                    {localFits.length === 0 && overflow.length > 0 ? (
                       <div className="mt-2 border-t border-slate-100 pt-2">
                         <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-600">
-                          Recommended Overflow (Adjacent Ward)
+                          Recommended Overflow (fits party of {partySize})
                         </span>
                         <div className="mt-1.5 flex flex-col gap-2">
                           {overflow.slice(0, 2).map((shelter) => (
@@ -622,8 +653,10 @@ export function ReliefBoard({
                               key={`overflow-${shelter.id}`}
                               shelter={shelter}
                               isOverflow
+                              partySize={partySize}
                               incidentId={request.id}
                               busy={busyKey === `${request.id}:${shelter.id}`}
+                              locked={requestBusy}
                               onAssign={(beds) => void assign(request.id, shelter.id, beds)}
                             />
                           ))}
@@ -632,7 +665,8 @@ export function ReliefBoard({
                     ) : null}
                   </div>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -806,25 +840,31 @@ function ShelterAssignOption({
   shelter,
   recommended = false,
   isOverflow = false,
+  partySize = 1,
   incidentId,
   busy = false,
+  locked = false,
   onAssign,
 }: {
   shelter: ShelterOption;
   recommended?: boolean;
   isOverflow?: boolean;
+  partySize?: number;
   incidentId?: string;
   busy?: boolean;
+  locked?: boolean;
   onAssign?: (beds: number) => void;
 }) {
-  const [beds, setBeds] = useState(1);
+  const defaultBeds = bedsForParty(partySize, shelter.free);
+  const [beds, setBeds] = useState(defaultBeds);
   const used = shelter.total_beds - shelter.free;
   const fill = shelter.total_beds > 0 ? Math.min(100, (used / shelter.total_beds) * 100) : 0;
-  const canAssign = Boolean(incidentId && onAssign && shelter.free > 0);
+  const canFit = shelter.free >= partySize;
+  const canAssign = Boolean(incidentId && onAssign && canFit);
 
   useEffect(() => {
-    setBeds((current) => Math.min(Math.max(1, current), Math.max(1, shelter.free)));
-  }, [shelter.free]);
+    setBeds(bedsForParty(partySize, shelter.free));
+  }, [partySize, shelter.free]);
 
   return (
     <div
@@ -868,7 +908,9 @@ function ShelterAssignOption({
       {onAssign ? (
         <div className="mt-3 flex items-center justify-between gap-2">
           <span className={`text-[10px] font-extrabold uppercase ${SUPPLY_TONE[shelter.supplies_status]}`}>
-            Supplies {shelter.supplies_status.toLowerCase()}
+            {canFit
+              ? `Supplies ${shelter.supplies_status.toLowerCase()}`
+              : `Only ${shelter.free} free — cannot fit ${partySize}`}
           </span>
           <div className="flex items-center gap-1.5">
             <input
@@ -876,8 +918,10 @@ function ShelterAssignOption({
               min={1}
               max={Math.max(1, shelter.free)}
               value={beds}
-              disabled={busy || !canAssign}
-              onChange={(e) => setBeds(Math.max(1, Number(e.target.value) || 1))}
+              disabled={busy || locked || !canAssign}
+              onChange={(e) =>
+                setBeds(Math.min(Math.max(1, Number(e.target.value) || 1), Math.max(1, shelter.free)))
+              }
               className="w-12 rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-xs font-bold text-slate-800 focus:border-emerald-500 focus:outline-none"
               aria-label="Beds to assign"
             />
@@ -885,8 +929,8 @@ function ShelterAssignOption({
               type="button"
               variant="success"
               className="rounded-lg px-2.5 py-1 text-[11px] font-bold"
-              disabled={busy || !canAssign}
-              onClick={() => onAssign(beds)}
+              disabled={busy || locked || !canAssign}
+              onClick={() => onAssign(Math.min(beds, shelter.free))}
             >
               {busy ? "Placing…" : "Assign"}
             </Button>

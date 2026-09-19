@@ -384,7 +384,9 @@ export function ReportForm() {
 
   const isRescue = category === "HELP_REQUEST";
   const canSubmit = Boolean(
-    photo && category && !photoCompressing && (!isRescue || rescuePhone.trim().length > 0),
+    category &&
+      !photoCompressing &&
+      (isRescue ? rescuePhone.trim().length > 0 : Boolean(photo)),
   );
 
   async function onPickPhoto(file: File | undefined) {
@@ -417,7 +419,8 @@ export function ReportForm() {
   }
 
   async function submit() {
-    if (!category || !photo) return;
+    if (!category) return;
+    if (!isRescue && !photo) return;
     if (isRescue && !rescuePhone.trim()) {
       setError("Please provide a contact phone number for rescue coordination.");
       return;
@@ -564,18 +567,18 @@ export function ReportForm() {
         </Button>
         {!canSubmit && (
           <p className="text-center text-xs font-semibold text-slate-400">
-            {!photo
-              ? lang === "si"
-                ? "• ආපදා ස්ථානයේ ඡායාරූපයක් එක් කරන්න"
-                : lang === "ta"
-                ? "• ஆபத்து பகுதியை புகைப்படம் எடுக்கவும்"
-                : "• Upload or snap a photo of the hazard"
-              : !category
+            {!category
               ? lang === "si"
                 ? "• ඉහතින් අනතුරු වර්ගය තෝරන්න"
                 : lang === "ta"
                 ? "• மேலே உள்ள ஆபத்து வகையை தேர்ந்தெடுக்கவும்"
                 : "• Choose an incident classification above"
+              : !isRescue && !photo
+              ? lang === "si"
+                ? "• ආපදා ස්ථානයේ ඡායාරූපයක් එක් කරන්න"
+                : lang === "ta"
+                ? "• ஆபத்து பகுதியை புகைப்படம் எடுக்கவும்"
+                : "• Upload or snap a photo of the hazard"
               : isRescue && !rescuePhone.trim()
               ? lang === "si"
                 ? "• මුදවා ගැනීමේ කණ්ඩායම සඳහා දුරකථන අංකයක් ඇතුළත් කරන්න"

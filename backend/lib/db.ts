@@ -193,7 +193,10 @@ export async function saveShelter(row: ShelterRow) {
     occupied_beds: row.occupied_beds,
     supplies_status: row.supplies_status,
   });
-  if (error) console.error("saveShelter", error.message);
+  if (error) {
+    console.error("saveShelter", error.message);
+    throw new Error(error.message);
+  }
   return row;
 }
 
@@ -295,12 +298,46 @@ export async function saveHazard(row: HazardRow) {
     }
     if (retried) {
       const retry = await supabase.from("hazards").upsert(payload);
-      if (retry.error) console.error("saveHazard retry", retry.error.message);
+      if (retry.error) {
+        console.error("saveHazard retry", retry.error.message);
+        throw new Error(retry.error.message);
+      }
     } else {
       console.error("saveHazard", error.message);
+      throw new Error(error.message);
     }
   }
   return row;
+}
+
+export async function closeAssignedHazard(row: HazardRow): Promise<HazardRow> {
+  memoryUpsert(row);
+  const supabase = getSupabase();
+  if (!supabase) return row;
+
+  const patch: Record<string, unknown> = {
+    status: "RESOLVED",
+    resolved_at: row.resolved_at,
+    officer_note: serializeOfficerRow(row),
+  };
+
+  const { error } = await supabase
+    .from("hazards")
+    .update(patch)
+    .eq("id", row.id)
+    .neq("status", "RESOLVED");
+
+  if (error) {
+    const retry = await supabase
+      .from("hazards")
+      .update({ status: "RESOLVED", resolved_at: row.resolved_at })
+      .eq("id", row.id);
+    if (retry.error) throw new Error(retry.error.message);
+  }
+
+  const stored = await findHazard(row.id);
+  if (stored?.status === "RESOLVED") return stored;
+  throw new Error("Could not close the request in the registry.");
 }
 
 // Crowdsource quorum: this many confirmations auto-publishes a held report.
@@ -530,6 +567,58 @@ export async function saveBroadcastAlert(alert: BroadcastAlert): Promise<Broadca
     }
   }
   return inMemoryBroadcast;
+}
+
+export class OccupancyConflictError extends Error {
+  constructor(message = "Shelter occupancy changed. Refresh and retry.") {
+    super(message);
+    this.name = "OccupancyConflictError";
+  }
+}
+
+export async function reserveShelterBeds(id: string, beds: number): Promise<ShelterRow> {
+  const current = await findShelter(id);
+  if (!current) throw new Error("Shelter not found");
+  if (!Number.isInteger(beds) || beds < 1) throw new Error("beds must be a positive integer");
+
+  const free = current.total_beds - current.occupied_beds;
+  if (beds > free) throw new Error("Not enough free beds");
+
+  const nextOccupied = current.occupied_beds + beds;
+  const reserved = { ...current, occupied_beds: nextOccupied };
+
+  try {
+    await saveShelter(reserved);
+  } catch (err) {
+    memoryUpsertShelter(current);
+    throw err instanceof Error ? err : new OccupancyConflictError();
+  }
+
+  const after = await findShelter(id);
+  if (after && after.occupied_beds >= nextOccupied) return after;
+  return reserved;
+}
+
+export async function releaseShelterBeds(id: string, beds: number): Promise<void> {
+  if (!Number.isInteger(beds) || beds < 1) return;
+  const current = await findShelter(id);
+  if (!current) return;
+
+  const nextOccupied = Math.max(0, current.occupied_beds - beds);
+  const released = { ...current, occupied_beds: nextOccupied };
+  memoryUpsertShelter(released);
+
+  const supabase = getSupabase();
+  if (!supabase) return;
+
+  const { error } = await supabase
+    .from("shelters")
+    .update({ occupied_beds: nextOccupied })
+    .eq("id", id);
+
+  if (error) {
+    console.error("releaseShelterBeds", error.message);
+  }
 }
 
 export { listShelterNeeds, createShelterNeed, pledgeShelterNeed } from "./store";

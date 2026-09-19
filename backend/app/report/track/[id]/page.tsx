@@ -50,15 +50,17 @@ export default function IncidentTrackPage({ params }: { params: Promise<{ id: st
 
   const fetchHazard = async () => {
     try {
-      const res = await fetch("/api/hazards");
-      if (!res.ok) throw new Error("Could not fetch hazards");
-      const list = (await res.json()) as HazardRow[];
-      const found = list.find((h) => h.id === resolvedParams.id);
-      if (found) {
-        setHazard(found);
-      } else {
-        setError("Incident not found. The report may have been archived or the ID is incorrect.");
+      const res = await fetch(`/api/hazards/${resolvedParams.id}`, { cache: "no-store" });
+      if (res.ok) {
+        setHazard((await res.json()) as HazardRow);
+        setError("");
+        return;
       }
+      if (res.status === 404) {
+        setError("Incident not found. The report may have been archived or the ID is incorrect.");
+        return;
+      }
+      throw new Error("Could not fetch hazard");
     } catch {
       setError("Failed to connect to municipal hazard registry.");
     } finally {
@@ -109,7 +111,11 @@ export default function IncidentTrackPage({ params }: { params: Promise<{ id: st
   }
 
   const isResolved = hazard.status === "RESOLVED";
-  const isDispatched = Boolean(hazard.dispatched_at || hazard.assigned_crew_name);
+  const isHelpRequest = hazard.category === "HELP_REQUEST";
+  const assignNote =
+    hazard.officer_log?.find((entry) => entry.action === "assign")?.note ||
+    (hazard.officer_note?.toLowerCase().includes("assigned to") ? hazard.officer_note : null);
+  const isDispatched = Boolean(hazard.dispatched_at || hazard.assigned_crew_name || assignNote);
   const isOfficerApproved = hazard.status === "PUBLISHED" || hazard.status === "AREA_ALERT" || hazard.status === "COUNCIL_TICKET" || isResolved;
   const isAiVerified = Boolean(hazard.confidence_score && hazard.confidence_score > 0);
 
@@ -317,7 +323,9 @@ export default function IncidentTrackPage({ params }: { params: Promise<{ id: st
               </div>
               <div className="flex-1">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-extrabold text-slate-900">4. Field Crew Dispatched</h3>
+                  <h3 className="text-sm font-extrabold text-slate-900">
+                    {isHelpRequest ? "4. Shelter Placement" : "4. Field Crew Dispatched"}
+                  </h3>
                   {hazard.dispatched_at && (
                     <span className="text-[10px] font-semibold text-emerald-600">
                       Dispatched {timeAgo(hazard.dispatched_at)}
@@ -325,7 +333,15 @@ export default function IncidentTrackPage({ params }: { params: Promise<{ id: st
                   )}
                 </div>
                 <p className="mt-0.5 text-xs text-slate-500">
-                  {isDispatched ? (
+                  {isHelpRequest ? (
+                    assignNote ? (
+                      <>
+                        Relief desk placement: <strong className="text-slate-800">{assignNote}</strong>
+                      </>
+                    ) : (
+                      "Relief desk is matching this request to a shelter with free beds."
+                    )
+                  ) : isDispatched ? (
                     <>
                       Assigned unit: <strong className="text-slate-800">{hazard.assigned_crew_name || "CMC Disaster Unit"}</strong>. Mobilized for on-site clearing.
                     </>
@@ -352,8 +368,12 @@ export default function IncidentTrackPage({ params }: { params: Promise<{ id: st
                 </div>
                 <p className="mt-0.5 text-xs text-slate-500">
                   {isResolved
-                    ? "Hazard cleared by field crews. Road reopened and verified safe for public transit."
-                    : "Resolution pending on-site verification."}
+                    ? isHelpRequest
+                      ? assignNote || "Shelter beds reserved. Proceed to the assigned municipal shelter."
+                      : "Hazard cleared by field crews. Road reopened and verified safe for public transit."
+                    : isHelpRequest
+                      ? "Waiting for the relief desk to reserve beds."
+                      : "Resolution pending on-site verification."}
                 </p>
                 {hazard.resolution_notes && (
                   <p className="mt-1 text-xs font-semibold text-emerald-700">
