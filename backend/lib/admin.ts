@@ -1,4 +1,5 @@
 import { getAiSettings, listHazards, saveAiSettings, saveHazard } from "./db";
+import { getSupabase } from "./supabase";
 import type {
   AiSettings,
   BannedReporter,
@@ -8,10 +9,24 @@ import type {
   WardId,
 } from "./types";
 
+export const CORRIDOR_CLOSURE_UUIDS: Record<string, string> = {
+  "corridor-nagalagam": "00000000-0000-4000-a000-000000000001",
+  "corridor-bauddhaloka": "00000000-0000-4000-a000-000000000002",
+  "corridor-olcott": "00000000-0000-4000-a000-000000000003",
+  "corridor-baseline": "00000000-0000-4000-a000-000000000004",
+};
+
+interface AdminGovernanceSnapshot {
+  banned?: BannedReporter[];
+  retune_logs?: RetuneLogEntry[];
+  overrides?: Record<string, { status: "OPEN" | "CLOSED"; reason?: string; closed_at?: string }>;
+}
+
 const globalAdmin = globalThis as typeof globalThis & {
   __bannedReporters?: Map<string, BannedReporter>;
   __retuneLogs?: RetuneLogEntry[];
   __corridorOverrides?: Map<string, { status: "OPEN" | "CLOSED"; reason?: string; closed_at?: string }>;
+  __governanceLoadedAt?: number;
 };
 
 // Seed initial banned reporters for demonstration
@@ -58,7 +73,7 @@ const initialRetuneLogs: RetuneLogEntry[] = [
   },
 ];
 
-const MASTER_CORRIDORS: Array<{
+export const MASTER_CORRIDORS: Array<{
   id: string;
   ward_id: WardId;
   name: string;
@@ -130,11 +145,89 @@ function getCorridorOverrides(): Map<string, { status: "OPEN" | "CLOSED"; reason
   return globalAdmin.__corridorOverrides;
 }
 
+/**
+ * Synchronize admin governance state with Supabase ai_settings (row id: 2).
+ * Refreshes if older than 5 seconds to ensure changes made across lambdas are reflected.
+ */
+async function syncGovernanceFromDb(force = false): Promise<void> {
+  const now = Date.now();
+  if (!force && globalAdmin.__governanceLoadedAt && now - globalAdmin.__governanceLoadedAt < 5000) {
+    return;
+  }
+
+  const supabase = getSupabase();
+  if (!supabase) return;
+
+  try {
+    const { data, error } = await supabase
+      .from("ai_settings")
+      .select("replay")
+      .eq("id", 2)
+      .maybeSingle();
+
+    if (!error && data && data.replay && typeof data.replay === "object") {
+      const snap = data.replay as AdminGovernanceSnapshot;
+      if (Array.isArray(snap.banned)) {
+        const map = new Map<string, BannedReporter>();
+        for (const b of snap.banned) map.set(b.id, b);
+        globalAdmin.__bannedReporters = map;
+      }
+      if (Array.isArray(snap.retune_logs)) {
+        globalAdmin.__retuneLogs = snap.retune_logs;
+      }
+      if (snap.overrides && typeof snap.overrides === "object") {
+        const oMap = new Map<string, { status: "OPEN" | "CLOSED"; reason?: string; closed_at?: string }>();
+        for (const [k, v] of Object.entries(snap.overrides)) oMap.set(k, v);
+        globalAdmin.__corridorOverrides = oMap;
+      }
+      globalAdmin.__governanceLoadedAt = now;
+    } else if (!data) {
+      // Seed row 2 if it does not exist yet
+      await persistGovernanceToDb();
+      globalAdmin.__governanceLoadedAt = now;
+    }
+  } catch (err) {
+    console.warn("syncGovernanceFromDb error:", err);
+  }
+}
+
+/**
+ * Persist admin governance snapshot (banned reporters, retune audit history, corridor overrides)
+ * into Supabase ai_settings table (row id: 2).
+ */
+async function persistGovernanceToDb(): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) return;
+
+  const payload: AdminGovernanceSnapshot = {
+    banned: Array.from(getBannedMap().values()),
+    retune_logs: getRetuneLogs().slice(0, 30),
+    overrides: Object.fromEntries(getCorridorOverrides().entries()),
+  };
+
+  try {
+    const { error } = await supabase.from("ai_settings").upsert({
+      id: 2,
+      confirm_threshold: 0,
+      reject_threshold: 0,
+      replay: payload,
+    });
+    if (error) {
+      console.warn("persistGovernanceToDb error:", error.message);
+    } else {
+      globalAdmin.__governanceLoadedAt = Date.now();
+    }
+  } catch (err) {
+    console.warn("persistGovernanceToDb error:", err);
+  }
+}
+
 /* ========================================================================
  * 1. MODERATION & FALSE REPORTERS
  * ======================================================================== */
 
 export async function listBannedReporters(): Promise<BannedReporter[]> {
+  await syncGovernanceFromDb();
   return Array.from(getBannedMap().values()).sort(
     (a, b) => new Date(b.banned_at).getTime() - new Date(a.banned_at).getTime(),
   );
@@ -142,6 +235,7 @@ export async function listBannedReporters(): Promise<BannedReporter[]> {
 
 export async function isReporterBanned(reporterId: string): Promise<boolean> {
   if (!reporterId) return false;
+  await syncGovernanceFromDb();
   return getBannedMap().has(reporterId);
 }
 
@@ -150,6 +244,7 @@ export async function banReporter(
   deviceLabel = "Unknown Device",
   reason = "Submitted false or unverified hazard reports.",
 ): Promise<BannedReporter> {
+  await syncGovernanceFromDb();
   const banned: BannedReporter = {
     id: reporterId,
     device_label: deviceLabel,
@@ -158,11 +253,17 @@ export async function banReporter(
     flagged_reports_count: 1,
   };
   getBannedMap().set(reporterId, banned);
+  await persistGovernanceToDb();
   return banned;
 }
 
 export async function unbanReporter(reporterId: string): Promise<boolean> {
-  return getBannedMap().delete(reporterId);
+  await syncGovernanceFromDb();
+  const deleted = getBannedMap().delete(reporterId);
+  if (deleted) {
+    await persistGovernanceToDb();
+  }
+  return deleted;
 }
 
 export async function listFlaggedReports(): Promise<HazardRow[]> {
@@ -174,7 +275,7 @@ export async function listFlaggedReports(): Promise<HazardRow[]> {
     const isSuspicious =
       h.description?.toLowerCase().includes("test") ||
       h.description?.toLowerCase().includes("hoax") ||
-      (h.trace && h.trace.steps.some((s) => s.id === "image" && !s.passed));
+      (h.trace && h.trace.steps && h.trace.steps.some((s) => s.id === "image" && !s.passed));
     return lowConfidence || isSuspicious;
   });
 }
@@ -184,25 +285,31 @@ export async function listFlaggedReports(): Promise<HazardRow[]> {
  * ======================================================================== */
 
 export async function listRoadCorridors(): Promise<RoadClosureCorridor[]> {
+  await syncGovernanceFromDb();
   const hazards = await listHazards();
   const overrides = getCorridorOverrides();
 
   return MASTER_CORRIDORS.map((c) => {
     const override = overrides.get(c.id);
-    // Also check if any active hazard at or near this corridor has is_road_blocked = true
+    const closureUuid = CORRIDOR_CLOSURE_UUIDS[c.id];
+
+    // Check if any active hazard at or near this corridor has is_road_blocked = true
     const activeHazardClosure = hazards.find(
       (h) =>
-        h.ward_id === c.ward_id &&
+        (h.id === closureUuid ||
+          (h.ward_id === c.ward_id &&
+            Math.abs(h.lat - c.default_lat) < 0.015 &&
+            Math.abs(h.lng - c.default_lng) < 0.015)) &&
         h.is_road_blocked &&
-        h.status !== "RESOLVED" &&
-        Math.abs(h.lat - c.default_lat) < 0.015 &&
-        Math.abs(h.lng - c.default_lng) < 0.015,
+        h.status !== "RESOLVED",
     );
 
     const isClosed = override ? override.status === "CLOSED" : Boolean(activeHazardClosure);
     const reason =
       override?.reason ||
-      (activeHazardClosure ? `${activeHazardClosure.category}: ${activeHazardClosure.description || "Active hazard obstruction"}` : undefined);
+      (activeHazardClosure
+        ? `${activeHazardClosure.category}: ${activeHazardClosure.description || "Active hazard obstruction"}`
+        : undefined);
     const closed_at = override?.closed_at || activeHazardClosure?.created_at;
 
     return {
@@ -227,14 +334,18 @@ export async function toggleCorridorClosure(
   const corridor = MASTER_CORRIDORS.find((c) => c.id === corridorId);
   if (!corridor) throw new Error(`Corridor ${corridorId} not found`);
 
+  await syncGovernanceFromDb();
   const overrides = getCorridorOverrides();
   const now = new Date().toISOString();
+  const closureUuid = CORRIDOR_CLOSURE_UUIDS[corridorId] || "00000000-0000-4000-a000-000000000001";
 
   if (close) {
     overrides.set(corridorId, { status: "CLOSED", reason, closed_at: now });
-    // Also insert or update a high-priority hazard so public map / safe routes react
+    await persistGovernanceToDb();
+
+    // Insert or update high-priority municipal hazard with valid UUID so public map / safe routes react
     const closureIncident: HazardRow = {
-      id: `closure-${corridorId}`,
+      id: closureUuid,
       lat: corridor.default_lat,
       lng: corridor.default_lng,
       ward_id: corridor.ward_id,
@@ -254,9 +365,11 @@ export async function toggleCorridorClosure(
     await saveHazard(closureIncident);
   } else {
     overrides.set(corridorId, { status: "OPEN" });
-    // Lift closure on existing hazard if present
+    await persistGovernanceToDb();
+
+    // 1. Lift closure on deterministic municipal hazard if present
     const existing = await listHazards();
-    const match = existing.find((h) => h.id === `closure-${corridorId}`);
+    const match = existing.find((h) => h.id === closureUuid);
     if (match) {
       await saveHazard({
         ...match,
@@ -264,6 +377,24 @@ export async function toggleCorridorClosure(
         is_road_blocked: false,
         resolved_at: now,
         officer_note: `${match.officer_note || ""} | Closure lifted by System Admin at ${new Date().toLocaleTimeString()}.`,
+      });
+    }
+
+    // 2. Unblock any active hazards near this corridor that were causing road blockage
+    const nearbyActive = existing.filter(
+      (h) =>
+        h.ward_id === corridor.ward_id &&
+        h.is_road_blocked &&
+        h.status !== "RESOLVED" &&
+        Math.abs(h.lat - corridor.default_lat) < 0.015 &&
+        Math.abs(h.lng - corridor.default_lng) < 0.015,
+    );
+
+    for (const h of nearbyActive) {
+      await saveHazard({
+        ...h,
+        is_road_blocked: false,
+        officer_note: `${h.officer_note || ""} | Road block lifted by Municipal Admin at ${new Date().toLocaleTimeString()}.`,
       });
     }
   }
@@ -277,6 +408,7 @@ export async function toggleCorridorClosure(
  * ======================================================================== */
 
 export async function listRetuneLogs(): Promise<RetuneLogEntry[]> {
+  await syncGovernanceFromDb();
   return [...getRetuneLogs()].sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
   );
@@ -285,16 +417,18 @@ export async function listRetuneLogs(): Promise<RetuneLogEntry[]> {
 export async function recordRetuneLog(
   entry: Omit<RetuneLogEntry, "id" | "timestamp">,
 ): Promise<RetuneLogEntry> {
+  await syncGovernanceFromDb();
   const newLog: RetuneLogEntry = {
     id: `retune-${Date.now().toString(36)}`,
     timestamp: new Date().toISOString(),
     ...entry,
   };
   getRetuneLogs().unshift(newLog);
-  // Keep last 30 logs in memory
+  // Keep last 30 logs
   if (globalAdmin.__retuneLogs && globalAdmin.__retuneLogs.length > 30) {
     globalAdmin.__retuneLogs.length = 30;
   }
+  await persistGovernanceToDb();
   return newLog;
 }
 

@@ -256,7 +256,9 @@ export async function persistReport(body: ReportRequest, result: ReportResponse)
     resolved_at: null,
     closure_photo_url: null,
     parent_incident_id: parentIncidentId,
-    trace: result.trace ?? null,
+    trace: result.trace
+      ? ({ ...result.trace, reporter_id: body.reporter_id || (result.trace as unknown as Record<string, unknown>).reporter_id || null } as PipelineTrace)
+      : (body.reporter_id ? ({ reporter_id: body.reporter_id } as unknown as PipelineTrace) : null),
     summary: result.summary ?? null,
     detected_language: result.detected_language ?? null,
     estimated_water_depth_cm: result.estimated_water_depth_cm ?? null,

@@ -589,13 +589,16 @@ export function AdminConsole({
                       <Button
                         variant="danger"
                         disabled={moderationBusyId === f.id}
-                        onClick={() =>
+                        onClick={() => {
+                          const repId =
+                            ((f.trace as Record<string, unknown> | null)?.reporter_id as string) ||
+                            f.id;
                           handleBanReporter(
-                            f.id,
+                            repId,
                             `Reporter for Incident #${f.id.slice(0, 8)}`,
                             `Submitted fraudulent report #${f.id.slice(0, 8)}: ${f.description || "Image rejected by AI"}`,
-                          )
-                        }
+                          );
+                        }}
                         className="self-start sm:self-auto px-3 py-1.5 text-xs"
                       >
                         <Ban className="h-3.5 w-3.5" />

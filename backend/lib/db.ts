@@ -242,9 +242,6 @@ export async function saveHazard(row: HazardRow) {
     resolved_at: row.resolved_at,
     closure_photo_url: row.closure_photo_url,
   };
-  if (row.audio_url !== undefined) {
-    payload.audio_url = row.audio_url;
-  }
   if (
     OFFICER_NOTE_COLUMN_EXISTS &&
     (row.officer_note !== undefined || row.officer_log !== undefined || row.dispatched_at !== undefined)
@@ -271,29 +268,20 @@ export async function saveHazard(row: HazardRow) {
   if (row.passability !== undefined && row.passability !== null) {
     traceObj.passability = row.passability;
   }
-  if (row.assigned_crew_id !== undefined) {
-    payload.assigned_crew_id = row.assigned_crew_id;
-  }
-  if (row.assigned_crew_name !== undefined) {
-    payload.assigned_crew_name = row.assigned_crew_name;
-  }
   if (Object.keys(traceObj).length > 0) {
     payload.trace = traceObj;
   }
   const { error } = await supabase.from("hazards").upsert(payload);
   if (error) {
     let retried = false;
-    if (/audio_url/i.test(error.message) && payload.audio_url !== undefined) {
+    if (/audio_url|assigned_crew/i.test(error.message)) {
       delete payload.audio_url;
+      delete payload.assigned_crew_id;
+      delete payload.assigned_crew_name;
       retried = true;
     }
     if (/trace/i.test(error.message) && payload.trace !== undefined) {
       delete payload.trace;
-      retried = true;
-    }
-    if (/assigned_crew/i.test(error.message)) {
-      delete payload.assigned_crew_id;
-      delete payload.assigned_crew_name;
       retried = true;
     }
     if (retried) {
