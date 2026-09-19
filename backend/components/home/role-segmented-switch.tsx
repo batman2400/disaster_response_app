@@ -2,6 +2,7 @@
 
 import { Box, HardHat, Users } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { useI18n } from "@/lib/i18n/language-context";
 
 export type FrontlineRole = "citizen" | "crew" | "relief";
 
@@ -16,22 +17,23 @@ export function RoleSegmentedSwitch({
   onChange,
   className,
 }: RoleSegmentedSwitchProps) {
+  const { t } = useI18n();
   const roles: { id: FrontlineRole; label: string; icon: typeof Users; tag: string }[] = [
     {
       id: "citizen",
-      label: "Citizens",
+      label: t("role_citizens"),
       icon: Users,
       tag: "Public",
     },
     {
       id: "crew",
-      label: "Field Crew",
+      label: t("role_field_crew"),
       icon: HardHat,
       tag: "Response",
     },
     {
       id: "relief",
-      label: "Relief Desk",
+      label: t("role_relief_desk"),
       icon: Box,
       tag: "Shelters",
     },

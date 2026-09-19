@@ -4,9 +4,12 @@ import { useEffect, useState } from "react";
 import { AlertCircle, AlertTriangle, Bell, Info, Megaphone, ShieldAlert, X } from "lucide-react";
 import type { BroadcastAlert } from "@/lib/db";
 import { wardShort } from "@/lib/format";
+import { DEFAULT_FLOOD_WATCH_EN } from "@/lib/i18n/home-copy";
+import { useI18n } from "@/lib/i18n/language-context";
 import type { WardId } from "@/lib/types";
 
 export function EmergencyBroadcastBanner({ initialAlert }: { initialAlert?: BroadcastAlert | null }) {
+  const { t } = useI18n();
   const [alert, setAlert] = useState<BroadcastAlert | null>(initialAlert ?? null);
   const [dismissed, setDismissed] = useState(false);
 
@@ -53,20 +56,20 @@ export function EmergencyBroadcastBanner({ initialAlert }: { initialAlert?: Broa
         border: "border-rose-500/30 bg-rose-500 text-white shadow-lg shadow-rose-500/20",
         badge: "bg-white text-rose-700 font-extrabold",
         icon: ShieldAlert,
-        tag: "CRITICAL BROADCAST",
+        tag: t("broadcast_critical"),
       }
     : isWarning
       ? {
           border: "border-amber-400/40 bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20",
           badge: "bg-slate-900 text-amber-300 font-extrabold",
           icon: AlertTriangle,
-          tag: "FLOOD ADVISORY",
+          tag: t("broadcast_flood_advisory"),
         }
       : {
           border: "border-blue-300 bg-blue-600 text-white shadow-md shadow-blue-600/20",
           badge: "bg-white/20 text-white font-bold",
           icon: Megaphone,
-          tag: "CIVIC NOTICE",
+          tag: t("broadcast_civic_notice"),
         };
 
   const Icon = theme.icon;
@@ -90,7 +93,9 @@ export function EmergencyBroadcastBanner({ initialAlert }: { initialAlert?: Broa
             </span>
           ) : null}
           <p className="text-xs font-bold leading-snug sm:text-sm">
-            {alert.message}
+            {alert.message === DEFAULT_FLOOD_WATCH_EN
+              ? t("broadcast_default_flood_watch")
+              : alert.message}
           </p>
         </div>
       </div>
@@ -98,7 +103,7 @@ export function EmergencyBroadcastBanner({ initialAlert }: { initialAlert?: Broa
       <button
         type="button"
         onClick={() => setDismissed(true)}
-        aria-label="Dismiss Alert"
+        aria-label={t("dismiss_alert")}
         className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-black/10 opacity-70 hover:opacity-100 transition-opacity"
       >
         <X className="h-3.5 w-3.5" />

@@ -24,6 +24,7 @@ import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { EmergencyBroadcastBanner } from "@/components/emergency-broadcast-banner";
 import { HomeQuickActions } from "@/components/home-quick-actions";
 import { usePwa } from "@/components/pwa-provider";
+import { useI18n } from "@/lib/i18n/language-context";
 import type { BroadcastAlert } from "@/lib/db";
 import type { DashRole } from "@/lib/dashboard-auth";
 import type { HazardRow, ShelterRow, WardRow } from "@/lib/types";
@@ -45,6 +46,7 @@ export function FrontlineHomeClient({
   signedInRole,
 }: FrontlineHomeClientProps) {
   const { isOnline } = usePwa();
+  const { t } = useI18n();
   const { rows: liveHazards } = useLiveRows({
     table: "hazards",
     initial: hazards,
@@ -113,8 +115,7 @@ export function FrontlineHomeClient({
               />
             </div>
             <h1 className="text-sm font-black tracking-tight text-slate-900 sm:text-lg truncate">
-              <span className="inline sm:hidden">Fender</span>
-              <span className="hidden sm:inline">Fender Response</span>
+              {t("brand_name")}
             </h1>
           </div>
         </div>
@@ -126,22 +127,21 @@ export function FrontlineHomeClient({
           {/* Track Reports Link - responsive text & padding to prevent curved screen cropping */}
           <Link
             href="/report/track"
-            title="Track Disaster Incidents & My Reports"
+            title={t("track_reports")}
             className="flex shrink-0 items-center gap-1 rounded-xl border border-indigo-200 bg-indigo-50 px-2 py-2 sm:px-2.5 sm:py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 hover:text-indigo-900 transition-colors shadow-2xs"
           >
             <Activity className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
-            <span className="hidden min-[400px]:inline sm:hidden">Track</span>
-            <span className="hidden sm:inline">Track Reports</span>
+            <span className="hidden min-[400px]:inline">{t("track_reports")}</span>
           </Link>
 
           {/* Council Desk Link (Desktop discrete link) */}
           <Link
             href="/dashboard/login?role=officer"
-            title="Open Officer Command Console"
+            title={t("command_console")}
             className="hidden sm:flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 shrink-0"
           >
             <Laptop className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-            <span className="hidden md:inline">Command Console</span>
+            <span className="hidden md:inline">{t("command_console")}</span>
           </Link>
         </div>
       </header>
@@ -153,14 +153,14 @@ export function FrontlineHomeClient({
       <div className="mb-5">
         <div className="mb-2 flex items-center justify-between px-1">
           <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">
-            Operations View:
+            {t("operations_view")}
           </span>
           <span className="text-[11px] font-extrabold text-brand">
             {activeRole === "citizen"
-              ? "Public Evacuation & Alert"
+              ? t("view_public_evac")
               : activeRole === "crew"
-              ? "On-Ground Clearance Queue"
-              : "Shelter & Logistics Desk"}
+              ? t("view_crew_queue")
+              : t("view_relief_desk")}
           </span>
         </div>
         <RoleSegmentedSwitch activeRole={activeRole} onChange={handleRoleChange} />
@@ -182,10 +182,10 @@ export function FrontlineHomeClient({
         <div className="flex items-center justify-between">
           <div>
             <h4 className="text-sm font-black text-slate-900">
-              Colombo Municipal Disaster Operations Network
+              {t("ops_network_title")}
             </h4>
             <p className="text-xs text-slate-500">
-              Official coordination hub for Kelani River flood containment and emergency dispatch.
+              {t("ops_network_hint")}
             </p>
           </div>
 
@@ -194,7 +194,7 @@ export function FrontlineHomeClient({
               href="/map"
               className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-700 hover:border-brand hover:text-brand"
             >
-              <span>Full-Screen GIS Map</span>
+              <span>{t("fullscreen_gis")}</span>
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
 
@@ -203,7 +203,7 @@ export function FrontlineHomeClient({
               className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-slate-800"
             >
               <Laptop className="h-3.5 w-3.5 text-blue-400" />
-              <span>Officer Command Desk</span>
+              <span>{t("officer_command_desk")}</span>
             </Link>
           </div>
         </div>
@@ -213,9 +213,9 @@ export function FrontlineHomeClient({
       <footer className="mt-8 border-t border-slate-200/80 pt-5 text-center text-xs text-slate-400">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
-            <span>National Disaster Relief Services (NDRRMS)</span>
+            <span>{t("ndrrms_full")}</span>
             <span>·</span>
-            <span>Colombo Municipal Council</span>
+            <span>{t("cmc_full")}</span>
           </div>
 
           <div className="flex items-center gap-2 text-[11px]">
@@ -223,10 +223,10 @@ export function FrontlineHomeClient({
               href="/dashboard/login?role=officer"
               className="font-bold text-slate-500 hover:text-brand"
             >
-              Staff Portal
+              {t("staff_portal")}
             </Link>
             <span>·</span>
-            <span className="font-semibold text-emerald-600">PWA Offline Enabled</span>
+            <span className="font-semibold text-emerald-600">{t("pwa_offline_enabled")}</span>
           </div>
         </div>
       </footer>

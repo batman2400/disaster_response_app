@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, RefreshCw, Wifi, WifiOff } from "lucide-react";
 import { usePwa } from "@/components/pwa-provider";
+import { useI18n } from "@/lib/i18n/language-context";
 import { syncAllOfflineReports } from "@/lib/offline-queue";
 
 export function OfflineStatusBanner() {
   const { isOnline, pendingOfflineCount } = usePwa();
+  const { t } = useI18n();
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<string | null>(null);
 
@@ -17,13 +19,13 @@ export function OfflineStatusBanner() {
     try {
       const res = await syncAllOfflineReports();
       if (res.success > 0) {
-        setSyncResult(`Synced ${res.success} offline report(s)!`);
+        setSyncResult(t("synced_reports", { count: res.success }));
         setTimeout(() => setSyncResult(null), 4000);
       } else if (res.failed > 0) {
-        setSyncResult(`Failed to sync ${res.failed} report(s).`);
+        setSyncResult(t("sync_failed", { count: res.failed }));
       }
     } catch {
-      setSyncResult("Sync error. Will retry automatically.");
+      setSyncResult(t("sync_error"));
     } finally {
       setSyncing(false);
     }
@@ -61,13 +63,13 @@ export function OfflineStatusBanner() {
         <div>
           <p className="font-extrabold text-[12px]">
             {!isOnline
-              ? "Offline Mode Active"
-              : syncResult || `${pendingOfflineCount} Pending Offline Report(s)`}
+              ? t("offline_mode_active")
+              : syncResult || t("pending_offline_reports", { count: pendingOfflineCount })}
           </p>
           <p className="text-[11px] opacity-85">
             {!isOnline
-              ? "Cached maps and emergency hotlines are fully accessible. Reports will queue safely."
-              : "Connection restored. Reports syncing to municipal response server."}
+              ? t("offline_mode_hint")
+              : t("connection_restored")}
           </p>
         </div>
       </div>
@@ -79,7 +81,7 @@ export function OfflineStatusBanner() {
           className="flex shrink-0 items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 disabled:opacity-50"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
-          <span>{syncing ? "Syncing…" : "Sync Now"}</span>
+          <span>{syncing ? t("syncing") : t("sync_now")}</span>
         </button>
       ) : null}
     </div>

@@ -14,8 +14,8 @@ function interpolate(template: string, vars?: Record<string, string | number>) {
 }
 
 function lookup(lang: SupportedLanguage, key: I18nKey): string {
-  const home = HOME_COPY[lang] as Record<string, string> | undefined;
-  const core = TRANSLATIONS[lang] as Record<string, string> | undefined;
+  const home = HOME_COPY[lang] as unknown as Record<string, string> | undefined;
+  const core = TRANSLATIONS[lang] as unknown as Record<string, string> | undefined;
   return (
     home?.[key] ||
     core?.[key] ||

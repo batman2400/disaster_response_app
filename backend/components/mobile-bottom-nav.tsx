@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Home, Map, Plus, Shield, Users } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { useI18n } from "@/lib/i18n/language-context";
 import { usePwa } from "./pwa-provider";
 
 export function MobileBottomNav({
@@ -15,6 +16,7 @@ export function MobileBottomNav({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { t } = useI18n();
   const { pendingOfflineCount } = usePwa();
 
   const isHome = pathname === "/";
@@ -66,7 +68,7 @@ export function MobileBottomNav({
           )}
         >
           <Home className="h-5 w-5" />
-          <span className="mt-1 text-[10px] font-extrabold">Home</span>
+          <span className="mt-1 text-[10px] font-extrabold">{t("nav_home")}</span>
         </Link>
 
         {/* Live Map */}
@@ -79,7 +81,7 @@ export function MobileBottomNav({
           )}
         >
           <Map className="h-5 w-5" />
-          <span className="mt-1 text-[10px] font-extrabold">Safe Map</span>
+          <span className="mt-1 text-[10px] font-extrabold">{t("nav_safe_map")}</span>
         </Link>
 
         {/* Center Emergency Report Button (Elevated) */}
@@ -109,7 +111,7 @@ export function MobileBottomNav({
           )}
         >
           <Users className="h-5 w-5" />
-          <span className="mt-1 text-[10px] font-extrabold">Family</span>
+          <span className="mt-1 text-[10px] font-extrabold">{t("nav_family")}</span>
         </Link>
 
         {/* Role switch / Desk */}
@@ -123,7 +125,7 @@ export function MobileBottomNav({
         >
           <Shield className="h-5 w-5" />
           <span className="mt-1 text-[10px] font-extrabold">
-            {activeRole === "crew" ? "Crew" : activeRole === "relief" ? "Relief" : "Role"}
+            {activeRole === "crew" ? t("nav_crew") : activeRole === "relief" ? t("nav_relief") : t("nav_role")}
           </span>
         </button>
       </div>

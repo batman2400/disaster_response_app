@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import { Modal } from "./ui/modal";
 import { Button } from "./ui/button";
+import { useI18n } from "@/lib/i18n/language-context";
 import type { DataMuleBeacon, HazardCategory, Urgency, WardId } from "@/lib/types";
 import { nearestWard, WARD_CENTERS } from "@/lib/geo";
 import { WARDS, wardShort } from "@/lib/format";
@@ -25,6 +26,7 @@ export function OfflineSosModal({
   defaultLat = 6.9535,
   defaultLng = 79.8732,
 }: OfflineSosModalProps) {
+  const { t } = useI18n();
   const [wardId, setWardId] = useState<WardId>(defaultWard);
   const [lat, setLat] = useState<number>(defaultLat);
   const [lng, setLng] = useState<number>(defaultLng);
@@ -117,9 +119,9 @@ export function OfflineSosModal({
                 <Radio className="h-5 w-5 animate-pulse" />
               </div>
               <div>
-                <h3 className="text-base font-black tracking-tight">Offline SOS Beacon (Data Mule)</h3>
+                <h3 className="text-base font-black tracking-tight">{t("offline_sos_title")}</h3>
                 <p className="text-[11px] font-bold text-slate-400">
-                  Zero-Connectivity QR Emergency Transmission
+                  {t("offline_sos_subtitle")}
                 </p>
               </div>
             </div>
@@ -151,7 +153,14 @@ export function OfflineSosModal({
                 #{beaconId.slice(0, 14).toUpperCase()}
               </span>
               <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-extrabold text-rose-700 uppercase">
-                {medicalPriority} Urgency
+                {t(
+                  medicalPriority === "CRITICAL"
+                    ? "urgency_critical"
+                    : medicalPriority === "MEDIUM"
+                      ? "urgency_medium"
+                      : "urgency_low",
+                )}{" "}
+                {t("urgency_suffix")}
               </span>
             </div>
 
@@ -160,12 +169,12 @@ export function OfflineSosModal({
               {gpsStatus === "live" ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-black text-emerald-800 border border-emerald-300">
                   <MapPin className="h-3 w-3 text-emerald-600" />
-                  <span>Live GPS: {lat.toFixed(4)}, {lng.toFixed(4)}</span>
+                  <span>{t("live_gps", { lat: lat.toFixed(4), lng: lng.toFixed(4) })}</span>
                 </span>
               ) : gpsStatus === "detecting" ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-black text-amber-800 border border-amber-300">
                   <Loader2 className="h-3 w-3 animate-spin text-amber-600" />
-                  <span>Locking GPS Satellites...</span>
+                  <span>{t("locking_gps")}</span>
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2.5 py-0.5 text-[10px] font-bold text-slate-700">
@@ -181,12 +190,12 @@ export function OfflineSosModal({
                 title="Re-acquire current satellite GPS"
               >
                 <RefreshCw className="h-2.5 w-2.5" />
-                <span>Refresh GPS</span>
+                <span>{t("refresh_gps")}</span>
               </button>
             </div>
 
             <p className="mt-1 text-[11px] font-semibold text-slate-500">
-              Sector: {wardShort(wardId)} · Headcount: {peopleCount} Persons
+              {t("sector_headcount", { ward: wardShort(wardId), count: peopleCount })}
             </p>
           </div>
 
@@ -195,9 +204,9 @@ export function OfflineSosModal({
             <div className="flex items-start gap-2.5">
               <ShieldAlert className="h-4.5 w-4.5 text-purple-600 shrink-0 mt-0.5" />
               <div className="space-y-1">
-                <p className="font-extrabold text-purple-950">How This Rescues You When Cell Towers Fail:</p>
+                <p className="font-extrabold text-purple-950">{t("offline_sos_how")}</p>
                 <p className="font-medium leading-relaxed text-purple-800 text-[11px] sm:text-xs">
-                  Show this screen to any <strong>rescue boat, army personnel, or municipal crew</strong>. Their device will scan and store your SOS token locally as a <strong>"Data Mule"</strong>. The moment their vehicle reaches cell range, your emergency details are instantly relayed to the Colombo Municipal Command Center.
+                  {t("offline_sos_how_body")}
                 </p>
               </div>
             </div>
@@ -206,13 +215,13 @@ export function OfflineSosModal({
           {/* 3. Rapid Tweak Controls */}
           <div className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50/70 p-3.5 sm:p-4">
             <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">
-              Beacon Telemetry Tuning
+              {t("beacon_telemetry")}
             </h4>
 
             {/* Ward / Sector Selector */}
             <div>
               <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                Your Sector / Ward Area
+                {t("your_sector")}
               </label>
               <select
                 value={wardId}
@@ -229,7 +238,7 @@ export function OfflineSosModal({
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">Estimated People</label>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">{t("estimated_people")}</label>
                 <div className="flex items-center gap-2">
                   <input
                     type="number"
@@ -243,27 +252,27 @@ export function OfflineSosModal({
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">Medical Condition</label>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">{t("medical_condition")}</label>
                 <select
                   value={medicalPriority}
                   onChange={(e) => setMedicalPriority(e.target.value as Urgency)}
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-900"
                 >
-                  <option value="CRITICAL">Critical / Elderly / Infant</option>
-                  <option value="MEDIUM">Standard / Trapped</option>
-                  <option value="LOW">Shelter Relocation Only</option>
+                  <option value="CRITICAL">{t("medical_critical")}</option>
+                  <option value="MEDIUM">{t("medical_medium")}</option>
+                  <option value="LOW">{t("medical_low")}</option>
                 </select>
               </div>
             </div>
 
             <div>
-              <label className="text-[11px] font-bold text-slate-600 block mb-1">Stranded Situation Note</label>
+              <label className="text-[11px] font-bold text-slate-600 block mb-1">{t("stranded_note")}</label>
               <textarea
                 rows={2}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-medium text-slate-900"
-                placeholder="Briefly describe situation (e.g. on roof, water 4 feet high)..."
+                placeholder={t("stranded_placeholder")}
               />
             </div>
           </div>
@@ -272,10 +281,10 @@ export function OfflineSosModal({
         {/* Footer (shrink-0) */}
         <div className="shrink-0 border-t border-slate-100 bg-slate-50 px-4 py-3 sm:px-6 sm:py-3.5 flex items-center justify-between gap-2">
           <p className="text-[11px] font-semibold text-slate-500 truncate">
-            Keep screen bright for passing responders
+            {t("keep_screen_bright")}
           </p>
           <Button type="button" variant="gradient" onClick={onClose} className="px-5 py-2 text-xs font-extrabold shrink-0">
-            Done
+            {t("done")}
           </Button>
         </div>
       </div>

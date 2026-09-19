@@ -21,6 +21,7 @@ import {
   Zap,
 } from "lucide-react";
 import { OfflineSosModal } from "@/components/offline-sos-modal";
+import { useI18n, type I18nKey } from "@/lib/i18n/language-context";
 import type { HazardRow, ShelterRow, WardRow } from "@/lib/types";
 
 interface CitizenMobileViewProps {
@@ -30,6 +31,7 @@ interface CitizenMobileViewProps {
 }
 
 export function CitizenMobileView({ shelters, hazards, wards }: CitizenMobileViewProps) {
+  const { t } = useI18n();
   const [offlineSosOpen, setOfflineSosOpen] = useState(false);
   const [activeGuide, setActiveGuide] = useState<number | null>(null);
 
@@ -45,34 +47,30 @@ export function CitizenMobileView({ shelters, hazards, wards }: CitizenMobileVie
     (w) => w.river_level_pct > 70 || w.status === "CRITICAL" || w.status === "WATCH"
   );
 
-  const GUIDES = [
+  const GUIDES: { titleKey: I18nKey; bodyKey: I18nKey; icon: typeof Zap; color: string }[] = [
     {
-      title: "1. Turn Off Electrical Mains",
+      titleKey: "guide_electrical_title",
+      bodyKey: "guide_electrical_body",
       icon: Zap,
       color: "text-amber-600 bg-amber-50 border-amber-200",
-      content:
-        "If floodwaters approach power outlets, switch off the main trip switch immediately. Never step into standing water if electrical lines or appliances are submerged. Report live sparks to CEB Breakdown at 1987.",
     },
     {
-      title: "2. Clean Drinking Water Protocol",
+      titleKey: "guide_water_title",
+      bodyKey: "guide_water_body",
       icon: Droplet,
       color: "text-blue-600 bg-blue-50 border-blue-200",
-      content:
-        "Tap and well water during Colombo floods can carry Leptospirosis (rat fever) and sewage contaminants. Boil water vigorously for at least 3 minutes, or use chlorine purification tablets before drinking or cooking.",
     },
     {
-      title: "3. Emergency Grab Bag Checklist",
+      titleKey: "guide_grabbag_title",
+      bodyKey: "guide_grabbag_body",
       icon: LifeBuoy,
       color: "text-emerald-600 bg-emerald-50 border-emerald-200",
-      content:
-        "Pack in waterproof polythene: National ID/Passports, daily prescription medicines, battery powerbank, torch/whistle, 2 days dry rations (biscuits/canned), and oral rehydration salts.",
     },
     {
-      title: "4. Wildlife & Submerged Obstacles",
+      titleKey: "guide_wildlife_title",
+      bodyKey: "guide_wildlife_body",
       icon: AlertTriangle,
       color: "text-rose-600 bg-rose-50 border-rose-200",
-      content:
-        "Heavy Kelani water currents flush snakes and sharp debris into urban roads. Wear rubber boots if wading is unavoidable. Probe water depth with a stick before advancing.",
     },
   ];
 
@@ -87,11 +85,11 @@ export function CitizenMobileView({ shelters, hazards, wards }: CitizenMobileVie
               <span className="relative inline-flex h-2 w-2 rounded-full bg-rose-600" />
             </span>
             <span className="text-[11px] font-black uppercase tracking-wider text-rose-800">
-              Immediate Emergency Lifeline
+              {t("emergency_lifeline")}
             </span>
           </div>
           <span className="rounded-md bg-white/80 px-2 py-0.5 text-[10px] font-bold text-rose-700">
-            Toll-Free 24/7
+            {t("toll_free")}
           </span>
         </div>
 
@@ -101,7 +99,7 @@ export function CitizenMobileView({ shelters, hazards, wards }: CitizenMobileVie
             className="flex items-center justify-center gap-1.5 rounded-2xl bg-rose-600 px-3 py-2.5 text-xs font-black text-white shadow-sm transition-transform active:scale-95 touch-manipulation"
           >
             <ShieldAlert className="h-4 w-4" />
-            <span>Call DMC 117</span>
+            <span>{t("call_dmc")}</span>
           </a>
 
           <a
@@ -109,7 +107,7 @@ export function CitizenMobileView({ shelters, hazards, wards }: CitizenMobileVie
             className="flex items-center justify-center gap-1.5 rounded-2xl border border-rose-300 bg-white px-3 py-2.5 text-xs font-extrabold text-rose-800 shadow-xs transition-transform active:scale-95 touch-manipulation"
           >
             <HeartPulse className="h-4 w-4 text-emerald-600" />
-            <span>Ambulance 1990</span>
+            <span>{t("ambulance")}</span>
           </a>
 
           <a
@@ -117,7 +115,7 @@ export function CitizenMobileView({ shelters, hazards, wards }: CitizenMobileVie
             className="flex items-center justify-center gap-1.5 rounded-2xl border border-rose-200 bg-rose-100/60 px-3 py-2.5 text-xs font-extrabold text-rose-900 transition-transform active:scale-95 touch-manipulation"
           >
             <PhoneCall className="h-4 w-4 text-blue-600" />
-            <span>Police 119</span>
+            <span>{t("police")}</span>
           </a>
 
           <button
@@ -126,7 +124,7 @@ export function CitizenMobileView({ shelters, hazards, wards }: CitizenMobileVie
             className="flex items-center justify-center gap-1.5 rounded-2xl border border-indigo-200 bg-indigo-50 px-3 py-2.5 text-xs font-extrabold text-indigo-800 transition-transform active:scale-95 touch-manipulation"
           >
             <QrCode className="h-4 w-4 text-indigo-600" />
-            <span>Offline QR SOS</span>
+            <span>{t("offline_qr_sos")}</span>
           </button>
         </div>
       </div>
@@ -138,15 +136,15 @@ export function CitizenMobileView({ shelters, hazards, wards }: CitizenMobileVie
             <Search className="h-5 w-5" />
           </div>
           <div>
-            <h4 className="text-xs font-extrabold text-slate-900">Track Incident Reports</h4>
-            <p className="text-[11px] text-slate-500">Check live progress using your #CLM reference code</p>
+            <h4 className="text-xs font-extrabold text-slate-900">{t("track_incident_reports")}</h4>
+            <p className="text-[11px] text-slate-500">{t("track_incident_hint")}</p>
           </div>
         </div>
         <Link
           href="/report/track"
           className="flex items-center gap-1 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-extrabold text-brand transition-colors hover:bg-blue-100 active:scale-95 touch-manipulation"
         >
-          <span>Track Now</span>
+          <span>{t("track_now")}</span>
           <ArrowRight className="h-3.5 w-3.5" />
         </Link>
       </div>
@@ -163,17 +161,17 @@ export function CitizenMobileView({ shelters, hazards, wards }: CitizenMobileVie
               <Smartphone className="h-6 w-6 text-white" />
             </div>
             <span className="rounded-full bg-white/20 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-blue-100">
-              Instant Triage
+              {t("instant_triage")}
             </span>
             <h3 className="mt-1.5 text-base font-black tracking-tight sm:text-lg">
-              Report Hazard
+              {t("report_hazard")}
             </h3>
             <p className="mt-0.5 text-xs text-blue-100 leading-snug">
-              Photo AI verify, GPS pin, & offline queue.
+              {t("report_hazard_hint")}
             </p>
           </div>
           <div className="mt-4 flex items-center gap-1 text-xs font-extrabold text-white">
-            <span>Submit Now</span>
+            <span>{t("submit_now")}</span>
             <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
           </div>
         </Link>
@@ -188,17 +186,17 @@ export function CitizenMobileView({ shelters, hazards, wards }: CitizenMobileVie
               <Waves className="h-6 w-6" />
             </div>
             <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-amber-800">
-              {roadBlocks} Blocked Routes
+              {t("blocked_routes", { count: roadBlocks })}
             </span>
             <h3 className="mt-1.5 text-base font-black tracking-tight text-slate-900 sm:text-lg">
-              Safe Evac Map
+              {t("safe_evac_map")}
             </h3>
             <p className="mt-0.5 text-xs text-slate-500 leading-snug">
-              Avoid flood levels and find high-ground exits.
+              {t("safe_evac_hint")}
             </p>
           </div>
           <div className="mt-4 flex items-center gap-1 text-xs font-extrabold text-brand">
-            <span>Explore Map</span>
+            <span>{t("explore_map")}</span>
             <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
           </div>
         </Link>
@@ -213,17 +211,17 @@ export function CitizenMobileView({ shelters, hazards, wards }: CitizenMobileVie
               <Bed className="h-6 w-6" />
             </div>
             <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-emerald-800">
-              {availableBeds} Free Beds
+              {t("free_beds_count", { count: availableBeds })}
             </span>
             <h3 className="mt-1.5 text-base font-black tracking-tight text-slate-900 sm:text-lg">
-              Open Shelters
+              {t("open_shelters")}
             </h3>
             <p className="mt-0.5 text-xs text-slate-500 leading-snug">
-              {shelters.length} CMC evacuation centers ready.
+              {t("shelters_ready", { count: shelters.length })}
             </p>
           </div>
           <div className="mt-4 flex items-center gap-1 text-xs font-extrabold text-emerald-700">
-            <span>View Capacity</span>
+            <span>{t("view_capacity")}</span>
             <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
           </div>
         </Link>
@@ -238,17 +236,17 @@ export function CitizenMobileView({ shelters, hazards, wards }: CitizenMobileVie
               <Users className="h-6 w-6" />
             </div>
             <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-sky-800">
-              Reunification
+              {t("reunification")}
             </span>
             <h3 className="mt-1.5 text-base font-black tracking-tight text-slate-900 sm:text-lg">
-              "I'm Safe" Portal
+              {t("im_safe_portal")}
             </h3>
             <p className="mt-0.5 text-xs text-slate-500 leading-snug">
-              Mark yourself safe or search for family.
+              {t("im_safe_hint")}
             </p>
           </div>
           <div className="mt-4 flex items-center gap-1 text-xs font-extrabold text-sky-700">
-            <span>Check In</span>
+            <span>{t("check_in")}</span>
             <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
           </div>
         </Link>
@@ -260,17 +258,17 @@ export function CitizenMobileView({ shelters, hazards, wards }: CitizenMobileVie
           <div className="flex items-center gap-2">
             <Waves className="h-5 w-5 text-brand" />
             <h4 className="text-sm font-black text-slate-900">
-              Kelani River Basin Live Pulse
+              {t("kelani_live_pulse")}
             </h4>
           </div>
           <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-extrabold text-amber-800">
-            Minor Flood Watch
+            {t("minor_flood_watch")}
           </span>
         </div>
 
         <div className="mt-3 flex items-center justify-between text-xs font-bold text-slate-600">
-          <span>Nagalagam Street Gauge: 4.8m</span>
-          <span className="text-amber-600">Threshold: 5.0m</span>
+          <span>{t("nagalagam_gauge")}</span>
+          <span className="text-amber-600">{t("flood_threshold")}</span>
         </div>
 
         {/* Gauge bar */}
@@ -283,8 +281,8 @@ export function CitizenMobileView({ shelters, hazards, wards }: CitizenMobileVie
 
         <p className="mt-2 text-[11px] text-slate-500">
           {highRiskWards.length > 0
-            ? `${highRiskWards.map((w) => w.name).join(", ")} under continuous IoT monitor.`
-            : "All wards operating under standard drainage flow."}
+            ? t("pulse_monitor", { wards: highRiskWards.map((w) => w.name).join(", ") })
+            : t("pulse_all_clear")}
         </p>
       </div>
 
@@ -293,14 +291,14 @@ export function CitizenMobileView({ shelters, hazards, wards }: CitizenMobileVie
         <div className="mb-3 flex items-center justify-between">
           <div>
             <h4 className="text-sm font-black text-slate-900">
-              Offline First-Aid & Flood Safety
+              {t("offline_first_aid")}
             </h4>
             <p className="text-[11px] text-slate-500">
-              Stored locally on your phone for zero-connectivity situations.
+              {t("offline_first_aid_hint")}
             </p>
           </div>
           <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-            Cached
+            {t("cached")}
           </span>
         </div>
 
@@ -324,7 +322,7 @@ export function CitizenMobileView({ shelters, hazards, wards }: CitizenMobileVie
                     >
                       <Icon className="h-4 w-4" />
                     </div>
-                    <span>{item.title}</span>
+                    <span>{t(item.titleKey)}</span>
                   </div>
                   {isOpen ? (
                     <ChevronUp className="h-4 w-4 text-slate-400" />
@@ -334,7 +332,7 @@ export function CitizenMobileView({ shelters, hazards, wards }: CitizenMobileVie
                 </button>
                 {isOpen ? (
                   <div className="px-4 pb-3.5 pt-1 text-[12px] leading-relaxed text-slate-600 border-t border-slate-200/50">
-                    {item.content}
+                    {t(item.bodyKey)}
                   </div>
                 ) : null}
               </div>
